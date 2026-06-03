@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="IBUY.BD/IBUY.BD.csproj" />
+  <Project Path="IBUY.Cliente/IBUY.Cliente.csproj" />
+  <Project Path="IBUY.Repository/IBUY.Repository.csproj" />
+  <Project Path="IBUY.Server/IBUY.Server.csproj" />
+  <Project Path="IBUY.Servicios/IBUY.Servicios.csproj" />
+  <Project Path="IBUY.Shared/IBUY.Shared.csproj" />
+</Solution>
