@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace IBUY.Shared
+namespace IBUY.BD
 {
     public class Usuario : EntityBase
     {
@@ -21,9 +21,9 @@ namespace IBUY.Shared
 
         public bool Estado { get; set; } = true;
 
-        public int EmpresaId { get; set; } 
+        public int EmpresaId { get; set; }
 
-        public required Empresa Empresa { get; set; }  
+        public required Empresa Empresa { get; set; }
 
     }
 }
