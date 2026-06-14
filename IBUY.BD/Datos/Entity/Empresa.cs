@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace IBUY.BD
+namespace IBUY.BD.Datos.Entity
 {
     public class Empresa : EntityBase
     {
