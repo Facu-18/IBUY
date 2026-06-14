@@ -1,0 +1,27 @@
+﻿using Proyecto2026.BD.Datos;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace IBUY.BD.Datos.Entity
+{
+    public class Stock
+    {
+        public class Deposito : EntityBase
+        {
+
+            public string Nombre { get; set; }
+
+            string Tipo { get; set; }
+
+            public string Direccion { get; set; }
+
+            public bool Activo { get; set; }
+
+            public int EmpresaId { get; set; }
+
+            public Empresa Empresa { get; set; }
+
+        }
+    }
+}
