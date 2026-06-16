@@ -12,7 +12,7 @@ using Proyecto2026.BD.Datos;
 namespace IBUY.BD.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260616150243_Inicio")]
+    [Migration("20260616151404_Inicio")]
     partial class Inicio
     {
         /// <inheritdoc />
