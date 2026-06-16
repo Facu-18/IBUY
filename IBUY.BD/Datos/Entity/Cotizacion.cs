@@ -2,11 +2,10 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using Microsoft.EntityFrameworkCore;
 
 namespace IBUY.BD.Datos.Entity
 {
-    public class Cotización
-    {
         public class Cotizacion : EntityBase
         {
 
@@ -18,12 +17,13 @@ namespace IBUY.BD.Datos.Entity
 
             public int NotaPedidoId { get; set; }
 
+            [DeleteBehavior(DeleteBehavior.NoAction)]
             public NotaPedido NotaPedido { get; set; }
 
             public int EmpresaProveedoraId { get; set; }
 
+            [DeleteBehavior(DeleteBehavior.NoAction)]
             public Empresa EmpresaProveedora { get; set; }
 
-        }
     }
 }

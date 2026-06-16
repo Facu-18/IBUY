@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using Microsoft.EntityFrameworkCore;
 
 namespace IBUY.BD.Datos.Entity
 {
@@ -18,18 +19,24 @@ namespace IBUY.BD.Datos.Entity
 
         public int EmpresaId { get; set; }
 
+
+        [DeleteBehavior(DeleteBehavior.NoAction)]
         public Empresa Empresa { get; set; }
 
         public int UsuarioId { get; set; } // creador 
 
+        [DeleteBehavior(DeleteBehavior.NoAction)]
         public Usuario Usuario { get; set; }
 
         public int? AprobadoPorId { get; set; } // aprobador
 
+        [DeleteBehavior(DeleteBehavior.NoAction)]
         public Usuario AprobadoPor { get; set; }
 
         public int? NecesidadId { get; set; }
 
+
+        [DeleteBehavior(DeleteBehavior.NoAction)]
         public Necesidad Necesidad { get; set; }
 
     }

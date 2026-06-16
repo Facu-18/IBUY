@@ -2,26 +2,27 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using Microsoft.EntityFrameworkCore;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace IBUY.BD.Datos.Entity
 {
-    public class Stock
+    public class Stock : EntityBase
     {
-        public class Deposito : EntityBase
-        {
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal CantidadActual { get; set; }
 
-            public string Nombre { get; set; }
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal CantidadMinima { get; set; }
 
-            string Tipo { get; set; }
+        public int DepositoId { get; set; }
 
-            public string Direccion { get; set; }
+        [DeleteBehavior(DeleteBehavior.NoAction)]
+        public Deposito Deposito { get; set; }
 
-            public bool Activo { get; set; }
+        public int ProductoId { get; set; }
 
-            public int EmpresaId { get; set; }
-
-            public Empresa Empresa { get; set; }
-
-        }
+        [DeleteBehavior(DeleteBehavior.NoAction)]
+        public Producto Producto { get; set; }
     }
 }
