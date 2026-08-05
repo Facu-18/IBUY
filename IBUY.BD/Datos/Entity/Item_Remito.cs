@@ -8,7 +8,7 @@ namespace IBUY.BD.Datos.Entity
     public class ItemRemito : EntityBase
     {
 
-        public decimal Cantidad { get; set; }
+        public int Cantidad { get; set; }
 
         public int RemitoId { get; set; }
 

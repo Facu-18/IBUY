@@ -7,7 +7,20 @@ string connectionString = builder.Configuration.GetConnectionString("ConnSqlServ
     ?? throw new InvalidOperationException("No existe la conexión con la base de datos.");
 
 builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(connectionString));
+builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+
+app.UseHttpsRedirection();
+app.UseBlazorFrameworkFiles();
+app.UseStaticFiles();
+
+app.UseSwagger();
+app.UseSwaggerUI();
+
+app.MapControllers();
+app.MapFallbackToFile("index.html");
 
 app.Run();

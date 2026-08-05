@@ -241,6 +241,54 @@ namespace IBUY.BD.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "Remitos",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Tipo = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Numero = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    FechaEmision = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    FechaRecepcion = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    EmpresaId = table.Column<int>(type: "int", nullable: false),
+                    UsuarioId = table.Column<int>(type: "int", nullable: false),
+                    CotizacionId = table.Column<int>(type: "int", nullable: true),
+                    DepositoOrigenId = table.Column<int>(type: "int", nullable: true),
+                    DepositoDestinoId = table.Column<int>(type: "int", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Remitos", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Remitos_Cotizaciones_CotizacionId",
+                        column: x => x.CotizacionId,
+                        principalTable: "Cotizaciones",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_Remitos_Depositos_DepositoDestinoId",
+                        column: x => x.DepositoDestinoId,
+                        principalTable: "Depositos",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_Remitos_Depositos_DepositoOrigenId",
+                        column: x => x.DepositoOrigenId,
+                        principalTable: "Depositos",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_Remitos_Empresas_EmpresaId",
+                        column: x => x.EmpresaId,
+                        principalTable: "Empresas",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_Remitos_Usuarios_UsuarioId",
+                        column: x => x.UsuarioId,
+                        principalTable: "Usuarios",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "ItemsCotizaciones",
                 columns: table => new
                 {
@@ -267,6 +315,33 @@ namespace IBUY.BD.Migrations
                         principalColumn: "Id");
                 });
 
+            migrationBuilder.CreateTable(
+                name: "ItemRemitos",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Cantidad = table.Column<int>(type: "int", nullable: false),
+                    RemitoId = table.Column<int>(type: "int", nullable: false),
+                    ProductoId = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ItemRemitos", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ItemRemitos_Productos_ProductoId",
+                        column: x => x.ProductoId,
+                        principalTable: "Productos",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_ItemRemitos_Remitos_RemitoId",
+                        column: x => x.RemitoId,
+                        principalTable: "Remitos",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
             migrationBuilder.CreateIndex(
                 name: "IX_Cotizaciones_EmpresaProveedoraId",
                 table: "Cotizaciones",
@@ -281,6 +356,16 @@ namespace IBUY.BD.Migrations
                 name: "IX_Depositos_EmpresaId",
                 table: "Depositos",
                 column: "EmpresaId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ItemRemitos_ProductoId",
+                table: "ItemRemitos",
+                column: "ProductoId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ItemRemitos_RemitoId",
+                table: "ItemRemitos",
+                column: "RemitoId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_ItemsCotizaciones_CotizacionId",
@@ -338,6 +423,31 @@ namespace IBUY.BD.Migrations
                 column: "EmpresaId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Remitos_CotizacionId",
+                table: "Remitos",
+                column: "CotizacionId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Remitos_DepositoDestinoId",
+                table: "Remitos",
+                column: "DepositoDestinoId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Remitos_DepositoOrigenId",
+                table: "Remitos",
+                column: "DepositoOrigenId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Remitos_EmpresaId",
+                table: "Remitos",
+                column: "EmpresaId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Remitos_UsuarioId",
+                table: "Remitos",
+                column: "UsuarioId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Stocks_DepositoId",
                 table: "Stocks",
                 column: "DepositoId");
@@ -357,16 +467,22 @@ namespace IBUY.BD.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
+                name: "ItemRemitos");
+
+            migrationBuilder.DropTable(
                 name: "ItemsCotizaciones");
 
             migrationBuilder.DropTable(
                 name: "Stocks");
 
             migrationBuilder.DropTable(
-                name: "Cotizaciones");
+                name: "Remitos");
 
             migrationBuilder.DropTable(
                 name: "ItemsNotas");
+
+            migrationBuilder.DropTable(
+                name: "Cotizaciones");
 
             migrationBuilder.DropTable(
                 name: "NotasPedidos");

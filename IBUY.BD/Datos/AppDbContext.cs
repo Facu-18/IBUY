@@ -27,6 +27,8 @@ namespace Proyecto2026.BD.Datos
            
         public DbSet<ItemNota> ItemsNotas { get; set; }
 
+        public  DbSet<Remito> Remitos { get; set; }
+        public DbSet<ItemRemito> ItemRemitos { get; set; }
 
         public AppDbContext(DbContextOptions options) : base(options)
         {

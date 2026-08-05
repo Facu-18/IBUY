@@ -12,7 +12,7 @@ using Proyecto2026.BD.Datos;
 namespace IBUY.BD.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260616151404_Inicio")]
+    [Migration("20260805123600_Inicio")]
     partial class Inicio
     {
         /// <inheritdoc />
@@ -186,6 +186,32 @@ namespace IBUY.BD.Migrations
                     b.ToTable("ItemsNotas");
                 });
 
+            modelBuilder.Entity("IBUY.BD.Datos.Entity.ItemRemito", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Cantidad")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ProductoId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("RemitoId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductoId");
+
+                    b.HasIndex("RemitoId");
+
+                    b.ToTable("ItemRemitos");
+                });
+
             modelBuilder.Entity("IBUY.BD.Datos.Entity.Necesidad", b =>
                 {
                     b.Property<int>("Id")
@@ -294,6 +320,58 @@ namespace IBUY.BD.Migrations
                     b.HasIndex("EmpresaId");
 
                     b.ToTable("Productos");
+                });
+
+            modelBuilder.Entity("IBUY.BD.Datos.Entity.Remito", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("CotizacionId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("DepositoDestinoId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("DepositoOrigenId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("FechaEmision")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("FechaRecepcion")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Numero")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Tipo")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("UsuarioId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CotizacionId");
+
+                    b.HasIndex("DepositoDestinoId");
+
+                    b.HasIndex("DepositoOrigenId");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.HasIndex("UsuarioId");
+
+                    b.ToTable("Remitos");
                 });
 
             modelBuilder.Entity("IBUY.BD.Datos.Entity.Stock", b =>
@@ -430,6 +508,25 @@ namespace IBUY.BD.Migrations
                     b.Navigation("Producto");
                 });
 
+            modelBuilder.Entity("IBUY.BD.Datos.Entity.ItemRemito", b =>
+                {
+                    b.HasOne("IBUY.BD.Datos.Entity.Producto", "Producto")
+                        .WithMany()
+                        .HasForeignKey("ProductoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("IBUY.BD.Datos.Entity.Remito", "Remito")
+                        .WithMany()
+                        .HasForeignKey("RemitoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Producto");
+
+                    b.Navigation("Remito");
+                });
+
             modelBuilder.Entity("IBUY.BD.Datos.Entity.Necesidad", b =>
                 {
                     b.HasOne("IBUY.BD.Datos.Entity.Deposito", "Deposito")
@@ -491,6 +588,43 @@ namespace IBUY.BD.Migrations
                         .IsRequired();
 
                     b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("IBUY.BD.Datos.Entity.Remito", b =>
+                {
+                    b.HasOne("IBUY.BD.Datos.Entity.Cotizacion", "Cotizacion")
+                        .WithMany()
+                        .HasForeignKey("CotizacionId");
+
+                    b.HasOne("IBUY.BD.Datos.Entity.Deposito", "DepositoDestino")
+                        .WithMany()
+                        .HasForeignKey("DepositoDestinoId");
+
+                    b.HasOne("IBUY.BD.Datos.Entity.Deposito", "DepositoOrigen")
+                        .WithMany()
+                        .HasForeignKey("DepositoOrigenId");
+
+                    b.HasOne("IBUY.BD.Datos.Entity.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("IBUY.BD.Datos.Entity.Usuario", "Usuario")
+                        .WithMany()
+                        .HasForeignKey("UsuarioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Cotizacion");
+
+                    b.Navigation("DepositoDestino");
+
+                    b.Navigation("DepositoOrigen");
+
+                    b.Navigation("Empresa");
+
+                    b.Navigation("Usuario");
                 });
 
             modelBuilder.Entity("IBUY.BD.Datos.Entity.Stock", b =>
