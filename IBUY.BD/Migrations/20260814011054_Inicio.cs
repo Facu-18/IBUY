@@ -17,11 +17,11 @@ namespace IBUY.BD.Migrations
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    RazonSocial = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Rubro = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Cuit = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Email = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Tipo = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    RazonSocial = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    Rubro = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    Cuit = table.Column<string>(type: "nvarchar(13)", maxLength: 13, nullable: false),
+                    Email = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    Tipo = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
                     Activo = table.Column<bool>(type: "bit", nullable: false)
                 },
                 constraints: table =>
@@ -35,9 +35,9 @@ namespace IBUY.BD.Migrations
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    Nombre = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Tipo = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Direccion = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Nombre = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    Tipo = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    Direccion = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
                     Activo = table.Column<bool>(type: "bit", nullable: false),
                     EmpresaId = table.Column<int>(type: "int", nullable: false)
                 },
@@ -57,9 +57,9 @@ namespace IBUY.BD.Migrations
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    Nombre = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Descripcion = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Categoria = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Nombre = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    Descripcion = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false),
+                    Categoria = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
                     EmpresaId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
@@ -78,10 +78,10 @@ namespace IBUY.BD.Migrations
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    Nombre = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Email = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Contrasena = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Rol = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Nombre = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    Email = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    Contrasena = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    Rol = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false),
                     Estado = table.Column<bool>(type: "bit", nullable: false),
                     EmpresaId = table.Column<int>(type: "int", nullable: false)
                 },
@@ -103,7 +103,7 @@ namespace IBUY.BD.Migrations
                         .Annotation("SqlServer:Identity", "1, 1"),
                     CantidadRequerida = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     FechaRequerida = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    Estado = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Estado = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
                     DepositoId = table.Column<int>(type: "int", nullable: false),
                     ProductoId = table.Column<int>(type: "int", nullable: false)
                 },
@@ -154,10 +154,10 @@ namespace IBUY.BD.Migrations
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    Estado = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Estado = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
                     FechaEmision = table.Column<DateTime>(type: "datetime2", nullable: false),
                     FechaVencimiento = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    Observaciones = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Observaciones = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false),
                     EmpresaId = table.Column<int>(type: "int", nullable: false),
                     UsuarioId = table.Column<int>(type: "int", nullable: false),
                     AprobadoPorId = table.Column<int>(type: "int", nullable: true),
@@ -194,8 +194,8 @@ namespace IBUY.BD.Migrations
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    Estado = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    PlazoEntrega = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Estado = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
+                    PlazoEntrega = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
                     FechaEnvio = table.Column<DateTime>(type: "datetime2", nullable: false),
                     NotaPedidoId = table.Column<int>(type: "int", nullable: false),
                     EmpresaProveedoraId = table.Column<int>(type: "int", nullable: false)
@@ -246,8 +246,8 @@ namespace IBUY.BD.Migrations
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    Tipo = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Numero = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Tipo = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
+                    Numero = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
                     FechaEmision = table.Column<DateTime>(type: "datetime2", nullable: false),
                     FechaRecepcion = table.Column<DateTime>(type: "datetime2", nullable: false),
                     EmpresaId = table.Column<int>(type: "int", nullable: false),
