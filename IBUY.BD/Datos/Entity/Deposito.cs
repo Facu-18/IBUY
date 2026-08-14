@@ -1,6 +1,7 @@
-﻿using Proyecto2026.BD.Datos;
+using Proyecto2026.BD.Datos;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,14 +10,21 @@ namespace IBUY.BD.Datos.Entity
     public class Deposito : EntityBase
     {
 
-        public string Nombre { get; set; }
+        [Required(ErrorMessage = "El nombre del depósito es obligatorio.")]
+        [MaxLength(100, ErrorMessage = "El nombre no puede superar los {1} caracteres.")]
+        public string Nombre { get; set; } = string.Empty;
 
-        public string Tipo { get; set; }
+        [Required(ErrorMessage = "El tipo de depósito es obligatorio.")]
+        [MaxLength(50, ErrorMessage = "El tipo no puede superar los {1} caracteres.")]
+        public string Tipo { get; set; } = string.Empty;
 
-        public string Direccion { get; set; }
+        [Required(ErrorMessage = "La dirección es obligatoria.")]
+        [MaxLength(200, ErrorMessage = "La dirección no puede superar los {1} caracteres.")]
+        public string Direccion { get; set; } = string.Empty;
 
-        public bool Activo { get; set; }
+        public bool Activo { get; set; } = true;
 
+        [Range(1, int.MaxValue, ErrorMessage = "Debe seleccionar una empresa.")]
         public int EmpresaId { get; set; }
 
         [DeleteBehavior(DeleteBehavior.NoAction)]

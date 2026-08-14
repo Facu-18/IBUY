@@ -1,14 +1,9 @@
-using Proyecto2026.BD.Datos;
-using System;
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Text;
 
-namespace IBUY.BD.Datos.Entity
+namespace IBUY.Shared.DTO
 {
-    public class Empresa : EntityBase
+    public class EmpresaDTO
     {
-
         [Required(ErrorMessage = "La razón social es obligatoria.")]
         [MaxLength(100, ErrorMessage = "La razón social no puede superar los {1} caracteres.")]
         public string RazonSocial { get; set; } = string.Empty;
@@ -32,7 +27,5 @@ namespace IBUY.BD.Datos.Entity
         public string Tipo { get; set; } = string.Empty;
 
         public bool Activo { get; set; } = true;
-
     }
-
 }
