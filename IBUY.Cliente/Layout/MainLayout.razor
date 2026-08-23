@@ -1,16 +1,45 @@
-﻿@inherits LayoutComponentBase
-<div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
+@inherits LayoutComponentBase
+@implements IDisposable
+@inject NavigationManager Navegacion
 
-    <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
-        </div>
+<div class="ibuy-layout">
+    <Encabezado AlAlternarMenu="AlternarMenu" MenuAbierto="menuAbierto" />
 
-        <article class="content px-4">
+    <div class="ibuy-cuerpo">
+        <NavMenu Abierto="menuAbierto" />
+
+        <div class="ibuy-fondo @(menuAbierto ? "visible" : null)" @onclick="CerrarMenu"></div>
+
+        <main class="ibuy-contenido">
             @Body
-        </article>
-    </main>
+        </main>
+    </div>
 </div>
+
+@code {
+    private bool menuAbierto;
+
+    protected override void OnInitialized()
+    {
+        Navegacion.LocationChanged += AlNavegar;
+    }
+
+    private void AlternarMenu() => menuAbierto = !menuAbierto;
+
+    private void CerrarMenu() => menuAbierto = false;
+
+    // En movil el menu se superpone al contenido: al navegar hay que cerrarlo.
+    private void AlNavegar(object? emisor, LocationChangedEventArgs argumentos)
+    {
+        if (menuAbierto)
+        {
+            menuAbierto = false;
+            StateHasChanged();
+        }
+    }
+
+    public void Dispose()
+    {
+        Navegacion.LocationChanged -= AlNavegar;
+    }
+}

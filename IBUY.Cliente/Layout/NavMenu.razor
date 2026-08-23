@@ -1,44 +1,62 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">IBUY.Cliente</a>
-        <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-    </div>
-</div>
+<nav class="ibuy-menu @(Abierto ? "abierto" : null)" aria-label="Navegacion principal">
+    <div class="menu-scroll">
+        @foreach (var grupo in grupos)
+        {
+            <p class="menu-titulo">@grupo.Titulo</p>
+            <ul class="menu-lista">
+                @foreach (var opcion in grupo.Opciones)
+                {
+                    <li>
+                        <NavLink class="menu-link" href="@opcion.Ruta" Match="@opcion.Coincidencia">
+                            <Icono Nombre="@opcion.Icono" />
+                            <span>@opcion.Etiqueta</span>
+                        </NavLink>
+                    </li>
+                }
+            </ul>
+        }
 
-<div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
-    <nav class="nav flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="weather">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <a class="nav-link" href="https://localhost:7209/swagger" target="_blank" rel="noopener noreferrer">
-                <span class="bi bi-code-square-nav-menu" aria-hidden="true"></span> Swagger API
+        <div class="menu-pie">
+            <a class="menu-link" href="https://localhost:7209/swagger" target="_blank" rel="noopener noreferrer">
+                <Icono Nombre="codigo" />
+                <span>Swagger API</span>
             </a>
         </div>
-    </nav>
-</div>
+    </div>
+</nav>
 
 @code {
-    private bool collapseNavMenu = true;
+    [Parameter]
+    public bool Abierto { get; set; }
 
-    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+    private record Opcion(string Etiqueta, string Ruta, string Icono, NavLinkMatch Coincidencia = NavLinkMatch.Prefix);
 
-    private void ToggleNavMenu()
-    {
-        collapseNavMenu = !collapseNavMenu;
-    }
+    private record Grupo(string Titulo, Opcion[] Opciones);
+
+    private static readonly Grupo[] grupos =
+    [
+        new Grupo("General",
+        [
+            new Opcion("Dashboard", "", "dashboard", NavLinkMatch.All)
+        ]),
+        new Grupo("Administracion",
+        [
+            new Opcion("Empresas", "empresas", "empresas"),
+            new Opcion("Usuarios", "usuarios", "usuarios"),
+            new Opcion("Depositos", "depositos", "depositos"),
+            new Opcion("Productos", "productos", "productos")
+        ]),
+        new Grupo("Inventario",
+        [
+            new Opcion("Stock", "stock", "stock"),
+            new Opcion("Necesidades", "necesidades", "necesidades"),
+            new Opcion("Remitos", "remitos", "remitos")
+        ]),
+        new Grupo("Compras",
+        [
+            new Opcion("Notas de pedido", "notas-pedido", "notas"),
+            new Opcion("Marketplace", "marketplace", "marketplace"),
+            new Opcion("Cotizaciones", "cotizaciones", "cotizaciones")
+        ])
+    ];
 }
