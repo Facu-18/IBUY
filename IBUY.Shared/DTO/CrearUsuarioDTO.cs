@@ -1,0 +1,39 @@
+﻿using Microsoft.EntityFrameworkCore;
+using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.Text;
+
+namespace IBUY.Shared.DTO
+{
+    public class CrearUsuarioDTO
+    {
+        [Required(ErrorMessage = "El nombre es obligatorio.")]
+        [MaxLength(100, ErrorMessage = "El nombre no puede superar los {1} caracteres.")]
+        public string Nombre { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "El email es obligatorio.")]
+        [EmailAddress(ErrorMessage = "El email no tiene un formato válido.")]
+        [MaxLength(100, ErrorMessage = "El email no puede superar los {1} caracteres.")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "La contraseña es obligatoria.")]
+        [StringLength(200, MinimumLength = 8, ErrorMessage = "La contraseña debe tener entre {2} y {1} caracteres.")]
+        [DataType(DataType.Password)]
+        public string Contrasena { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "El rol es obligatorio.")]
+        [MaxLength(30, ErrorMessage = "El rol no puede superar los {1} caracteres.")]
+        public string Rol { get; set; } = string.Empty;
+
+        public bool Estado { get; set; } = true;
+
+        [Range(1, int.MaxValue, ErrorMessage = "Debe seleccionar una empresa.")]
+        public int EmpresaId { get; set; }
+
+        [DeleteBehavior(DeleteBehavior.NoAction)]
+        public required EmpresaDTO Empresa { get; set; }
+
+
+    }
+}
