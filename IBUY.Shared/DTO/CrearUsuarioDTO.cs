@@ -31,9 +31,5 @@ namespace IBUY.Shared.DTO
         [Range(1, int.MaxValue, ErrorMessage = "Debe seleccionar una empresa.")]
         public int EmpresaId { get; set; }
 
-        [DeleteBehavior(DeleteBehavior.NoAction)]
-        public required EmpresaDTO Empresa { get; set; }
-
-
     }
 }
