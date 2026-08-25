@@ -1,8 +1,5 @@
 using Proyecto2026.BD.Datos;
-using System;
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Text;
 using Microsoft.EntityFrameworkCore;
 
 namespace IBUY.BD.Datos.Entity
@@ -34,7 +31,7 @@ namespace IBUY.BD.Datos.Entity
         public int EmpresaId { get; set; }
 
         [DeleteBehavior(DeleteBehavior.NoAction)]
-        public required Empresa Empresa { get; set; }
+        public Empresa Empresa { get; set; } = null!;
 
     }
 }

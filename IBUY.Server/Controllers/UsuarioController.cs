@@ -50,7 +50,7 @@ namespace IBUY.Server.Controllers
         [HttpPost]
         public async Task<ActionResult<int>> Post(CrearUsuarioDTO usuarioDTO)
         {
-            CrearUsuarioDTO usuario = new CrearUsuarioDTO();
+            Usuario usuario = new Usuario();
             usuario.Nombre = usuarioDTO.Nombre;
             usuario.Email = usuarioDTO.Email;
             usuario.Contrasena = usuarioDTO.Contrasena;
@@ -65,24 +65,23 @@ namespace IBUY.Server.Controllers
         }
 
         [HttpPut("{id:int}")]
-        public async Task<ActionResult<bool>> Put(int id, CrearUsuarioDTO CrearUsuarioDTO)
+        public async Task<ActionResult<bool>> Put(int id, CrearUsuarioDTO usuarioDTO)
         {
-            if (!await repositorio.Existe(id))
+            var usuario = await repositorio.SelectById(id);
+            if (usuario is null)
             {
                 return NotFound($"No existe el registro con id: {id}");
             }
-            var usuario = await repositorio.SelectById(id);
 
-            CrearUsuarioDTO dto = new CrearUsuarioDTO();
-            dto.Nombre = usuario!.Nombre;
-            dto.Contrasena = usuario!.Contrasena;
-            dto.Email = usuario.Email;
-            dto.Rol = usuario.Rol;
-            dto.Estado = usuario.Estado;
-            dto.EmpresaId = usuario.EmpresaId;
+            usuario.Nombre = usuarioDTO.Nombre;
+            usuario.Contrasena = usuarioDTO.Contrasena;
+            usuario.Email = usuarioDTO.Email;
+            usuario.Rol = usuarioDTO.Rol;
+            usuario.Estado = usuarioDTO.Estado;
+            usuario.EmpresaId = usuarioDTO.EmpresaId;
 
-
-            return Ok(dto);
+            var resultado = await repositorio.Update(usuario);
+            return Ok(resultado);
         }
 
         [HttpDelete("{id:int}")]
