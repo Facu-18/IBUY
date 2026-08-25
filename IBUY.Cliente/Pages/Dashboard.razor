@@ -1,0 +1,58 @@
+@page "/"
+@implements IDisposable
+@inject EstadoSesion Sesion
+
+<PageTitle>Dashboard · IBUY</PageTitle>
+
+<div class="pagina-encabezado">
+    <h1>Dashboard</h1>
+    <p>Resumen de la operacion de @Sesion.Empresa.</p>
+</div>
+
+<div class="tarjetas">
+    <article class="tarjeta">
+        <span class="tarjeta-etiqueta">Empresa activa</span>
+        <strong class="tarjeta-valor">@Sesion.Empresa</strong>
+    </article>
+    <article class="tarjeta">
+        <span class="tarjeta-etiqueta">Usuario activo</span>
+        <strong class="tarjeta-valor">@Sesion.Usuario</strong>
+        <span class="tarjeta-pie">@Sesion.Rol</span>
+    </article>
+    <article class="tarjeta">
+        <span class="tarjeta-etiqueta">Perfil simulado</span>
+        <strong class="tarjeta-valor">@Sesion.Perfil</strong>
+        <span class="tarjeta-pie">Se cambia desde el encabezado</span>
+    </article>
+</div>
+
+<div class="aviso">
+    <Icono Nombre="construccion" />
+    <div>
+        <strong>Vista @(Sesion.Perfil == PerfilUsuario.Comprador ? "de compra" : "de venta")</strong>
+        <p>
+            @if (Sesion.Perfil == PerfilUsuario.Comprador)
+            {
+                <text>Como comprador vas a trabajar sobre necesidades, notas de pedido y remitos de entrada.</text>
+            }
+            else
+            {
+                <text>Como proveedor vas a trabajar sobre el marketplace, tus cotizaciones y los remitos de salida.</text>
+            }
+        </p>
+    </div>
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        Sesion.OnCambio += Refrescar;
+    }
+
+    private void Refrescar() => StateHasChanged();
+
+    public void Dispose()
+    {
+        Sesion.OnCambio -= Refrescar;
+    }
+}

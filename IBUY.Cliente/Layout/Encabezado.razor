@@ -1,0 +1,62 @@
+@implements IDisposable
+@inject EstadoSesion Sesion
+
+<header class="ibuy-encabezado">
+    <button type="button" class="boton-menu" @onclick="AlAlternarMenu"
+            aria-label="@(MenuAbierto ? "Cerrar menu" : "Abrir menu")" aria-expanded="@MenuAbierto">
+        <Icono Nombre="@(MenuAbierto ? "cerrar" : "menu")" />
+    </button>
+
+    <a class="marca" href="">
+        <span class="marca-logo">iB</span>
+        <span class="marca-texto">
+            <strong>IBUY</strong>
+            <small>Plataforma de compras y stock</small>
+        </span>
+    </a>
+
+    <div class="encabezado-derecha">
+        <div class="selector-perfil" role="group" aria-label="Perfil activo">
+            @foreach (var perfil in perfiles)
+            {
+                <button type="button"
+                        class="opcion-perfil @(Sesion.Perfil == perfil ? "activa" : null)"
+                        aria-pressed="@(Sesion.Perfil == perfil)"
+                        @onclick="() => Sesion.CambiarPerfil(perfil)">
+                    @perfil
+                </button>
+            }
+        </div>
+
+        <div class="identidad">
+            <div class="identidad-texto">
+                <span class="identidad-empresa">@Sesion.Empresa</span>
+                <span class="identidad-usuario">@Sesion.Usuario · @Sesion.Rol</span>
+            </div>
+            <div class="avatar" title="@Sesion.Usuario">@Sesion.Iniciales</div>
+        </div>
+    </div>
+</header>
+
+@code {
+    private static readonly PerfilUsuario[] perfiles =
+        Enum.GetValues<PerfilUsuario>();
+
+    [Parameter]
+    public EventCallback AlAlternarMenu { get; set; }
+
+    [Parameter]
+    public bool MenuAbierto { get; set; }
+
+    protected override void OnInitialized()
+    {
+        Sesion.OnCambio += Refrescar;
+    }
+
+    private void Refrescar() => StateHasChanged();
+
+    public void Dispose()
+    {
+        Sesion.OnCambio -= Refrescar;
+    }
+}

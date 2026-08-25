@@ -1,0 +1,21 @@
+<div class="modulo-pendiente">
+    <div class="modulo-icono">
+        <Icono Nombre="@Icono" />
+    </div>
+    <h1>@Titulo</h1>
+    <p class="modulo-descripcion">@Descripcion</p>
+    <span class="modulo-estado">
+        <Icono Nombre="construccion" /> Modulo pendiente de implementacion
+    </span>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Titulo { get; set; } = string.Empty;
+
+    [Parameter]
+    public string Descripcion { get; set; } = string.Empty;
+
+    [Parameter]
+    public string Icono { get; set; } = "dashboard";
+}
