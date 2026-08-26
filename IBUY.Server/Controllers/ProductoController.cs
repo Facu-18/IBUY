@@ -3,15 +3,15 @@ using IBUY.Repository.Repositorios;
 using IBUY.Shared.DTO;
 using Microsoft.AspNetCore.Mvc;
 
-namespace IBUY.Server.Controller
+namespace IBUY.Server.Controllers
 {
     [ApiController]
-    [Route("api/Producto")]
+    [Route("api/producto")]
     public class ProductoController : Controller
     {
-        private readonly IRepositorio<Producto> repositorio;
+        private readonly IRepositorio<IBUY.BD.Datos.Entity.Producto> repositorio;
 
-        public ProductoController(IRepositorio<Producto> repositorio)
+        public ProductoController(IRepositorio<IBUY.BD.Datos.Entity.Producto> repositorio)
         {
             this.repositorio = repositorio;
         }
@@ -20,17 +20,29 @@ namespace IBUY.Server.Controller
         public async Task<ActionResult<List<ProductoDTO>>> Get()
         {
             var productos = await repositorio.Select();
-
-            var productosDTO = productos.Select(producto => new ProductoDTO
-            {
-                Nombre = producto.Nombre,
-                Descripcion = producto.Descripcion,
-                Categoria = producto.Categoria,
-                EmpresaId = producto.EmpresaId
-            }).ToList();
-
-            return Ok(productosDTO);
+            return Ok(productos);
         }
+
+        [HttpGet ("{id:int}")]
+
+        public async Task<ActionResult<List<ProductoDTO>>> GetByEmpresaId(int id)
+        {
+            if (!await repositorio.Existe(id))
+            {
+                return NotFound($"No se encontró la empresa con id: {id}");
+            }
+
+            var productos = await repositorio.SelectById(id);
+
+            ProductoDTO dto = new ProductoDTO();
+            dto.Nombre = productos.Nombre;
+            dto.Descripcion = productos.Descripcion;
+            dto.Categoria = productos.Categoria;
+            dto.EmpresaId = productos.EmpresaId;
+
+            return Ok(dto);
+        }
+
 
         [HttpGet("{id:int}")]
         public async Task<ActionResult<ProductoDTO>> GetById(int id)
@@ -55,7 +67,8 @@ namespace IBUY.Server.Controller
         [HttpPost]
         public async Task<ActionResult<int>> Post(ProductoDTO productoDTO)
         {
-            Producto producto = new Producto();
+            IBUY.BD.Datos.Entity.Producto producto =
+                new IBUY.BD.Datos.Entity.Producto();
 
             producto.Nombre = productoDTO.Nombre;
             producto.Descripcion = productoDTO.Descripcion;
@@ -77,7 +90,12 @@ namespace IBUY.Server.Controller
 
             var producto = await repositorio.SelectById(id);
 
-            producto!.Nombre = productoDTO.Nombre;
+            if (producto == null)
+            {
+                return NotFound($"No existe el registro con id: {id}");
+            }
+
+            producto.Nombre = productoDTO.Nombre;
             producto.Descripcion = productoDTO.Descripcion;
             producto.Categoria = productoDTO.Categoria;
             producto.EmpresaId = productoDTO.EmpresaId;
@@ -100,8 +118,12 @@ namespace IBUY.Server.Controller
             return Ok(true);
         }
     }
+
+    public class ProductoDTO
+    {
+        public string Nombre { get; set; }
+        public string Descripcion { get; set; }
+        public string Categoria { get; set; }
+        public int EmpresaId { get; set; }
+    }
 }
-
-
-
-
