@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace IBUY.Shared.DTO
 {
-    public class EmpresaDTO
+    public class EmpresaDTO : DtoBase
     {
         [Required(ErrorMessage = "La razón social es obligatoria.")]
         [MaxLength(100, ErrorMessage = "La razón social no puede superar los {1} caracteres.")]

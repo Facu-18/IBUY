@@ -34,7 +34,8 @@ namespace IBUY.Server.Controllers
             var empresa = await repositorio.SelectById(id);
 
             EmpresaDTO dto = new EmpresaDTO();
-            dto.RazonSocial = empresa!.RazonSocial;
+            dto.Id = empresa!.Id;
+            dto.RazonSocial = empresa.RazonSocial;
             dto.Rubro = empresa.Rubro;
             dto.Cuit = empresa.Cuit;
             dto.Email = empresa.Email;

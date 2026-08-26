@@ -530,3 +530,196 @@ h1:focus {
     .loading-progress-text:after {
         content: var(--blazor-load-percentage-text, "Cargando IBUY");
     }
+
+/* ---------- Barra de filtros ---------- */
+
+.barra-filtros {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+
+.chip {
+    padding: 0.4rem 0.9rem;
+    border: 1px solid var(--ibuy-borde);
+    border-radius: 999px;
+    background-color: var(--ibuy-superficie);
+    color: var(--ibuy-texto-suave);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.chip:hover {
+    color: var(--ibuy-texto);
+}
+
+.chip.activo {
+    background-color: var(--ibuy-azul);
+    border-color: var(--ibuy-azul);
+    color: #fff;
+}
+
+.campo-filtro {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--ibuy-texto-suave);
+}
+
+.campo-filtro select {
+    padding: 0.4rem 0.7rem;
+    border: 1px solid var(--ibuy-borde);
+    border-radius: 0.5rem;
+    background-color: var(--ibuy-superficie);
+    color: var(--ibuy-texto);
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.campo-filtro select:disabled {
+    opacity: 0.6;
+}
+
+.contador {
+    margin-left: auto;
+    font-size: 0.8rem;
+    color: var(--ibuy-texto-suave);
+}
+
+/* ---------- Tabla ---------- */
+
+.tabla-contenedor {
+    overflow-x: auto;
+    background-color: var(--ibuy-superficie);
+    border: 1px solid var(--ibuy-borde);
+    border-radius: 0.75rem;
+}
+
+.tabla {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+}
+
+.tabla thead th {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    white-space: nowrap;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ibuy-texto-suave);
+    background-color: #f8fafc;
+    border-bottom: 1px solid var(--ibuy-borde);
+}
+
+.tabla tbody td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--ibuy-borde);
+    vertical-align: middle;
+}
+
+.tabla tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.tabla tbody tr:hover {
+    background-color: #f8fafc;
+}
+
+.celda-principal {
+    font-weight: 600;
+}
+
+.celda-mono {
+    font-family: 'Consolas', 'Courier New', monospace;
+    white-space: nowrap;
+}
+
+/* ---------- Etiquetas de estado ---------- */
+
+.etiqueta {
+    display: inline-block;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.74rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.etiqueta-azul {
+    background-color: var(--ibuy-azul-suave);
+    color: #1d4ed8;
+}
+
+.etiqueta-violeta {
+    background-color: #ede9fe;
+    color: #6d28d9;
+}
+
+.etiqueta-verde {
+    background-color: #dcfce7;
+    color: #15803d;
+}
+
+.etiqueta-gris {
+    background-color: #f1f5f9;
+    color: #64748b;
+}
+
+/* ---------- Estados de carga y vacio ---------- */
+
+.cargando {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.7rem;
+    padding: 3rem 1rem;
+    background-color: var(--ibuy-superficie);
+    border: 1px solid var(--ibuy-borde);
+    border-radius: 0.75rem;
+    color: var(--ibuy-texto-suave);
+    font-size: 0.9rem;
+}
+
+.spinner {
+    width: 1.15rem;
+    height: 1.15rem;
+    border: 2px solid var(--ibuy-borde);
+    border-top-color: var(--ibuy-azul);
+    border-radius: 50%;
+    animation: girar 0.7s linear infinite;
+}
+
+@keyframes girar {
+    to { transform: rotate(360deg); }
+}
+
+.sin-datos {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 3rem 1rem;
+    background-color: var(--ibuy-superficie);
+    border: 1px solid var(--ibuy-borde);
+    border-radius: 0.75rem;
+    color: var(--ibuy-texto-suave);
+}
+
+.sin-datos .icono {
+    width: 1.9rem;
+    height: 1.9rem;
+    color: #94a3b8;
+}
+
+.sin-datos p {
+    margin: 0;
+    font-size: 0.9rem;
+}

@@ -1,0 +1,12 @@
+<div class="sin-datos">
+    <Icono Nombre="@Icono" />
+    <p>@Texto</p>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Texto { get; set; } = string.Empty;
+
+    [Parameter]
+    public string Icono { get; set; } = "construccion";
+}

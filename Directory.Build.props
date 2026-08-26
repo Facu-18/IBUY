@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup Condition="'$(OS)' == 'Windows_NT'">
+    <UseArtifactsOutput>true</UseArtifactsOutput>
+    <ArtifactsPath>$(LOCALAPPDATA)\FarmaTech\artifacts</ArtifactsPath>
+  </PropertyGroup>
+</Project>

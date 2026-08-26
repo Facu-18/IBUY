@@ -1,5 +1,98 @@
 @page "/usuarios"
+@inject IUsuarioServicio UsuarioServicio
+@inject IEmpresaServicio EmpresaServicio
 
 <PageTitle>Usuarios · IBUY</PageTitle>
 
-<PaginaEnConstruccion Titulo="Usuarios" Icono="usuarios" Descripcion="Administracion de los usuarios que pertenecen a cada empresa." />
+<div class="pagina-encabezado">
+    <h1>Usuarios</h1>
+    <p>Usuarios que pertenecen a cada empresa de la plataforma.</p>
+</div>
+
+<div class="barra-filtros">
+    <label class="campo-filtro">
+        <span>Empresa</span>
+        <select value="@empresaFiltro" @onchange="CambiarEmpresa" disabled="@cargando">
+            <option value="0">Todas</option>
+            @foreach (var empresa in empresas)
+            {
+                <option value="@empresa.Id">@empresa.RazonSocial</option>
+            }
+        </select>
+    </label>
+
+    @if (!cargando)
+    {
+        <span class="contador">@usuarios.Count @(usuarios.Count == 1 ? "usuario" : "usuarios")</span>
+    }
+</div>
+
+@if (cargando)
+{
+    <Cargando Texto="Cargando usuarios..." />
+}
+else if (usuarios.Count == 0)
+{
+    <SinDatos Icono="usuarios" Texto="Esta empresa todavia no tiene usuarios." />
+}
+else
+{
+    <div class="tabla-contenedor">
+        <table class="tabla">
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>Email</th>
+                    <th>Rol</th>
+                    <th>Empresa</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var usuario in usuarios)
+                {
+                    <tr @key="usuario.Id">
+                        <td class="celda-principal">@usuario.Nombre</td>
+                        <td>@usuario.Email</td>
+                        <td><span class="etiqueta etiqueta-azul">@usuario.Rol</span></td>
+                        <td>@NombreEmpresa(usuario.EmpresaId)</td>
+                        <td><span class="etiqueta @(usuario.Estado ? "etiqueta-verde" : "etiqueta-gris")">@(usuario.Estado ? "Activo" : "Inactivo")</span></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private List<UsuarioDTO> usuarios = [];
+    private List<EmpresaDTO> empresas = [];
+    private int empresaFiltro;
+    private bool cargando = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Las dos consultas son independientes: van en paralelo para no sumar las demoras.
+        var tareaUsuarios = UsuarioServicio.ObtenerTodosAsync();
+        var tareaEmpresas = EmpresaServicio.ObtenerTodosAsync();
+        await Task.WhenAll(tareaUsuarios, tareaEmpresas);
+
+        usuarios = await tareaUsuarios;
+        empresas = await tareaEmpresas;
+        cargando = false;
+    }
+
+    private async Task CambiarEmpresa(ChangeEventArgs argumentos)
+    {
+        empresaFiltro = int.TryParse(argumentos.Value?.ToString(), out var id) ? id : 0;
+
+        cargando = true;
+        usuarios = empresaFiltro == 0
+            ? await UsuarioServicio.ObtenerTodosAsync()
+            : await UsuarioServicio.ObtenerPorEmpresaAsync(empresaFiltro);
+        cargando = false;
+    }
+
+    private string NombreEmpresa(int empresaId) =>
+        empresas.FirstOrDefault(empresa => empresa.Id == empresaId)?.RazonSocial ?? "-";
+}

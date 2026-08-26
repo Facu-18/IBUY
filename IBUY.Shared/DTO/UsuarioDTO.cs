@@ -6,7 +6,7 @@ using System.Text;
 
 namespace IBUY.Shared.DTO
 {
-    public class UsuarioDTO
+    public class UsuarioDTO : DtoBase
     {
         [Required(ErrorMessage = "El nombre es obligatorio.")]
         [MaxLength(100, ErrorMessage = "El nombre no puede superar los {1} caracteres.")]

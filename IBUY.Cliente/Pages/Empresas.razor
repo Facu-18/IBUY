@@ -1,5 +1,112 @@
 @page "/empresas"
+@inject IEmpresaServicio EmpresaServicio
 
 <PageTitle>Empresas · IBUY</PageTitle>
 
-<PaginaEnConstruccion Titulo="Empresas" Icono="empresas" Descripcion="Alta, edicion y baja de empresas compradoras y proveedoras." />
+<div class="pagina-encabezado">
+    <h1>Empresas</h1>
+    <p>Empresas compradoras y proveedoras registradas en la plataforma.</p>
+</div>
+
+<div class="barra-filtros">
+    @foreach (var opcion in filtros)
+    {
+        <button type="button"
+                class="chip @(filtro == opcion ? "activo" : null)"
+                aria-pressed="@(filtro == opcion)"
+                @onclick="() => Filtrar(opcion)">
+            @EtiquetaFiltro(opcion)
+        </button>
+    }
+
+    @if (!cargando)
+    {
+        <span class="contador">@empresas.Count @(empresas.Count == 1 ? "empresa" : "empresas")</span>
+    }
+</div>
+
+@if (cargando)
+{
+    <Cargando Texto="Cargando empresas..." />
+}
+else if (empresas.Count == 0)
+{
+    <SinDatos Icono="empresas" Texto="No hay empresas para este filtro." />
+}
+else
+{
+    <div class="tabla-contenedor">
+        <table class="tabla">
+            <thead>
+                <tr>
+                    <th>Razon social</th>
+                    <th>Rubro</th>
+                    <th>CUIT</th>
+                    <th>Email</th>
+                    <th>Tipo</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var empresa in empresas)
+                {
+                    <tr @key="empresa.Id">
+                        <td class="celda-principal">@empresa.RazonSocial</td>
+                        <td>@empresa.Rubro</td>
+                        <td class="celda-mono">@empresa.Cuit</td>
+                        <td>@empresa.Email</td>
+                        <td><span class="etiqueta @(EsProveedora(empresa) ? "etiqueta-violeta" : "etiqueta-azul")">@empresa.Tipo</span></td>
+                        <td><span class="etiqueta @(empresa.Activo ? "etiqueta-verde" : "etiqueta-gris")">@(empresa.Activo ? "Activa" : "Inactiva")</span></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private enum FiltroEmpresa
+    {
+        Todas,
+        Compradoras,
+        Proveedoras
+    }
+
+    private static readonly FiltroEmpresa[] filtros = Enum.GetValues<FiltroEmpresa>();
+
+    private List<EmpresaDTO> empresas = [];
+    private FiltroEmpresa filtro = FiltroEmpresa.Todas;
+    private bool cargando = true;
+
+    protected override async Task OnInitializedAsync() => await Cargar();
+
+    private async Task Filtrar(FiltroEmpresa nuevo)
+    {
+        if (filtro == nuevo)
+        {
+            return;
+        }
+
+        filtro = nuevo;
+        await Cargar();
+    }
+
+    private async Task Cargar()
+    {
+        cargando = true;
+
+        empresas = filtro switch
+        {
+            FiltroEmpresa.Compradoras => await EmpresaServicio.ObtenerCompradorasAsync(),
+            FiltroEmpresa.Proveedoras => await EmpresaServicio.ObtenerProveedorasAsync(),
+            _ => await EmpresaServicio.ObtenerTodosAsync()
+        };
+
+        cargando = false;
+    }
+
+    private static string EtiquetaFiltro(FiltroEmpresa valor) => valor.ToString();
+
+    private static bool EsProveedora(EmpresaDTO empresa) =>
+        empresa.Tipo.Equals("Proveedora", StringComparison.OrdinalIgnoreCase);
+}
