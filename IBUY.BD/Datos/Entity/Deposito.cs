@@ -28,7 +28,7 @@ namespace IBUY.BD.Datos.Entity
         public int EmpresaId { get; set; }
 
         [DeleteBehavior(DeleteBehavior.NoAction)]
-        public Empresa Empresa { get; set; }
+        public Empresa Empresa { get; set; } = null!;
 
     }
 }
