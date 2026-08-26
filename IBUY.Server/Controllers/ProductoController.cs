@@ -20,8 +20,16 @@ namespace IBUY.Server.Controllers
         public async Task<ActionResult<List<ProductoDTO>>> Get()
         {
             var productos = await repositorio.Select();
-            return Ok(productos);
 
+            var productosDTO = productos.Select(producto => new ProductoDTO
+            {
+                Nombre = producto.Nombre,
+                Descripcion = producto.Descripcion,
+                Categoria = producto.Categoria,
+                EmpresaId = producto.EmpresaId
+            }).ToList();
+
+            return Ok(productosDTO);
         }
 
         [HttpGet("{id:int}")]
@@ -39,12 +47,9 @@ namespace IBUY.Server.Controllers
             productoDTO.Nombre = producto.Nombre;
             productoDTO.Descripcion = producto.Descripcion;
             productoDTO.Categoria = producto.Categoria;
-            productoDTO.EmpresaId =
-            producto.EmpresaId;
+            productoDTO.EmpresaId = producto.EmpresaId;
 
-            ProductoDTO dto = productoDTO;
-
-            return Ok(dto);
+            return Ok(productoDTO);
         }
 
         [HttpPost]
@@ -96,7 +101,6 @@ namespace IBUY.Server.Controllers
         }
     }
 }
-
 
 
 
