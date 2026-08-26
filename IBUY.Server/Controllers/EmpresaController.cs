@@ -69,6 +69,7 @@ namespace IBUY.Server.Controllers
             }
 
             var empresa = await repositorio.SelectById(id);
+
             empresa!.RazonSocial = empresaDTO.RazonSocial;
             empresa.Rubro = empresaDTO.Rubro;
             empresa.Cuit = empresaDTO.Cuit;
