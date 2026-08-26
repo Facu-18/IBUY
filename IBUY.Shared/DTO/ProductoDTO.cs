@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Text;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace IBUY.Shared.DTO
 {
@@ -10,12 +7,16 @@ namespace IBUY.Shared.DTO
         [Required(ErrorMessage = "El dato es obligatorio")]
         [MaxLength(150, ErrorMessage = "Maxima longitud 150 caracteres")]
         public string Nombre { get; set; } = string.Empty;
+
         [Required(ErrorMessage = "El dato es obligatorio")]
         [MaxLength(150, ErrorMessage = "Maxima longitud 150 caracteres")]
-    
-        public string Categoria { get; set; } = string.Empty;
-        [Required(ErrorMessage = "El ID de la empresa es obligatorio.")]    
+        public string Descripcion { get; set; } = string.Empty;
 
+        [Required(ErrorMessage = "El dato es obligatorio")]
+        [MaxLength(150, ErrorMessage = "Maxima longitud 150 caracteres")]
+        public string Categoria { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "El ID de la empresa es obligatorio.")]
         public int EmpresaId { get; set; }
     }
 }
