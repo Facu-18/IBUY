@@ -3,7 +3,7 @@ using IBUY.Repository.Repositorios;
 using IBUY.Shared.DTO;
 using Microsoft.AspNetCore.Mvc;
 
-namespace IBUY.Server.Controllers
+namespace IBUY.Server.Controller
 {
     [ApiController]
     [Route("api/Producto")]
