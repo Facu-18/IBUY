@@ -16,6 +16,7 @@ builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.
 builder.Services.AddSingleton<BaseDatosMock>();
 builder.Services.AddSingleton<IEmpresaServicio, EmpresaServicioMock>();
 builder.Services.AddSingleton<IUsuarioServicio, UsuarioServicioMock>();
+builder.Services.AddSingleton<IMarketplaceServicio, MarketplaceServicioMock>();
 
 // Estado de sesion simulado (empresa, usuario y perfil activos).
 builder.Services.AddSingleton<EstadoSesion>();

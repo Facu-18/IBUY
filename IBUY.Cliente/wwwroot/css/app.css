@@ -723,3 +723,92 @@ h1:focus {
     margin: 0;
     font-size: 0.9rem;
 }
+
+/* ---------- Marketplace ---------- */
+
+.publicaciones {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(22rem, 1fr));
+    gap: 1rem;
+    align-items: start;
+}
+
+.publicacion {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    padding: 1.15rem;
+    background-color: var(--ibuy-superficie);
+    border: 1px solid var(--ibuy-borde);
+    border-radius: 0.75rem;
+}
+
+.publicacion-cabecera {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.publicacion-cabecera h2 {
+    font-size: 1.02rem;
+    line-height: 1.3;
+}
+
+.publicacion-referencia {
+    display: block;
+    margin-top: 0.15rem;
+    font-size: 0.76rem;
+    color: var(--ibuy-texto-suave);
+}
+
+.publicacion-observaciones {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--ibuy-texto-suave);
+}
+
+.publicacion .tabla-compacta {
+    border: 1px solid var(--ibuy-borde);
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+
+.tabla-compacta thead th,
+.tabla-compacta tbody td {
+    padding: 0.5rem 0.7rem;
+}
+
+.celda-derecha {
+    text-align: right;
+    white-space: nowrap;
+}
+
+.publicacion-pie {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-top: auto;
+    padding-top: 0.25rem;
+    font-size: 0.78rem;
+    color: var(--ibuy-texto-suave);
+}
+
+.publicacion-pie .boton-primario {
+    margin-top: 0;
+    padding: 0.45rem 0.95rem;
+    border: none;
+    font-size: 0.82rem;
+    cursor: pointer;
+}
+
+.publicacion-pie .boton-primario:disabled {
+    background-color: #cbd5e1;
+    cursor: not-allowed;
+}
+
+.etiqueta-ambar {
+    background-color: #fef3c7;
+    color: #92400e;
+}

@@ -1,5 +1,91 @@
 @page "/marketplace"
+@inject IMarketplaceServicio MarketplaceServicio
+@inject EstadoSesion Sesion
 
 <PageTitle>Marketplace · IBUY</PageTitle>
 
-<PaginaEnConstruccion Titulo="Marketplace" Icono="marketplace" Descripcion="Notas de pedido publicadas disponibles para cotizar." />
+<div class="pagina-encabezado">
+    <h1>Marketplace</h1>
+    <p>Notas de pedido publicadas por otras empresas, disponibles para cotizar.</p>
+</div>
+
+@if (cargando)
+{
+    <Cargando Texto="Buscando oportunidades..." />
+}
+else if (notas.Count == 0)
+{
+    <SinDatos Icono="marketplace" Texto="No hay notas de pedido vigentes para cotizar en este momento." />
+}
+else
+{
+    <div class="barra-filtros">
+        <span class="contador">@notas.Count @(notas.Count == 1 ? "oportunidad" : "oportunidades")</span>
+    </div>
+
+    <div class="publicaciones">
+        @foreach (var nota in notas)
+        {
+            <article class="publicacion" @key="nota.Id">
+                <header class="publicacion-cabecera">
+                    <div>
+                        <h2>@nota.EmpresaNombre</h2>
+                        <span class="publicacion-referencia">Nota N.º @nota.Id · emitida el @nota.FechaEmision.ToString("dd/MM/yyyy")</span>
+                    </div>
+                    <span class="etiqueta @ClaseVencimiento(nota)">@TextoVencimiento(nota)</span>
+                </header>
+
+                @if (!string.IsNullOrWhiteSpace(nota.Observaciones))
+                {
+                    <p class="publicacion-observaciones">@nota.Observaciones</p>
+                }
+
+                <table class="tabla tabla-compacta">
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th class="celda-derecha">Cantidad</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in nota.Items)
+                        {
+                            <tr @key="item.Id">
+                                <td class="celda-principal">@item.ProductoNombre</td>
+                                <td class="celda-derecha">@item.CantidadSolicitada.ToString("0.##") @item.UnidadMedida</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+
+                <footer class="publicacion-pie">
+                    <span>@nota.Items.Count @(nota.Items.Count == 1 ? "ítem" : "ítems") · vence el @nota.FechaVencimiento.ToString("dd/MM/yyyy")</span>
+                    <button type="button" class="boton-primario" disabled title="Disponible cuando esté el módulo de cotizaciones">
+                        Cotizar
+                    </button>
+                </footer>
+            </article>
+        }
+    </div>
+}
+
+@code {
+    private List<NotaPedidoDTO> notas = [];
+    private bool cargando = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        notas = await MarketplaceServicio.ObtenerPublicadasAsync(Sesion.EmpresaId);
+        cargando = false;
+    }
+
+    private static string TextoVencimiento(NotaPedidoDTO nota) => nota.DiasRestantes switch
+    {
+        0 => "Vence hoy",
+        1 => "Vence mañana",
+        var dias => $"Vence en {dias} días"
+    };
+
+    private static string ClaseVencimiento(NotaPedidoDTO nota) =>
+        nota.DiasRestantes <= 3 ? "etiqueta-ambar" : "etiqueta-verde";
+}
