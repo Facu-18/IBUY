@@ -9,6 +9,7 @@ namespace IBUY.Server.Controllers
     [Route("api/deposito")]
     public class DepositoController : Controller
     {
+        
         private readonly IRepositorio<Deposito> repositorio;
         private readonly IRepositorio<Empresa> empresaRepositorio;
 
