@@ -1,19 +1,9 @@
-using Proyecto2026.BD.Datos;
-using System;
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Text;
-using static IBUY.BD.Datos.Entity.Stock;
-using Microsoft.EntityFrameworkCore;
-using System.ComponentModel.DataAnnotations.Schema;
 
-namespace IBUY.BD.Datos.Entity
+namespace IBUY.Shared.DTO
 {
-
-    public class Necesidad : EntityBase
+    public class NecesidadDTO
     {
-
-        [Column(TypeName = "decimal(18,2)")]
         [Range(typeof(decimal), "0.01", "9999999999999999.99", ParseLimitsInInvariantCulture = true,
             ErrorMessage = "La cantidad requerida debe ser mayor a cero.")]
         public decimal CantidadRequerida { get; set; }
@@ -29,14 +19,7 @@ namespace IBUY.BD.Datos.Entity
         [Range(1, int.MaxValue, ErrorMessage = "Debe seleccionar un depósito.")]
         public int DepositoId { get; set; }
 
-        [DeleteBehavior(DeleteBehavior.NoAction)]
-        public Deposito Deposito { get; set; }
-
         [Range(1, int.MaxValue, ErrorMessage = "Debe seleccionar un producto.")]
         public int ProductoId { get; set; }
-
-        [DeleteBehavior(DeleteBehavior.NoAction)]
-        public Producto Producto { get; set; }
-
     }
 }
