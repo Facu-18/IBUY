@@ -37,7 +37,6 @@ namespace IBUY.BD.Datos.Entity
 
         [DeleteBehavior(DeleteBehavior.NoAction)]
         public Producto Producto { get; set; }
-        public string Nombre { get; set; }
-        public string Descripcion { get; set; }
+
     }
 }

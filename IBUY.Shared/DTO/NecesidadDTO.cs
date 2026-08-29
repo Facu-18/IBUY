@@ -1,26 +1,25 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
 using System.ComponentModel.DataAnnotations;
 
 namespace IBUY.Shared.DTO
 {
     public class NecesidadDTO
     {
-        [Required(ErrorMessage = "El dato es obligatorio")]
-        [MaxLength(1500, ErrorMessage = "Maxima longitud 1500 caracteres")]
-        public string Nombre { get; set; } = string.Empty;
+        [Range(typeof(decimal), "0.01", "9999999999999999.99", ParseLimitsInInvariantCulture = true,
+            ErrorMessage = "La cantidad requerida debe ser mayor a cero.")]
+        public decimal CantidadRequerida { get; set; }
 
-        [Required(ErrorMessage = "El dato es obligatorio")]
-        [MaxLength(1500, ErrorMessage = "Maxima longitud 1500 caracteres")]
-        public string Descripcion { get; set; } = string.Empty;
+        [Required(ErrorMessage = "La fecha requerida es obligatoria.")]
+        [DataType(DataType.Date)]
+        public DateTime FechaRequerida { get; set; }
 
-        [Required(ErrorMessage = "El dato es obligatorio")]
-        [MaxLength(1500, ErrorMessage = "Maxima longitud 1500 caracteres")]
-        public string Categoria { get; set; } = string.Empty;
+        [Required(ErrorMessage = "El estado es obligatorio.")]
+        [MaxLength(20, ErrorMessage = "El estado no puede superar los {1} caracteres.")]
+        public string Estado { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "El ID de la empresa es obligatorio.")]
-        public int EmpresaId { get; set; }
-        public string Estado { get; set; }
+        [Range(1, int.MaxValue, ErrorMessage = "Debe seleccionar un depósito.")]
+        public int DepositoId { get; set; }
+
+        [Range(1, int.MaxValue, ErrorMessage = "Debe seleccionar un producto.")]
+        public int ProductoId { get; set; }
     }
 }
