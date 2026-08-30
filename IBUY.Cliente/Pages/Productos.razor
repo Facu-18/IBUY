@@ -1,5 +1,53 @@
 @page "/productos"
+@inject IProductoServicio ProductoServicio
 
 <PageTitle>Productos · IBUY</PageTitle>
 
-<PaginaEnConstruccion Titulo="Productos" Icono="productos" Descripcion="Catalogo de productos de la empresa." />
+<div class="pagina-encabezado">
+    <h1>Productos</h1>
+    <p>Catalogo de productos de la empresa.</p>
+</div>
+
+@if (cargando)
+{
+    <Cargando Texto="Cargando productos..." />
+}
+else
+{
+    <div class="barra-filtros">
+        <span class="contador">@productos.Count productos</span>
+    </div>
+
+    <div class="tabla-contenedor">
+        <table class="tabla">
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>Descripcion</th>
+                    <th>Categoria</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var producto in productos)
+                {
+                    <tr @key="producto.Nombre">
+                        <td class="celda-principal">@producto.Nombre</td>
+                        <td>@producto.Descripcion</td>
+                        <td><span class="etiqueta etiqueta-azul">@producto.Categoria</span></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private List<ProductoDTO> productos = [];
+    private bool cargando = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        productos = await ProductoServicio.ObtenerTodosAsync();
+        cargando = false;
+    }
+}
