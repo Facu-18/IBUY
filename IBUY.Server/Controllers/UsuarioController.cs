@@ -1,5 +1,6 @@
 ﻿using IBUY.BD.Datos.Entity;
 using IBUY.Repository.Repositorios;
+using IBUY.Server.Seguridad;
 using IBUY.Shared.DTO;
 using Microsoft.AspNetCore.Mvc;
 
@@ -53,15 +54,15 @@ namespace IBUY.Server.Controllers
             Usuario usuario = new Usuario();
             usuario.Nombre = usuarioDTO.Nombre;
             usuario.Email = usuarioDTO.Email;
-            usuario.Contrasena = usuarioDTO.Contrasena;
+            usuario.Contrasena = HashContrasenas.Hashear(usuarioDTO.Contrasena);
             usuario.Rol = usuarioDTO.Rol;
             usuario.Estado = usuarioDTO.Estado;
             usuario.EmpresaId = usuarioDTO.EmpresaId;
-            
+
 
             await repositorio.Insert(usuario);
 
-            return Ok(usuario);
+            return Ok(usuario.Id);
         }
 
         [HttpPut("{id:int}")]
@@ -74,7 +75,7 @@ namespace IBUY.Server.Controllers
             }
 
             usuario.Nombre = usuarioDTO.Nombre;
-            usuario.Contrasena = usuarioDTO.Contrasena;
+            usuario.Contrasena = HashContrasenas.Hashear(usuarioDTO.Contrasena);
             usuario.Email = usuarioDTO.Email;
             usuario.Rol = usuarioDTO.Rol;
             usuario.Estado = usuarioDTO.Estado;

@@ -12,11 +12,16 @@ namespace IBUY.Server.Controllers
         
         private readonly IRepositorio<Deposito> repositorio;
         private readonly IRepositorio<Empresa> empresaRepositorio;
+        private readonly IRepositorio<Usuario> usuarioRepositorio;
 
-        public DepositoController(IRepositorio<Deposito> repositorio, IRepositorio<Empresa> empresaRepositorio)
+        public DepositoController(
+            IRepositorio<Deposito> repositorio,
+            IRepositorio<Empresa> empresaRepositorio,
+            IRepositorio<Usuario> usuarioRepositorio)
         {
             this.repositorio = repositorio;
             this.empresaRepositorio = empresaRepositorio;
+            this.usuarioRepositorio = usuarioRepositorio;
         }
 
         [HttpGet]
@@ -42,6 +47,7 @@ namespace IBUY.Server.Controllers
             dto.Direccion = deposito.Direccion;
             dto.Activo = deposito.Activo;
             dto.EmpresaId = deposito.EmpresaId;
+            dto.UsuarioResponsableId = deposito.UsuarioResponsableId;
 
             return Ok(dto);
         }
@@ -49,11 +55,10 @@ namespace IBUY.Server.Controllers
         [HttpPost]
         public async Task<ActionResult<int>> Post(DepositoDTO depositoDTO)
         {
-            // La FK exige que la empresa exista: sin este control, SQL Server rechaza
-            // el INSERT y el error sale como un 500 en vez de un mensaje util.
-            if (!await empresaRepositorio.Existe(depositoDTO.EmpresaId))
+            var error = await ValidarRelaciones(depositoDTO);
+            if (error is not null)
             {
-                return BadRequest($"No existe la empresa de id: {depositoDTO.EmpresaId}");
+                return BadRequest(error);
             }
 
             Deposito deposito = new Deposito();
@@ -62,6 +67,7 @@ namespace IBUY.Server.Controllers
             deposito.Direccion = depositoDTO.Direccion;
             deposito.Activo = depositoDTO.Activo;
             deposito.EmpresaId = depositoDTO.EmpresaId;
+            deposito.UsuarioResponsableId = depositoDTO.UsuarioResponsableId;
 
             await repositorio.Insert(deposito);
 
@@ -77,9 +83,10 @@ namespace IBUY.Server.Controllers
                 return NotFound($"No existe el registro con id: {id}");
             }
 
-            if (!await empresaRepositorio.Existe(depositoDTO.EmpresaId))
+            var error = await ValidarRelaciones(depositoDTO);
+            if (error is not null)
             {
-                return BadRequest($"No existe la empresa de id: {depositoDTO.EmpresaId}");
+                return BadRequest(error);
             }
 
             deposito.Nombre = depositoDTO.Nombre;
@@ -87,6 +94,7 @@ namespace IBUY.Server.Controllers
             deposito.Direccion = depositoDTO.Direccion;
             deposito.Activo = depositoDTO.Activo;
             deposito.EmpresaId = depositoDTO.EmpresaId;
+            deposito.UsuarioResponsableId = depositoDTO.UsuarioResponsableId;
 
             var resultado = await repositorio.Update(deposito);
             return Ok(resultado);
@@ -103,6 +111,25 @@ namespace IBUY.Server.Controllers
             await repositorio.Delete(id);
 
             return Ok(true);
+        }
+
+        /// <summary>
+        /// Las FK exigen que la empresa y, si se informa, el usuario responsable existan.
+        /// Sin este control, SQL Server rechaza el INSERT/UPDATE con un 500.
+        /// </summary>
+        private async Task<string?> ValidarRelaciones(DepositoDTO depositoDTO)
+        {
+            if (!await empresaRepositorio.Existe(depositoDTO.EmpresaId))
+            {
+                return $"No existe la empresa de id: {depositoDTO.EmpresaId}";
+            }
+
+            if (depositoDTO.UsuarioResponsableId.HasValue && !await usuarioRepositorio.Existe(depositoDTO.UsuarioResponsableId.Value))
+            {
+                return $"No existe el usuario de id: {depositoDTO.UsuarioResponsableId}";
+            }
+
+            return null;
         }
     }
 }

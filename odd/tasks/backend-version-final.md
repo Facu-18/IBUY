@@ -27,7 +27,7 @@ Bring the IBUY backend to its final (demo) version following the existing struct
 Route for all tasks: delegated direct (one writer; 2+ non-trivial files per task — writer trigger).
 
 - [x] T1 Entities + migration: remove `Stock.CantidadMinima` (+ StockDTO, `GET api/stock/critico`); add `Deposito.UsuarioResponsableId`; Necesidad solicitante/destino; `ItemRemito.Cantidad` decimal; NoAction on Remito/ItemRemito FKs; new EF migration applied to LocalDB.
-- [ ] T2 Login + users: PBKDF2 hashing on Usuario create/update, `UsuarioController.Post` returns id; `AuthController` `POST api/auth/login` → `LoginRespuestaDTO` (user, empresa, depósitos a cargo); DepositoDTO/controller handle `UsuarioResponsableId` with FK validation.
+- [x] T2 Login + users: PBKDF2 hashing on Usuario create/update, `UsuarioController.Post` returns id; `AuthController` `POST api/auth/login` → `LoginRespuestaDTO` (user, empresa, depósitos a cargo); DepositoDTO/controller handle `UsuarioResponsableId` with FK validation.
 - [ ] T3 Necesidad: DTO/controller for solicitante/destino (validation: both exist, differ, product exists); `GET api/necesidad/{id}/revision` → `RevisionNecesidadDTO` (stock disponible en destino, alcanza, faltante).
 - [ ] T4 NotaPedido: rename marketplace DTOs; `NotaPedidoDTO` + `ItemNotaDTO` (no navigation entities); `INotaPedidoRepositorio`/`NotaPedidoRepositorio : Repositorio<NotaPedido>` with `InsertarConItems` (transaction) + `ObtenerDetalle`; `NotaPedidoController` `api/notapedido` GET, GET{id}, POST, PUT{id} (header/Estado), DELETE{id}; necesidad stock rule above.
 - [ ] T5 Cotizacion (spec below).
@@ -51,7 +51,9 @@ Out of scope: per-company/per-depot listing, three separate POSTs, same-company 
 ## Progress / Evidence
 (updated per task: commit hash, check results, review tier)
 
-T1: <pending, recorded in T2 line> — build: 0 errors — migration `VersionFinal` applied to LocalDB. Backfilled `DepositoDestinoId` (existing rows had no destino) with the first Deposito id different from the solicitante, via a data-migration SQL step (RenameColumn used for Deposito→DepositoSolicitanteId, no data loss besides the intentionally dropped `CantidadMinima`). Minimal NecesidadController/DTO rename included (full revision endpoint deferred to T3).
+T1: 5a05021 — build: 0 errors — migration `VersionFinal` applied to LocalDB. Backfilled `DepositoDestinoId` (existing rows had no destino) with the first Deposito id different from the solicitante, via a data-migration SQL step (RenameColumn used for Deposito→DepositoSolicitanteId, no data loss besides the intentionally dropped `CantidadMinima`). Minimal NecesidadController/DTO rename included (full revision endpoint deferred to T3).
+
+T2: <pending, recorded in T3 line> — build: 0 errors — `HashContrasenas` (PBKDF2/SHA256, 100k iter, 16B salt) in `IBUY.Server/Seguridad`; hash fits existing `Contrasena` StringLength(8,200) so no entity/migration change needed. `AuthController` (`api/auth/login`) uses generic repos (no query-by-email on `IRepositorio<E>`, so it does `Select()` + LINQ — fine at demo scale). `DepositoDTO`/`DepositoController` gained `UsuarioResponsableId` with FK validation via a new `ValidarRelaciones` helper (same pattern as `NecesidadController`).
 
 ## Next step
-T2.
+T3.
