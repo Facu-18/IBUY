@@ -30,7 +30,7 @@ Route for all tasks: delegated direct (one writer; 2+ non-trivial files per task
 - [x] T2 Login + users: PBKDF2 hashing on Usuario create/update, `UsuarioController.Post` returns id; `AuthController` `POST api/auth/login` → `LoginRespuestaDTO` (user, empresa, depósitos a cargo); DepositoDTO/controller handle `UsuarioResponsableId` with FK validation.
 - [x] T3 Necesidad: DTO/controller for solicitante/destino (validation: both exist, differ, product exists); `GET api/necesidad/{id}/revision` → `RevisionNecesidadDTO` (stock disponible en destino, alcanza, faltante).
 - [x] T4 NotaPedido: rename marketplace DTOs; `NotaPedidoDTO` + `ItemNotaDTO` (no navigation entities); `INotaPedidoRepositorio`/`NotaPedidoRepositorio : Repositorio<NotaPedido>` with `InsertarConItems` (transaction) + `ObtenerDetalle`; `NotaPedidoController` `api/notapedido` GET, GET{id}, POST, PUT{id} (header/Estado), DELETE{id}; necesidad stock rule above.
-- [ ] T5 Cotizacion (spec below).
+- [x] T5 Cotizacion (spec below).
 - [ ] T6 Remito (spec below).
 - [ ] T7 Update CLAUDE.md architecture notes (auth, specific repositories, necesidad flow).
 
@@ -57,7 +57,9 @@ T2: fec53d5 — build: 0 errors — `HashContrasenas` (PBKDF2/SHA256, 100k iter,
 
 T3: ae50fd6 — build: 0 errors — made `Repositorio<E>.context` protected; added `INecesidadRepositorio`/`NecesidadRepositorio : Repositorio<Necesidad>` with `ObtenerStockDisponible(depositoId, productoId)` (queries `context.Set<Stock>()` directly — reused by T4 for the NotaPedido stock rule); registered in Program.cs. `GET api/necesidad/{id}/revision` added to `NecesidadController`. The "both exist / differ" validation was already done in T1 to keep that build green; this task didn't need to repeat it.
 
-T4: <pending, recorded in T5 line> — build: 0 errors — renamed marketplace DTOs (`NotaPedidoDTO`→`NotaPedidoMarketplaceDTO`, `ItemNotaDTO`→`ItemNotaMarketplaceDTO`) and updated all references (`IMarketplaceServicio`, `MarketplaceServicioMock`, `Marketplace.razor`). New backend `NotaPedidoDTO`/`ItemNotaDTO` (`NecesidadId` is a required int, not nullable, matching "created manually from a need" — entity FK stays nullable int? for schema flexibility). `INotaPedidoRepositorio`/`NotaPedidoRepositorio` with `InsertarConItems` (transaction) and `ObtenerDetalle` (tuple, no DTOs in the repo layer). `NotaPedidoController` enforces ≥1 item, FK existence, and the stock rule via `INecesidadRepositorio.ObtenerStockDisponible` (reused from T3); PUT only updates header/Estado, not items. No migration needed (no entity changes).
+T4: 2435a2b — build: 0 errors — renamed marketplace DTOs (`NotaPedidoDTO`→`NotaPedidoMarketplaceDTO`, `ItemNotaDTO`→`ItemNotaMarketplaceDTO`) and updated all references (`IMarketplaceServicio`, `MarketplaceServicioMock`, `Marketplace.razor`). New backend `NotaPedidoDTO`/`ItemNotaDTO` (`NecesidadId` is a required int, not nullable, matching "created manually from a need" — entity FK stays nullable int? for schema flexibility). `INotaPedidoRepositorio`/`NotaPedidoRepositorio` with `InsertarConItems` (transaction) and `ObtenerDetalle` (tuple, no DTOs in the repo layer). `NotaPedidoController` enforces ≥1 item, FK existence, and the stock rule via `INecesidadRepositorio.ObtenerStockDisponible` (reused from T3); PUT only updates header/Estado, not items. No migration needed (no entity changes).
+
+T5: <pending, recorded in T6 line> — build: 0 errors — `CotizacionDTO`/`ItemCotizacionDTO` mirror the entities' existing Range validations (cantidad > 0, precios >= 0 — matches the actual entity attributes; the feature doc's "prices > 0" is a slight simplification). `ICotizacionRepositorio`/`CotizacionRepositorio`: `InsertarConItems` (transaction), `ObtenerDetalle` (tuple), `ObtenerPorNotaPedido`. `CotizacionController` (`api/cotizacion`): GET, GET{id} with items, GET nota/{notaPedidoId} (list of entities, same pattern as root GET), POST (validates NotaPedido/Empresa/ItemNota FKs, ≥1 item), PUT (header incl. Estado, items untouched), DELETE. No entity/migration changes.
 
 ## Next step
-T5.
+T6.
