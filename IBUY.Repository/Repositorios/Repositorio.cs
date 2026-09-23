@@ -7,7 +7,7 @@ namespace IBUY.Repository.Repositorios
     public class Repositorio<E> : IRepositorio<E> where E : class, IEntityBase
     {
 
-        private readonly AppDbContext context;
+        protected readonly AppDbContext context;
         public Repositorio(AppDbContext context)
         {
             this.context = context;

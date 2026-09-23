@@ -12,6 +12,9 @@ builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(conn
 // Repositorio generico: resuelve IRepositorio<Empresa>, IRepositorio<Producto>, etc.
 builder.Services.AddScoped(typeof(IRepositorio<>), typeof(Repositorio<>));
 
+// Repositorios especificos: agregan operaciones propias del dominio sobre el repositorio generico.
+builder.Services.AddScoped<INecesidadRepositorio, NecesidadRepositorio>();
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

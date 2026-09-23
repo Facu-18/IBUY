@@ -9,12 +9,12 @@ namespace IBUY.Server.Controllers
     [Route("api/necesidad")]
     public class NecesidadController : Controller
     {
-        private readonly IRepositorio<Necesidad> repositorio;
+        private readonly INecesidadRepositorio repositorio;
         private readonly IRepositorio<Deposito> depositoRepositorio;
         private readonly IRepositorio<Producto> productoRepositorio;
 
         public NecesidadController(
-            IRepositorio<Necesidad> repositorio,
+            INecesidadRepositorio repositorio,
             IRepositorio<Deposito> depositoRepositorio,
             IRepositorio<Producto> productoRepositorio)
         {
@@ -47,6 +47,36 @@ namespace IBUY.Server.Controllers
             dto.DepositoSolicitanteId = necesidad.DepositoSolicitanteId;
             dto.DepositoDestinoId = necesidad.DepositoDestinoId;
             dto.ProductoId = necesidad.ProductoId;
+
+            return Ok(dto);
+        }
+
+        /// <summary>
+        /// Solo informa el stock disponible en el depósito destino: no crea ni modifica nada.
+        /// La nota de pedido, si hace falta, se genera a mano a partir de esta revisión.
+        /// </summary>
+        [HttpGet("{id:int}/revision")]
+        public async Task<ActionResult<RevisionNecesidadDTO>> GetRevision(int id)
+        {
+            var necesidad = await repositorio.SelectById(id);
+            if (necesidad is null)
+            {
+                return NotFound($"No se encontró la necesidad de id: {id}");
+            }
+
+            decimal stockDisponible = await repositorio.ObtenerStockDisponible(necesidad.DepositoDestinoId, necesidad.ProductoId);
+            decimal faltante = Math.Max(0, necesidad.CantidadRequerida - stockDisponible);
+
+            RevisionNecesidadDTO dto = new RevisionNecesidadDTO
+            {
+                NecesidadId = necesidad.Id,
+                ProductoId = necesidad.ProductoId,
+                DepositoDestinoId = necesidad.DepositoDestinoId,
+                CantidadRequerida = necesidad.CantidadRequerida,
+                StockDisponible = stockDisponible,
+                Alcanza = stockDisponible >= necesidad.CantidadRequerida,
+                Faltante = faltante
+            };
 
             return Ok(dto);
         }
