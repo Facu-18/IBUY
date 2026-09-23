@@ -32,7 +32,7 @@ Route for all tasks: delegated direct (one writer; 2+ non-trivial files per task
 - [x] T4 NotaPedido: rename marketplace DTOs; `NotaPedidoDTO` + `ItemNotaDTO` (no navigation entities); `INotaPedidoRepositorio`/`NotaPedidoRepositorio : Repositorio<NotaPedido>` with `InsertarConItems` (transaction) + `ObtenerDetalle`; `NotaPedidoController` `api/notapedido` GET, GET{id}, POST, PUT{id} (header/Estado), DELETE{id}; necesidad stock rule above.
 - [x] T5 Cotizacion (spec below).
 - [x] T6 Remito (spec below).
-- [ ] T7 Update CLAUDE.md architecture notes (auth, specific repositories, necesidad flow).
+- [x] T7 Update CLAUDE.md architecture notes (auth, specific repositories, necesidad flow).
 
 ### T5 Cotizacion spec
 DTOs `CotizacionDTO` (header with item list) and `ItemCotizacionDTO`. `ICotizacionRepositorio`/`CotizacionRepositorio : Repositorio<Cotizacion>` with `InsertarConItems(Cotizacion, List<ItemCotizacion>)` in a transaction, `ObtenerDetalle(int id)`, `ObtenerPorNotaPedido(int notaPedidoId)`. `CotizacionController` `api/cotizacion`: GET, GET {id} (with items), GET nota/{notaPedidoId}, POST, PUT {id}, DELETE {id}.
@@ -61,7 +61,9 @@ T4: 2435a2b — build: 0 errors — renamed marketplace DTOs (`NotaPedidoDTO`→
 
 T5: dce6c0b — build: 0 errors — `CotizacionDTO`/`ItemCotizacionDTO` mirror the entities' existing Range validations (cantidad > 0, precios >= 0 — matches the actual entity attributes; the feature doc's "prices > 0" is a slight simplification). `ICotizacionRepositorio`/`CotizacionRepositorio`: `InsertarConItems` (transaction), `ObtenerDetalle` (tuple), `ObtenerPorNotaPedido`. `CotizacionController` (`api/cotizacion`): GET, GET{id} with items, GET nota/{notaPedidoId} (list of entities, same pattern as root GET), POST (validates NotaPedido/Empresa/ItemNota FKs, ≥1 item), PUT (header incl. Estado, items untouched), DELETE. No entity/migration changes.
 
-T6: <pending, recorded in T7 line> — build: 0 errors — `IRemitoRepositorio`/`RemitoRepositorio.RegistrarMovimiento` does remito + items + stock impact in one transaction; stock rows found/created by (DepositoId, ProductoId); insufficient origin stock throws `StockInsuficienteException` (repo layer), caught in `RemitoController.Post` and mapped to `BadRequest` — the transaction rolls back automatically on dispose without `CommitAsync()` (EF Core default), so no partial writes. `RemitoController` validates Tipo case-insensitively and stores the canonical value; per-type required-deposit and Transferencia-must-differ checks live in the controller (`ValidarTipoYDepositos`). No PUT/DELETE, per spec. No entity/migration changes (Item_Remito's decimal Cantidad and NoAction FKs were already done in T1).
+T6: 88b57e3 — build: 0 errors — `IRemitoRepositorio`/`RemitoRepositorio.RegistrarMovimiento` does remito + items + stock impact in one transaction; stock rows found/created by (DepositoId, ProductoId); insufficient origin stock throws `StockInsuficienteException` (repo layer), caught in `RemitoController.Post` and mapped to `BadRequest` — the transaction rolls back automatically on dispose without `CommitAsync()` (EF Core default), so no partial writes. `RemitoController` validates Tipo case-insensitively and stores the canonical value; per-type required-deposit and Transferencia-must-differ checks live in the controller (`ValidarTipoYDepositos`). No PUT/DELETE, per spec. No entity/migration changes (Item_Remito's decimal Cantidad and NoAction FKs were already done in T1).
+
+T7: <recorded in final report — this is the last task, no following task line to carry it> — build: 0 errors — Architecture section updated: IBUY.Repository bullet now covers specific repositories + transactions; IBUY.Server bullet covers AuthController/PBKDF2 (no Identity/JWT); new "Domain flow" subsection covers necesidad→revision→manual NotaPedido/remito and the remito stock rules. Kept concise (2 edits, ~10 added lines), no restructuring of the rest of the file.
 
 ## Next step
-T7.
+None — all T1..T7 done. Feature ready for user review / PR.
