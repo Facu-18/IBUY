@@ -14,6 +14,7 @@ Bring the IBUY backend to its final (demo) version following the existing struct
 - Tests: none (user choice). TDD: off — source: explicit user choice 2026-09-23. Checks: `dotnet build IBUY.slnx` + migration generated and applied to LocalDB + Swagger smoke where useful.
 - Delivery: single PR to `master` from branch `feat/backend-version-final`, one Conventional Commit per task. Strategy: `single-pr` (forecast ~1200 authored lines, user accepted).
 - Artifacts language: domain identifiers, routes, validation messages and comments stay in Spanish (existing project convention).
+- User must be assigned ≥1 depósito on create (user request 2026-09-23); depósitos must belong to the user's empresa; an already-assigned depósito is reassigned.
 
 ## Assumptions (defaults chosen by orchestrator, not yet contradicted)
 - Depot responsible: 1:N — `Deposito.UsuarioResponsableId` (nullable FK to Usuario, NoAction), so existing rows migrate cleanly.
@@ -33,6 +34,7 @@ Route for all tasks: delegated direct (one writer; 2+ non-trivial files per task
 - [x] T5 Cotizacion (spec below).
 - [x] T6 Remito (spec below).
 - [x] T7 Update CLAUDE.md architecture notes (auth, specific repositories, necesidad flow).
+- [x] T8 Usuario: assign depósitos on create/update (DepositoIds, IUsuarioRepositorio with transaction, same-empresa validation, reassign if already assigned)
 
 ### T5 Cotizacion spec
 DTOs `CotizacionDTO` (header with item list) and `ItemCotizacionDTO`. `ICotizacionRepositorio`/`CotizacionRepositorio : Repositorio<Cotizacion>` with `InsertarConItems(Cotizacion, List<ItemCotizacion>)` in a transaction, `ObtenerDetalle(int id)`, `ObtenerPorNotaPedido(int notaPedidoId)`. `CotizacionController` `api/cotizacion`: GET, GET {id} (with items), GET nota/{notaPedidoId}, POST, PUT {id}, DELETE {id}.
@@ -65,5 +67,7 @@ T6: 88b57e3 — build: 0 errors — `IRemitoRepositorio`/`RemitoRepositorio.Regi
 
 T7: <recorded in final report — this is the last task, no following task line to carry it> — build: 0 errors — Architecture section updated: IBUY.Repository bullet now covers specific repositories + transactions; IBUY.Server bullet covers AuthController/PBKDF2 (no Identity/JWT); new "Domain flow" subsection covers necesidad→revision→manual NotaPedido/remito and the remito stock rules. Kept concise (2 edits, ~10 added lines), no restructuring of the rest of the file.
 
+T8: 7eb8e72 — build: 0 errors — `CrearUsuarioDTO.DepositoIds` (`[MinLength(1)]`, empty list default) and `UsuarioDTO.DepositoIds` (response only). New `IUsuarioRepositorio`/`UsuarioRepositorio : Repositorio<Usuario>` with `InsertarConDepositos` (transaction: insert user, then set `UsuarioResponsableId` on the given depósitos), `ActualizarConDepositos` (transaction: update user, clear `UsuarioResponsableId` on depósitos no longer listed, set it on the listed ones; returns false if the user doesn't exist), `ObtenerDepositoIds`; registered in Program.cs. `UsuarioController` now injects `IUsuarioRepositorio` + `IRepositorio<Empresa>` + `IRepositorio<Deposito>`; `ValidarRelaciones` (same pattern as `NecesidadController`/`DepositoController`) checks empresa exists and every (deduplicated) depósito exists and belongs to that empresa; POST/PUT use it before hashing/saving. GET{id} fills `DepositoIds` via `ObtenerDepositoIds`. Build initially failed only on file-lock copy errors from a leftover running `IBUY.Server.exe` dev process (not a compile error); stopped that process and rebuilt clean.
+
 ## Next step
-None — all T1..T7 done. Feature ready for user review / PR.
+None — all T1..T8 done. Feature ready for user review / PR.

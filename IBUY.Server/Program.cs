@@ -17,6 +17,7 @@ builder.Services.AddScoped<INecesidadRepositorio, NecesidadRepositorio>();
 builder.Services.AddScoped<INotaPedidoRepositorio, NotaPedidoRepositorio>();
 builder.Services.AddScoped<ICotizacionRepositorio, CotizacionRepositorio>();
 builder.Services.AddScoped<IRemitoRepositorio, RemitoRepositorio>();
+builder.Services.AddScoped<IUsuarioRepositorio, UsuarioRepositorio>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
