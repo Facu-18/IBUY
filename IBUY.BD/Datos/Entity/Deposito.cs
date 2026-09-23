@@ -30,5 +30,11 @@ namespace IBUY.BD.Datos.Entity
         [DeleteBehavior(DeleteBehavior.NoAction)]
         public Empresa Empresa { get; set; } = null!;
 
+        [Range(1, int.MaxValue, ErrorMessage = "El usuario responsable no es válido.")]
+        public int? UsuarioResponsableId { get; set; }
+
+        [DeleteBehavior(DeleteBehavior.NoAction)]
+        public Usuario? UsuarioResponsable { get; set; }
+
     }
 }

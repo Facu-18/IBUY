@@ -44,7 +44,8 @@ namespace IBUY.Server.Controllers
             dto.CantidadRequerida = necesidad!.CantidadRequerida;
             dto.FechaRequerida = necesidad.FechaRequerida;
             dto.Estado = necesidad.Estado;
-            dto.DepositoId = necesidad.DepositoId;
+            dto.DepositoSolicitanteId = necesidad.DepositoSolicitanteId;
+            dto.DepositoDestinoId = necesidad.DepositoDestinoId;
             dto.ProductoId = necesidad.ProductoId;
 
             return Ok(dto);
@@ -63,7 +64,8 @@ namespace IBUY.Server.Controllers
             necesidad.CantidadRequerida = necesidadDTO.CantidadRequerida;
             necesidad.FechaRequerida = necesidadDTO.FechaRequerida;
             necesidad.Estado = necesidadDTO.Estado;
-            necesidad.DepositoId = necesidadDTO.DepositoId;
+            necesidad.DepositoSolicitanteId = necesidadDTO.DepositoSolicitanteId;
+            necesidad.DepositoDestinoId = necesidadDTO.DepositoDestinoId;
             necesidad.ProductoId = necesidadDTO.ProductoId;
 
             await repositorio.Insert(necesidad);
@@ -89,7 +91,8 @@ namespace IBUY.Server.Controllers
             necesidad.CantidadRequerida = necesidadDTO.CantidadRequerida;
             necesidad.FechaRequerida = necesidadDTO.FechaRequerida;
             necesidad.Estado = necesidadDTO.Estado;
-            necesidad.DepositoId = necesidadDTO.DepositoId;
+            necesidad.DepositoSolicitanteId = necesidadDTO.DepositoSolicitanteId;
+            necesidad.DepositoDestinoId = necesidadDTO.DepositoDestinoId;
             necesidad.ProductoId = necesidadDTO.ProductoId;
 
             var resultado = await repositorio.Update(necesidad);
@@ -116,9 +119,19 @@ namespace IBUY.Server.Controllers
         /// </summary>
         private async Task<string?> ValidarRelaciones(NecesidadDTO necesidadDTO)
         {
-            if (!await depositoRepositorio.Existe(necesidadDTO.DepositoId))
+            if (!await depositoRepositorio.Existe(necesidadDTO.DepositoSolicitanteId))
             {
-                return $"No existe el depósito de id: {necesidadDTO.DepositoId}";
+                return $"No existe el depósito solicitante de id: {necesidadDTO.DepositoSolicitanteId}";
+            }
+
+            if (!await depositoRepositorio.Existe(necesidadDTO.DepositoDestinoId))
+            {
+                return $"No existe el depósito destino de id: {necesidadDTO.DepositoDestinoId}";
+            }
+
+            if (necesidadDTO.DepositoSolicitanteId == necesidadDTO.DepositoDestinoId)
+            {
+                return "El depósito solicitante y el depósito destino deben ser distintos.";
             }
 
             if (!await productoRepositorio.Existe(necesidadDTO.ProductoId))

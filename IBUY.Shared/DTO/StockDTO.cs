@@ -12,10 +12,6 @@ namespace IBUY.Shared.DTO
         [Range(typeof(decimal), "0", "999999999999999.99", ParseLimitsInInvariantCulture = true, ErrorMessage = "La cantidad actual no puede ser negativa.")]
         public decimal CantidadActual { get; set; }
 
-        [Required(ErrorMessage = "La cantidad mínima es obligatoria.")]
-        [Range(typeof(decimal), "0", "999999999999999.99", ParseLimitsInInvariantCulture = true, ErrorMessage = "La cantidad mínima no puede ser negativa.")]
-        public decimal CantidadMinima { get; set; }
-
         [Required(ErrorMessage = "El depósito es obligatorio.")]
         [Range(1, int.MaxValue, ErrorMessage = "Debe seleccionar un depósito.")]
         public int DepositoId { get; set; }
