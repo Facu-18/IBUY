@@ -54,6 +54,7 @@ namespace IBUY.Server.Controllers
                 Numero = remito.Numero,
                 FechaEmision = remito.FechaEmision,
                 FechaRecepcion = remito.FechaRecepcion,
+                Estado = remito.Estado,
                 EmpresaId = remito.EmpresaId,
                 UsuarioId = remito.UsuarioId,
                 CotizacionId = remito.CotizacionId,
@@ -89,12 +90,18 @@ namespace IBUY.Server.Controllers
                 return BadRequest(errorRelaciones);
             }
 
+            // El Estado y la FechaRecepcion los decide el servidor segun el Tipo, no el DTO:
+            // Entrada llega ya Recibida (proveedor externo); Salida y Transferencia quedan
+            // Emitidas (la Transferencia se recepciona despues con POST {id}/recepcion).
+            bool esEntrada = tipoCanonico == "Entrada";
+
             Remito remito = new Remito
             {
                 Tipo = tipoCanonico,
                 Numero = remitoDTO.Numero,
                 FechaEmision = remitoDTO.FechaEmision,
-                FechaRecepcion = remitoDTO.FechaRecepcion,
+                FechaRecepcion = esEntrada ? remitoDTO.FechaRecepcion : null,
+                Estado = esEntrada ? "Recibido" : "Emitido",
                 EmpresaId = remitoDTO.EmpresaId,
                 UsuarioId = remitoDTO.UsuarioId,
                 CotizacionId = remitoDTO.CotizacionId,
@@ -120,6 +127,36 @@ namespace IBUY.Server.Controllers
             return Ok(remito.Id);
         }
 
+        /// <summary>
+        /// Recepciona una transferencia emitida: acredita el stock del deposito destino y
+        /// pasa el remito a Estado Recibido. La recepcion es total (no hay recepcion
+        /// parcial de cantidades); si llega mercaderia dañada o de menos, el destino abre
+        /// una Necesidad de vuelta al remitente en vez de ajustar este remito.
+        /// </summary>
+        [HttpPost("{id:int}/recepcion")]
+        public async Task<ActionResult<bool>> Recepcion(int id, RecepcionRemitoDTO recepcionDTO)
+        {
+            var remito = await repositorio.SelectById(id);
+            if (remito is null)
+            {
+                return NotFound($"No se encontró el remito de id: {id}");
+            }
+
+            if (remito.Tipo != "Transferencia")
+            {
+                return BadRequest("Solo los remitos de tipo Transferencia tienen recepción.");
+            }
+
+            if (remito.Estado != "Emitido")
+            {
+                return BadRequest("El remito ya fue recibido.");
+            }
+
+            await repositorio.RegistrarRecepcion(id, recepcionDTO.FechaRecepcion);
+
+            return Ok(true);
+        }
+
         // No hay PUT ni DELETE: un remito ya registrado no se modifica, porque eso
         // dejaria el stock impactado sin corresponder con lo que dice el remito.
 
@@ -135,6 +172,11 @@ namespace IBUY.Server.Controllers
                 if (!dto.DepositoDestinoId.HasValue)
                 {
                     return "El remito de tipo Entrada requiere un depósito destino.";
+                }
+
+                if (!dto.FechaRecepcion.HasValue)
+                {
+                    return "El remito de tipo Entrada requiere la fecha de recepción.";
                 }
             }
             else if (string.Equals(dto.Tipo, "Salida", StringComparison.OrdinalIgnoreCase))

@@ -36,11 +36,43 @@ namespace IBUY.Repository.Repositorios
                         await DecrementarStock(remito.DepositoOrigenId!.Value, item.ProductoId, item.Cantidad);
                         break;
                     case "Transferencia":
+                        // La transferencia solo descuenta el origen aca; la mercaderia
+                        // queda en transito hasta que el destino la recepciona.
                         await DecrementarStock(remito.DepositoOrigenId!.Value, item.ProductoId, item.Cantidad);
-                        await IncrementarStock(remito.DepositoDestinoId!.Value, item.ProductoId, item.Cantidad);
                         break;
                 }
             }
+
+            await context.SaveChangesAsync();
+            await tx.CommitAsync();
+
+            return remito;
+        }
+
+        public async Task<Remito?> RegistrarRecepcion(int id, DateTime fechaRecepcion)
+        {
+            await using var tx = await context.Database.BeginTransactionAsync();
+
+            var remito = await context.Set<Remito>().FirstOrDefaultAsync(r => r.Id == id);
+            if (remito is null)
+            {
+                return null;
+            }
+
+            // La recepcion es total: no hay recepcion parcial de cantidades. Si llega
+            // mercaderia dañada o de menos, el destino abre una Necesidad de vuelta al
+            // remitente en vez de ajustar este remito.
+            var items = await context.Set<ItemRemito>()
+                .Where(i => i.RemitoId == id)
+                .ToListAsync();
+
+            foreach (var item in items)
+            {
+                await IncrementarStock(remito.DepositoDestinoId!.Value, item.ProductoId, item.Cantidad);
+            }
+
+            remito.Estado = "Recibido";
+            remito.FechaRecepcion = fechaRecepcion;
 
             await context.SaveChangesAsync();
             await tx.CommitAsync();

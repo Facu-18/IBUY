@@ -16,9 +16,11 @@ namespace IBUY.Shared.DTO
         [DataType(DataType.Date)]
         public DateTime FechaEmision { get; set; }
 
-        [Required(ErrorMessage = "La fecha de recepción es obligatoria.")]
         [DataType(DataType.Date)]
-        public DateTime FechaRecepcion { get; set; }
+        public DateTime? FechaRecepcion { get; set; }
+
+        /// <summary>Ignorado en el POST: el servidor decide el estado (Emitido/Recibido) según el Tipo.</summary>
+        public string Estado { get; set; } = string.Empty;
 
         [Range(1, int.MaxValue, ErrorMessage = "Debe seleccionar una empresa.")]
         public int EmpresaId { get; set; }

@@ -22,9 +22,12 @@ namespace IBUY.BD.Datos.Entity
         [DataType(DataType.Date)]
         public DateTime FechaEmision { get; set; }
 
-        [Required(ErrorMessage = "La fecha de recepción es obligatoria.")]
         [DataType(DataType.Date)]
-        public DateTime FechaRecepcion { get; set; }
+        public DateTime? FechaRecepcion { get; set; }
+
+        [Required(ErrorMessage = "El estado del remito es obligatorio.")]
+        [MaxLength(20, ErrorMessage = "El estado no puede superar los {1} caracteres.")]
+        public string Estado { get; set; } = string.Empty;
 
         [Range(1, int.MaxValue, ErrorMessage = "Debe seleccionar una empresa.")]
         public int EmpresaId { get; set; }
