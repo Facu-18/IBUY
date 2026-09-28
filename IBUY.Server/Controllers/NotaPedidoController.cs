@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace IBUY.Server.Controllers
 {
     [ApiController]
-    [Route("api/notapedido")]
+    [Route("api/nota-pedido")]
     public class NotaPedidoController : Controller
     {
         private readonly INotaPedidoRepositorio repositorio;

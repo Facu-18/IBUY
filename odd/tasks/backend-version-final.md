@@ -30,11 +30,13 @@ Route for all tasks: delegated direct (one writer; 2+ non-trivial files per task
 - [x] T1 Entities + migration: remove `Stock.CantidadMinima` (+ StockDTO, `GET api/stock/critico`); add `Deposito.UsuarioResponsableId`; Necesidad solicitante/destino; `ItemRemito.Cantidad` decimal; NoAction on Remito/ItemRemito FKs; new EF migration applied to LocalDB.
 - [x] T2 Login + users: PBKDF2 hashing on Usuario create/update, `UsuarioController.Post` returns id; `AuthController` `POST api/auth/login` → `LoginRespuestaDTO` (user, empresa, depósitos a cargo); DepositoDTO/controller handle `UsuarioResponsableId` with FK validation.
 - [x] T3 Necesidad: DTO/controller for solicitante/destino (validation: both exist, differ, product exists); `GET api/necesidad/{id}/revision` → `RevisionNecesidadDTO` (stock disponible en destino, alcanza, faltante).
-- [x] T4 NotaPedido: rename marketplace DTOs; `NotaPedidoDTO` + `ItemNotaDTO` (no navigation entities); `INotaPedidoRepositorio`/`NotaPedidoRepositorio : Repositorio<NotaPedido>` with `InsertarConItems` (transaction) + `ObtenerDetalle`; `NotaPedidoController` `api/notapedido` GET, GET{id}, POST, PUT{id} (header/Estado), DELETE{id}; necesidad stock rule above.
+- [x] T4 NotaPedido: rename marketplace DTOs; `NotaPedidoDTO` + `ItemNotaDTO` (no navigation entities); `INotaPedidoRepositorio`/`NotaPedidoRepositorio : Repositorio<NotaPedido>` with `InsertarConItems` (transaction) + `ObtenerDetalle`; `NotaPedidoController` `api/nota-pedido` (route fixed to `api/nota-pedido` in T9) GET, GET{id}, POST, PUT{id} (header/Estado), DELETE{id}; necesidad stock rule above.
 - [x] T5 Cotizacion (spec below).
 - [x] T6 Remito (spec below).
 - [x] T7 Update CLAUDE.md architecture notes (auth, specific repositories, necesidad flow).
 - [x] T8 Usuario: assign depósitos on create/update (DepositoIds, IUsuarioRepositorio with transaction, same-empresa validation, reassign if already assigned)
+- [x] T9 Route: `NotaPedidoController` route `api/notapedido` → `api/nota-pedido`.
+- [x] T10 Remito two-step: emisión (POST, decrements stock) / recepción (`POST api/remito/{id}/recepcion`, increments stock) for transferencias; Entrada = reception-only from external supplier; Salida = emission-only.
 
 ### T5 Cotizacion spec
 DTOs `CotizacionDTO` (header with item list) and `ItemCotizacionDTO`. `ICotizacionRepositorio`/`CotizacionRepositorio : Repositorio<Cotizacion>` with `InsertarConItems(Cotizacion, List<ItemCotizacion>)` in a transaction, `ObtenerDetalle(int id)`, `ObtenerPorNotaPedido(int notaPedidoId)`. `CotizacionController` `api/cotizacion`: GET, GET {id} (with items), GET nota/{notaPedidoId}, POST, PUT {id}, DELETE {id}.
