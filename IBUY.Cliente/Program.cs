@@ -11,12 +11,8 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 
 builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
 
-// Estado de sesion simulado (empresa, usuario y perfil activos).
+// Estado de sesion: empresa seleccionada en el encabezado (todavia no hay login).
 builder.Services.AddSingleton<EstadoSesion>();
-
-// Servicios simulados: datos en memoria, se reinician al recargar la pagina.
-builder.Services.AddSingleton<IProductoServicio, ProductoServicioMock>();
-builder.Services.AddSingleton<IMarketplaceServicio, MarketplaceServicioMock>();
 
 builder.Services.AddScoped<IHttpService, HttpService>();
 

@@ -32,32 +32,10 @@
             }
         </select>
 
-        <div class="selector-perfil" role="group" aria-label="Perfil activo">
-            @foreach (var perfil in perfiles)
-            {
-                <button type="button"
-                        class="opcion-perfil @(Sesion.Perfil == perfil ? "activa" : null)"
-                        aria-pressed="@(Sesion.Perfil == perfil)"
-                        @onclick="() => Sesion.CambiarPerfil(perfil)">
-                    @perfil
-                </button>
-            }
-        </div>
-
-        <div class="identidad">
-            <div class="identidad-texto">
-                <span class="identidad-empresa">@Sesion.Empresa</span>
-                <span class="identidad-usuario">@Sesion.Usuario · @Sesion.Rol</span>
-            </div>
-            <div class="avatar" title="@Sesion.Usuario">@Sesion.Iniciales</div>
-        </div>
     </div>
 </header>
 
 @code {
-    private static readonly PerfilUsuario[] perfiles =
-        Enum.GetValues<PerfilUsuario>();
-
     private List<EmpresaDTO> empresas = [];
 
     [Parameter]
