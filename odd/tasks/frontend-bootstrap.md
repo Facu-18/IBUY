@@ -30,7 +30,7 @@ Normalize the Blazor client: keep only what consumes the real API (Depósitos), 
 - [x] T2 Rewrite layout, components and Depósitos pages with Bootstrap classes; delete `app.css`; Bootstrap spinner/alert for loading and error UI in `index.html` (route: delegated direct, same writer).
 - [x] T3 Docs: Bootstrap rule in `AGENTS.md`; update `CLAUDE.md` client section and stale `AGENTS.md` notes (route: inline — docs only).
 
-- [x] T4 Theme from prototype (user 2026-10-14: zero-CSS result did not match the design; reference `C:\Users\facun\Desktop\IBUY Prototipo.html`). Add one theme stylesheet that overrides Bootstrap CSS variables with the prototype palette (navy `#0f1b35`, primary `#2563eb`, slate grays, Nunito Sans) plus minimal layout rules (sidebar/header); keep Bootstrap markup (route: delegated direct — preparation + 2+ files).
+- [x] T4 Theme from prototype (user 2026-10-14: zero-CSS result did not match the design; reference `docs/IBUY Prototipo.html`, in the repo). Add one theme stylesheet that overrides Bootstrap CSS variables with the prototype palette (navy `#0f1b35`, primary `#2563eb`, slate grays, Nunito Sans) plus minimal layout rules (sidebar/header); keep Bootstrap markup (route: delegated direct — preparation + 2+ files).
 - [x] T5 Docs: change the rule in `AGENTS.md`/`CLAUDE.md` from "zero custom CSS" to "Bootstrap for structure; colors/typography only via the theme file" (route: inline — docs only).
 
 ## Decision change (user 2026-10-14)
