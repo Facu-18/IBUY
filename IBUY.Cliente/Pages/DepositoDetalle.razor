@@ -1,0 +1,237 @@
+@page "/depositos/{Id:int}"
+@implements IDisposable
+@inject IDepositoServicio DepositoServicio
+@inject EstadoSesion Sesion
+
+<PageTitle>@(deposito?.Nombre ?? "Deposito") · IBUY</PageTitle>
+
+@if (cargando)
+{
+    <Cargando Texto="Cargando deposito..." />
+}
+else if (deposito is null)
+{
+    <div class="resumen-errores">
+        No se encontro el deposito solicitado.
+        <a href="depositos">Volver al listado</a>
+    </div>
+}
+else
+{
+    <div class="detalle-cabecera">
+        <div class="pagina-encabezado" style="margin-bottom:0">
+            <h1>@deposito.Nombre</h1>
+            <p>@deposito.Tipo · @deposito.Direccion</p>
+        </div>
+        <div class="acciones">
+            <a class="accion-ver" href="depositos">
+                <Icono Nombre="volver" /> Volver
+            </a>
+            <a class="accion-editar" href="@($"depositos/editar/{deposito.Id}")">
+                <Icono Nombre="editar" /> Editar
+            </a>
+            <button type="button"
+                    class="@(deposito.Activo ? "accion-desactivar" : "accion-activar")"
+                    disabled="@guardando"
+                    @onclick="AlternarEstado">
+                @(deposito.Activo ? "Desactivar" : "Activar")
+            </button>
+        </div>
+    </div>
+
+    <div class="tarjeta">
+        <dl class="detalle-datos">
+            <div class="dato">
+                <dt class="dato-etiqueta">Estado</dt>
+                <dd class="dato-valor">
+                    <span class="etiqueta @(deposito.Activo ? "etiqueta-verde" : "etiqueta-ambar")">
+                        @(deposito.Activo ? "Activo" : "Inactivo")
+                    </span>
+                </dd>
+            </div>
+            <div class="dato">
+                <dt class="dato-etiqueta">Empresa</dt>
+                <dd class="dato-valor">@deposito.EmpresaRazonSocial</dd>
+            </div>
+            <div class="dato">
+                <dt class="dato-etiqueta">Tipo</dt>
+                <dd class="dato-valor">@deposito.Tipo</dd>
+            </div>
+            <div class="dato">
+                <dt class="dato-etiqueta">Direccion</dt>
+                <dd class="dato-valor">@deposito.Direccion</dd>
+            </div>
+            <div class="dato">
+                <dt class="dato-etiqueta">Responsable</dt>
+                <dd class="dato-valor">@(string.IsNullOrWhiteSpace(deposito.UsuarioResponsableNombre) ? "Sin responsable" : deposito.UsuarioResponsableNombre)</dd>
+            </div>
+            <div class="dato">
+                <dt class="dato-etiqueta">Productos con stock</dt>
+                <dd class="dato-valor">@existencias.Count</dd>
+            </div>
+        </dl>
+    </div>
+
+    <section class="seccion">
+        <div class="seccion-cabecera">
+            <h2>Existencias</h2>
+            <span class="contador">@existencias.Count @(existencias.Count == 1 ? "registro" : "registros")</span>
+        </div>
+
+        <div class="tabla-contenedor">
+            @if (cargandoStock)
+            {
+                <Cargando Texto="Cargando existencias..." />
+            }
+            else if (errorStock is not null)
+            {
+                <p class="tabla-vacia">@errorStock</p>
+            }
+            else if (existencias.Count == 0)
+            {
+                <p class="tabla-vacia">Este deposito no tiene existencias registradas.</p>
+            }
+            else
+            {
+                <table class="tabla tabla-responsiva">
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th>Categoria</th>
+                            <th class="celda-derecha">Cantidad actual</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in existencias)
+                        {
+                            <tr @key="item.StockId">
+                                <td class="celda-principal" data-label="Producto">@item.ProductoNombre</td>
+                                <td data-label="Categoria"><span class="etiqueta etiqueta-azul">@item.Categoria</span></td>
+                                <td class="celda-derecha" data-label="Cantidad actual">@item.CantidadActual.ToString("0.##")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    </section>
+}
+
+@if (aviso is not null)
+{
+    <div class="toast" role="status">@aviso</div>
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private DepositoDTO? deposito;
+    private List<StockDepositoDTO> existencias = [];
+    private bool cargando = true;
+    private bool cargandoStock = true;
+    private bool guardando;
+    private string? errorStock;
+    private string? aviso;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Sesion.OnCambio += AlCambiarSesion;
+        await Cargar();
+    }
+
+    private void AlCambiarSesion()
+    {
+        _ = InvokeAsync(Cargar);
+    }
+
+    private async Task Cargar()
+    {
+        cargando = true;
+        cargandoStock = true;
+        errorStock = null;
+        StateHasChanged();
+
+        var respuesta = await DepositoServicio.ObtenerPorIdAsync(Id);
+        deposito = respuesta.Error ? null : respuesta.Respuesta;
+        cargando = false;
+        StateHasChanged();
+
+        if (deposito is null)
+        {
+            cargandoStock = false;
+            return;
+        }
+
+        var stock = await DepositoServicio.ObtenerStockAsync(Id);
+        if (stock.Error)
+        {
+            existencias = [];
+            errorStock = $"No se pudieron cargar las existencias. {stock.Mensaje}".Trim();
+        }
+        else
+        {
+            existencias = stock.Respuesta ?? [];
+        }
+
+        cargandoStock = false;
+        StateHasChanged();
+    }
+
+    private async Task AlternarEstado()
+    {
+        if (deposito is null)
+        {
+            return;
+        }
+
+        guardando = true;
+
+        var actualizado = new DepositoDTO
+        {
+            Id = deposito.Id,
+            Nombre = deposito.Nombre,
+            Tipo = deposito.Tipo,
+            Direccion = deposito.Direccion,
+            Activo = !deposito.Activo,
+            EmpresaId = deposito.EmpresaId,
+            UsuarioResponsableId = deposito.UsuarioResponsableId
+        };
+
+        var respuesta = await DepositoServicio.EditarAsync(deposito.Id, actualizado);
+
+        if (respuesta.Error || !respuesta.Respuesta)
+        {
+            await MostrarAviso($"No se pudo actualizar {deposito.Nombre}. {respuesta.Mensaje}".Trim());
+        }
+        else
+        {
+            deposito.Activo = actualizado.Activo;
+            await MostrarAviso(actualizado.Activo
+                ? $"{deposito.Nombre} activado."
+                : $"{deposito.Nombre} desactivado.");
+        }
+
+        guardando = false;
+        StateHasChanged();
+    }
+
+    private async Task MostrarAviso(string texto)
+    {
+        aviso = texto;
+        StateHasChanged();
+
+        await Task.Delay(3500);
+
+        if (aviso == texto)
+        {
+            aviso = null;
+            StateHasChanged();
+        }
+    }
+
+    public void Dispose()
+    {
+        Sesion.OnCambio -= AlCambiarSesion;
+    }
+}

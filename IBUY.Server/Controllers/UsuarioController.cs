@@ -34,6 +34,27 @@ namespace IBUY.Server.Controllers
             return Ok(usuarios);
         }
 
+        /// <summary>
+        /// Opciones mínimas (Id + Nombre) de los usuarios activos de una empresa,
+        /// para poblar combos sin exponer email ni contraseña.
+        /// </summary>
+        [HttpGet("empresa/{empresaId:int}")]
+        public async Task<ActionResult<List<UsuarioOpcionDTO>>> GetOpcionesPorEmpresa(int empresaId)
+        {
+            if (!await empresaRepositorio.Existe(empresaId))
+            {
+                return NotFound($"No existe la empresa de id: {empresaId}");
+            }
+
+            var usuarios = (await repositorio.Select())
+                .Where(u => u.EmpresaId == empresaId && u.Estado)
+                .OrderBy(u => u.Nombre)
+                .Select(u => new UsuarioOpcionDTO { Id = u.Id, Nombre = u.Nombre })
+                .ToList();
+
+            return Ok(usuarios);
+        }
+
         [HttpGet("{id:int}")]
         public async Task<ActionResult<UsuarioDTO>> GetById(int id)
         {

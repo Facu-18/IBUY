@@ -1,5 +1,6 @@
 @implements IDisposable
 @inject EstadoSesion Sesion
+@inject ICatalogoServicio Catalogo
 
 <header class="ibuy-encabezado">
     <button type="button" class="boton-menu" @onclick="AlAlternarMenu"
@@ -16,6 +17,21 @@
     </a>
 
     <div class="encabezado-derecha">
+        <select class="selector-empresa" aria-label="Empresa seleccionada"
+                value="@Sesion.EmpresaId" @onchange="AlCambiarEmpresa" disabled="@(empresas.Count == 0)">
+            @if (empresas.Count == 0)
+            {
+                <option value="0">Sin empresas</option>
+            }
+            else
+            {
+                @foreach (var empresa in empresas)
+                {
+                    <option value="@empresa.Id">@empresa.RazonSocial</option>
+                }
+            }
+        </select>
+
         <div class="selector-perfil" role="group" aria-label="Perfil activo">
             @foreach (var perfil in perfiles)
             {
@@ -42,15 +58,43 @@
     private static readonly PerfilUsuario[] perfiles =
         Enum.GetValues<PerfilUsuario>();
 
+    private List<EmpresaDTO> empresas = [];
+
     [Parameter]
     public EventCallback AlAlternarMenu { get; set; }
 
     [Parameter]
     public bool MenuAbierto { get; set; }
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
+        var respuesta = await Catalogo.ObtenerEmpresasAsync();
+        if (!respuesta.Error && respuesta.Respuesta is not null)
+        {
+            empresas = respuesta.Respuesta;
+
+            // Primera carga: toma la primera empresa como activa.
+            if (Sesion.EmpresaId == 0 && empresas.Count > 0)
+            {
+                Sesion.CambiarEmpresa(empresas[0].Id, empresas[0].RazonSocial);
+            }
+        }
+
         Sesion.OnCambio += Refrescar;
+    }
+
+    private void AlCambiarEmpresa(ChangeEventArgs e)
+    {
+        if (!int.TryParse(e.Value?.ToString(), out var empresaId))
+        {
+            return;
+        }
+
+        var empresa = empresas.FirstOrDefault(x => x.Id == empresaId);
+        if (empresa is not null)
+        {
+            Sesion.CambiarEmpresa(empresa.Id, empresa.RazonSocial);
+        }
     }
 
     private void Refrescar() => StateHasChanged();

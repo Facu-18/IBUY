@@ -1,5 +1,217 @@
 @page "/depositos"
+@implements IDisposable
+@inject IDepositoServicio DepositoServicio
+@inject EstadoSesion Sesion
 
 <PageTitle>Depositos · IBUY</PageTitle>
 
-<PaginaEnConstruccion Titulo="Depositos" Icono="depositos" Descripcion="Depositos donde cada empresa almacena su mercaderia." />
+<div class="pagina-encabezado">
+    <h1>Depositos</h1>
+    <p>Depositos donde cada empresa almacena su mercaderia.</p>
+</div>
+
+@if (cargando)
+{
+    <Cargando Texto="Cargando depositos..." />
+}
+else if (errorCarga is not null)
+{
+    <div class="resumen-errores">@errorCarga</div>
+}
+else
+{
+    <div class="barra-filtros">
+        <label class="buscador">
+            <Icono Nombre="buscar" />
+            <input type="text" placeholder="Buscar por nombre, direccion o responsable"
+                   @bind="busqueda" @bind:event="oninput" />
+        </label>
+        <span class="contador">@filtrados.Count @(filtrados.Count == 1 ? "deposito" : "depositos")</span>
+        <a class="boton-primario" href="depositos/nuevo">
+            <Icono Nombre="mas" />
+            Nuevo deposito
+        </a>
+    </div>
+
+    <div class="tabla-contenedor">
+        @if (depositos.Count == 0)
+        {
+            <p class="tabla-vacia">
+                @(Sesion.EmpresaId == 0
+                    ? "No hay empresa seleccionada. Elija una empresa en el encabezado para ver sus depositos."
+                    : "La empresa seleccionada todavia no tiene depositos cargados.")
+            </p>
+        }
+        else if (filtrados.Count == 0)
+        {
+            <p class="tabla-vacia">Sin resultados para la busqueda.</p>
+        }
+        else
+        {
+            <table class="tabla tabla-responsiva">
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Tipo</th>
+                        <th>Direccion</th>
+                        <th>Responsable</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var deposito in filtrados)
+                    {
+                        <tr @key="deposito.Id">
+                            <td class="celda-principal" data-label="Nombre">@deposito.Nombre</td>
+                            <td data-label="Tipo">@deposito.Tipo</td>
+                            <td data-label="Direccion">@deposito.Direccion</td>
+                            <td data-label="Responsable">@(string.IsNullOrWhiteSpace(deposito.UsuarioResponsableNombre) ? "Sin responsable" : deposito.UsuarioResponsableNombre)</td>
+                            <td data-label="Estado">
+                                <span class="etiqueta @(deposito.Activo ? "etiqueta-verde" : "etiqueta-ambar")">
+                                    @(deposito.Activo ? "Activo" : "Inactivo")
+                                </span>
+                            </td>
+                            <td class="acciones" data-label="Acciones">
+                                <a class="accion-ver" href="@($"depositos/{deposito.Id}")">
+                                    <Icono Nombre="ver" /> Ver
+                                </a>
+                                <a class="accion-editar" href="@($"depositos/editar/{deposito.Id}")">
+                                    <Icono Nombre="editar" /> Editar
+                                </a>
+                                <button type="button"
+                                        class="@(deposito.Activo ? "accion-desactivar" : "accion-activar")"
+                                        disabled="@guardando"
+                                        @onclick="() => AlternarEstado(deposito)">
+                                    @(deposito.Activo ? "Desactivar" : "Activar")
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+}
+
+@if (aviso is not null)
+{
+    <div class="toast" role="status">@aviso</div>
+}
+
+@code {
+    private List<DepositoDTO> depositos = [];
+    private List<DepositoDTO> filtrados => string.IsNullOrWhiteSpace(busqueda)
+        ? depositos
+        : [.. depositos.Where(d => Coincide(d, busqueda))];
+
+    private string busqueda = string.Empty;
+    private bool cargando = true;
+    private bool guardando;
+    private string? errorCarga;
+    private string? aviso;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Sesion.OnCambio += AlCambiarSesion;
+        await Cargar();
+    }
+
+    private void AlCambiarSesion()
+    {
+        _ = InvokeAsync(Cargar);
+    }
+
+    private async Task Cargar()
+    {
+        cargando = true;
+        errorCarga = null;
+        StateHasChanged();
+
+        if (Sesion.EmpresaId == 0)
+        {
+            // Todavia no se cargo ninguna empresa: no se pide nada al servidor.
+            depositos = [];
+            cargando = false;
+            StateHasChanged();
+            return;
+        }
+
+        var respuesta = await DepositoServicio.ObtenerTodosAsync(Sesion.EmpresaId);
+
+        if (respuesta.Error)
+        {
+            depositos = [];
+            errorCarga = $"No se pudieron cargar los depositos. {respuesta.Mensaje}".Trim();
+        }
+        else
+        {
+            depositos = respuesta.Respuesta ?? [];
+        }
+
+        cargando = false;
+        StateHasChanged();
+    }
+
+    private static bool Coincide(DepositoDTO deposito, string texto)
+    {
+        var filtro = texto.Trim().ToLowerInvariant();
+        return deposito.Nombre.ToLowerInvariant().Contains(filtro)
+            || deposito.Tipo.ToLowerInvariant().Contains(filtro)
+            || deposito.Direccion.ToLowerInvariant().Contains(filtro)
+            || deposito.UsuarioResponsableNombre.ToLowerInvariant().Contains(filtro);
+    }
+
+    private async Task AlternarEstado(DepositoDTO deposito)
+    {
+        guardando = true;
+
+        var actualizado = new DepositoDTO
+        {
+            Id = deposito.Id,
+            Nombre = deposito.Nombre,
+            Tipo = deposito.Tipo,
+            Direccion = deposito.Direccion,
+            Activo = !deposito.Activo,
+            EmpresaId = deposito.EmpresaId,
+            UsuarioResponsableId = deposito.UsuarioResponsableId
+        };
+
+        var respuesta = await DepositoServicio.EditarAsync(deposito.Id, actualizado);
+
+        if (respuesta.Error || !respuesta.Respuesta)
+        {
+            await MostrarAviso($"No se pudo actualizar {deposito.Nombre}. {respuesta.Mensaje}".Trim());
+        }
+        else
+        {
+            // La operacion se refleja en el listado sin volver a pedir los datos.
+            deposito.Activo = actualizado.Activo;
+            await MostrarAviso(actualizado.Activo
+                ? $"{deposito.Nombre} activado."
+                : $"{deposito.Nombre} desactivado.");
+        }
+
+        guardando = false;
+        StateHasChanged();
+    }
+
+    private async Task MostrarAviso(string texto)
+    {
+        aviso = texto;
+        StateHasChanged();
+
+        await Task.Delay(3500);
+
+        if (aviso == texto)
+        {
+            aviso = null;
+            StateHasChanged();
+        }
+    }
+
+    public void Dispose()
+    {
+        Sesion.OnCambio -= AlCambiarSesion;
+    }
+}

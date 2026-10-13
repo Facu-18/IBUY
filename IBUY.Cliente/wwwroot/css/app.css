@@ -392,18 +392,130 @@ h1:focus {
 }
 
 .boton-primario {
-    margin-top: 0.5rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
     padding: 0.55rem 1.1rem;
+    border: none;
     border-radius: 0.5rem;
     background-color: var(--ibuy-azul);
     color: #fff;
     font-size: 0.9rem;
     font-weight: 600;
     text-decoration: none;
+    cursor: pointer;
 }
 
 .boton-primario:hover {
     background-color: #1d4ed8;
+}
+
+.boton-primario:disabled {
+    background-color: #cbd5e1;
+    cursor: not-allowed;
+}
+
+.boton-primario .icono {
+    width: 1rem;
+    height: 1rem;
+}
+
+.boton-secundario,
+.boton-exito {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    font-size: 0.86rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.boton-secundario {
+    border: 1px solid #cbd5e1;
+    background-color: var(--ibuy-superficie);
+    color: var(--ibuy-texto);
+}
+
+.boton-secundario:hover {
+    background-color: var(--ibuy-fondo);
+}
+
+.boton-exito {
+    border: 1px solid #16a34a;
+    background-color: #16a34a;
+    color: #fff;
+}
+
+.boton-exito:hover {
+    background-color: #15803d;
+}
+
+.boton-primario .icono,
+.boton-secundario .icono,
+.boton-exito .icono {
+    width: 1rem;
+    height: 1rem;
+}
+
+/* Acciones de fila en las tablas. */
+.acciones {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    white-space: nowrap;
+}
+
+.acciones a,
+.acciones button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.32rem 0.65rem;
+    border-radius: 0.45rem;
+    font-size: 0.76rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.acciones .accion-ver {
+    border: 1px solid var(--ibuy-borde);
+    background-color: var(--ibuy-superficie);
+    color: var(--ibuy-texto);
+}
+
+.acciones .accion-ver:hover {
+    background-color: var(--ibuy-fondo);
+}
+
+.acciones .accion-editar {
+    border: 1px solid var(--ibuy-azul-suave);
+    background-color: var(--ibuy-azul-suave);
+    color: #1d4ed8;
+}
+
+.acciones .accion-editar:hover {
+    background-color: #bfdbfe;
+}
+
+.acciones .accion-activar {
+    border: 1px solid #16a34a;
+    background-color: #dcfce7;
+    color: #15803d;
+}
+
+.acciones .accion-desactivar {
+    border: 1px solid #fecaca;
+    background-color: #fee2e2;
+    color: #b91c1c;
+}
+
+.acciones .icono {
+    width: 0.9rem;
+    height: 0.9rem;
 }
 
 /* ---------- Responsive ---------- */
@@ -724,4 +836,329 @@ h1:focus {
 .publicacion-pie .boton-primario:disabled {
     background-color: #cbd5e1;
     cursor: not-allowed;
+}
+
+/* ---------- Selector de empresa (encabezado) ---------- */
+
+.selector-empresa {
+    max-width: 13rem;
+    padding: 0.45rem 0.6rem;
+    border: 1px solid var(--ibuy-borde);
+    border-radius: 0.5rem;
+    background-color: var(--ibuy-fondo);
+    color: var(--ibuy-texto);
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.selector-empresa:disabled {
+    color: var(--ibuy-texto-suave);
+    cursor: default;
+}
+
+/* ---------- Barra de filtros con buscador ---------- */
+
+.barra-filtros {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.buscador {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    flex: 1;
+    min-width: 14rem;
+    max-width: 22rem;
+    padding: 0 0.7rem;
+    background-color: var(--ibuy-superficie);
+    border: 1px solid var(--ibuy-borde);
+    border-radius: 0.5rem;
+}
+
+.buscador:focus-within {
+    border-color: #93c5fd;
+    box-shadow: 0 0 0 2px #dbeafe;
+}
+
+.buscador .icono {
+    color: var(--ibuy-texto-suave);
+}
+
+.buscador input {
+    flex: 1;
+    min-width: 0;
+    padding: 0.55rem 0;
+    border: none;
+    background: none;
+    font-family: inherit;
+    font-size: 0.88rem;
+    color: var(--ibuy-texto);
+}
+
+.buscador input:focus {
+    outline: none;
+}
+
+.barra-filtros .contador {
+    margin-left: auto;
+}
+
+/* ---------- Estados vacios ---------- */
+
+.tabla-vacia {
+    padding: 2.5rem 1rem;
+    text-align: center;
+    color: var(--ibuy-texto-suave);
+    font-size: 0.9rem;
+}
+
+/* ---------- Formularios ---------- */
+
+.formulario {
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+    max-width: 44rem;
+    padding: 1.5rem;
+    background-color: var(--ibuy-superficie);
+    border: 1px solid var(--ibuy-borde);
+    border-radius: 0.75rem;
+}
+
+.formulario .campo {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.formulario .campo > span,
+.formulario .campo > label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #334155;
+}
+
+.formulario .campo input[type="text"],
+.formulario .campo input[type="number"],
+.formulario .campo select,
+.formulario .campo textarea {
+    padding: 0.6rem 0.7rem;
+    border: 1px solid var(--ibuy-borde);
+    border-radius: 0.5rem;
+    background-color: var(--ibuy-superficie);
+    color: var(--ibuy-texto);
+    font-family: inherit;
+    font-size: 0.9rem;
+}
+
+.formulario .campo input:focus,
+.formulario .campo select:focus,
+.formulario .campo textarea:focus {
+    outline: 2px solid #93c5fd;
+    outline-offset: 0;
+    border-color: #93c5fd;
+}
+
+.formulario .campo .validation-message {
+    font-size: 0.78rem;
+}
+
+.campo-check {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.campo-check input {
+    width: 1.05rem;
+    height: 1.05rem;
+}
+
+.resumen-errores {
+    padding: 0.7rem 0.9rem;
+    border: 1px solid #fecaca;
+    border-radius: 0.5rem;
+    background-color: #fee2e2;
+    color: #b91c1c;
+    font-size: 0.85rem;
+}
+
+.resumen-errores ul {
+    margin: 0;
+    padding-left: 1.1rem;
+}
+
+.formulario-pie {
+    display: flex;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    padding-top: 0.25rem;
+}
+
+/* ---------- Detalle ---------- */
+
+.detalle-cabecera {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.detalle-cabecera .acciones {
+    gap: 0.5rem;
+}
+
+.detalle-cabecera .acciones a,
+.detalle-cabecera .acciones button {
+    padding: 0.45rem 0.9rem;
+    font-size: 0.82rem;
+}
+
+.detalle-datos {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+    gap: 1.1rem 1.5rem;
+    margin: 0;
+}
+
+.dato {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.dato-etiqueta {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ibuy-texto-suave);
+}
+
+.dato-valor {
+    font-size: 0.95rem;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.seccion {
+    margin-top: 1.5rem;
+}
+
+.seccion-cabecera {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.seccion-cabecera h2 {
+    font-size: 1.05rem;
+}
+
+/* ---------- Aviso flotante (toast) ---------- */
+
+.toast {
+    position: fixed;
+    right: 1.5rem;
+    bottom: 1.5rem;
+    z-index: 60;
+    max-width: min(26rem, calc(100vw - 3rem));
+    padding: 0.75rem 1.1rem;
+    border-radius: 0.75rem;
+    background-color: #0f172a;
+    color: #fff;
+    font-size: 0.86rem;
+    font-weight: 600;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.28);
+}
+
+/* ---------- Tablas en movil ---------- */
+
+@media (max-width: 700px) {
+    .tabla-responsiva {
+        border: none;
+    }
+
+    .tabla-responsiva thead {
+        display: none;
+    }
+
+    .tabla-responsiva,
+    .tabla-responsiva tbody,
+    .tabla-responsiva tr,
+    .tabla-responsiva td {
+        display: block;
+        width: 100%;
+    }
+
+    .tabla-responsiva tr {
+        padding: 0.5rem 0;
+        border-bottom: 1px solid var(--ibuy-borde);
+    }
+
+    .tabla-responsiva tr:last-child {
+        border-bottom: none;
+    }
+
+    .tabla-responsiva td {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 0.35rem 0.9rem;
+        border: none;
+        text-align: right;
+    }
+
+    .tabla-responsiva td::before {
+        content: attr(data-label);
+        flex: none;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--ibuy-texto-suave);
+        text-align: left;
+    }
+
+    .tabla-responsiva td.celda-principal {
+        padding-top: 0.6rem;
+        font-size: 0.95rem;
+    }
+
+    .tabla-responsiva td.acciones {
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        padding-bottom: 0.6rem;
+    }
+}
+
+@media (max-width: 560px) {
+    .selector-empresa {
+        max-width: 8rem;
+    }
+
+    .barra-filtros .contador {
+        margin-left: 0;
+    }
+}
+
+/* ---------- Ajustes de detalle y mensajes ---------- */
+
+.dato dd {
+    margin: 0;
+}
+
+.resumen-errores a {
+    color: #b91c1c;
+    font-weight: 600;
 }

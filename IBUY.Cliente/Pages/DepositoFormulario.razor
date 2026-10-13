@@ -1,0 +1,191 @@
+@page "/depositos/nuevo"
+@page "/depositos/editar/{Id:int}"
+@inject IDepositoServicio DepositoServicio
+@inject ICatalogoServicio CatalogoServicio
+@inject EstadoSesion Sesion
+@inject NavigationManager Navegacion
+
+<PageTitle>@(esEdicion ? "Editar deposito" : "Nuevo deposito") · IBUY</PageTitle>
+
+<div class="pagina-encabezado">
+    <h1>@(esEdicion ? "Editar deposito" : "Nuevo deposito")</h1>
+    <p>@(esEdicion ? "Actualiza los datos del deposito." : "Carga un deposito nuevo para la empresa seleccionada.")</p>
+</div>
+
+@if (cargando)
+{
+    <Cargando Texto="Cargando formulario..." />
+}
+else if (deposito is null)
+{
+    <div class="resumen-errores">
+        No se encontro el deposito solicitado. <a href="depositos">Volver al listado</a>
+    </div>
+}
+else
+{
+    @if (!string.IsNullOrWhiteSpace(errorServidor))
+    {
+        <div class="resumen-errores" style="margin-bottom:1rem">@errorServidor</div>
+    }
+
+    <EditForm Model="deposito" OnValidSubmit="Guardar" OnInvalidSubmit="MarcarInvalido" class="formulario">
+        <DataAnnotationsValidator />
+
+        <div class="campo">
+            <span>Empresa</span>
+            <input type="text" value="@Sesion.Empresa" disabled />
+            <small style="color:var(--ibuy-texto-suave)">El deposito se crea dentro de la empresa seleccionada en el encabezado.</small>
+        </div>
+
+        <div class="campo">
+            <span>Nombre</span>
+            <InputText @bind-Value="deposito!.Nombre" maxlength="100" placeholder="Ej.: Deposito central" />
+            <ValidationMessage For="() => deposito!.Nombre" />
+        </div>
+
+        <div class="campo">
+            <span>Tipo</span>
+            <InputText @bind-Value="deposito!.Tipo" maxlength="50" placeholder="Ej.: Central, Obra, Sucursal" />
+            <ValidationMessage For="() => deposito!.Tipo" />
+        </div>
+
+        <div class="campo">
+            <span>Direccion</span>
+            <InputText @bind-Value="deposito!.Direccion" maxlength="200" placeholder="Ej.: Av. Colon 1450, Cordoba" />
+            <ValidationMessage For="() => deposito!.Direccion" />
+        </div>
+
+        <div class="campo">
+            <span>Responsable (opcional)</span>
+            <select value="@responsableSeleccionado" @onchange="AlCambiarResponsable">
+                <option value="">Sin responsable</option>
+                @foreach (var usuario in usuarios)
+                {
+                    <option value="@usuario.Id">@usuario.Nombre</option>
+                }
+            </select>
+            @if (usuarios.Count == 0)
+            {
+                <small style="color:var(--ibuy-texto-suave)">No hay usuarios activos en esta empresa.</small>
+            }
+        </div>
+
+        <div class="campo campo-check">
+            <InputCheckbox @bind-Value="deposito!.Activo" id="deposito-activo" />
+            <label for="deposito-activo">Deposito activo</label>
+        </div>
+
+        @if (intentado)
+        {
+            <div class="resumen-errores">
+                <ValidationSummary />
+            </div>
+        }
+
+        <div class="formulario-pie">
+            <a class="boton-secundario" href="depositos">Cancelar</a>
+            <button type="submit" class="boton-primario" disabled="@guardando">
+                @(guardando ? "Guardando..." : "Guardar")
+            </button>
+        </div>
+    </EditForm>
+}
+
+@code {
+    [Parameter]
+    public int? Id { get; set; }
+
+    private DepositoDTO? deposito;
+    private List<UsuarioOpcionDTO> usuarios = [];
+    private string responsableSeleccionado = string.Empty;
+    private bool cargando = true;
+    private bool guardando;
+    private bool intentado;
+    private string? errorServidor;
+
+    private bool esEdicion => Id.HasValue && Id.Value > 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        deposito = new DepositoDTO
+        {
+            EmpresaId = Sesion.EmpresaId,
+            Activo = true
+        };
+
+        var opciones = await CatalogoServicio.ObtenerUsuariosAsync(Sesion.EmpresaId);
+        if (!opciones.Error)
+        {
+            usuarios = opciones.Respuesta ?? [];
+        }
+
+        if (esEdicion)
+        {
+            var respuesta = await DepositoServicio.ObtenerPorIdAsync(Id!.Value);
+            if (respuesta.Error || respuesta.Respuesta is null)
+            {
+                errorServidor = $"No se encontro el deposito de id: {Id}. {respuesta.Mensaje}".Trim();
+                deposito = null;
+            }
+            else
+            {
+                deposito = respuesta.Respuesta;
+                responsableSeleccionado = deposito.UsuarioResponsableId?.ToString() ?? string.Empty;
+            }
+        }
+
+        cargando = false;
+    }
+
+    private void AlCambiarResponsable(ChangeEventArgs e)
+    {
+        responsableSeleccionado = e.Value?.ToString() ?? string.Empty;
+    }
+
+    private void MarcarInvalido()
+    {
+        intentado = true;
+    }
+
+    private async Task Guardar()
+    {
+        if (deposito is null)
+        {
+            return;
+        }
+
+        intentado = false;
+        guardando = true;
+        errorServidor = null;
+
+        deposito.EmpresaId = Sesion.EmpresaId;
+        deposito.UsuarioResponsableId = int.TryParse(responsableSeleccionado, out var responsableId)
+            ? responsableId
+            : null;
+
+        if (esEdicion)
+        {
+            var respuesta = await DepositoServicio.EditarAsync(Id!.Value, deposito);
+            if (respuesta.Error || !respuesta.Respuesta)
+            {
+                errorServidor = $"No se pudo guardar el deposito. {respuesta.Mensaje}".Trim();
+                guardando = false;
+                return;
+            }
+
+            Navegacion.NavigateTo($"depositos/{Id!.Value}");
+            return;
+        }
+
+        var creacion = await DepositoServicio.CrearAsync(deposito);
+        if (creacion.Error)
+        {
+            errorServidor = $"No se pudo crear el deposito. {creacion.Mensaje}".Trim();
+            guardando = false;
+            return;
+        }
+
+        Navegacion.NavigateTo($"depositos/{creacion.Respuesta}");
+    }
+}
