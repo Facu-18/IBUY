@@ -26,11 +26,17 @@ namespace IBUY.BD.Datos.Entity
         [MaxLength(20, ErrorMessage = "El estado no puede superar los {1} caracteres.")]
         public string Estado { get; set; } = string.Empty;
 
-        [Range(1, int.MaxValue, ErrorMessage = "Debe seleccionar un depósito.")]
-        public int DepositoId { get; set; }
+        [Range(1, int.MaxValue, ErrorMessage = "Debe seleccionar el depósito solicitante.")]
+        public int DepositoSolicitanteId { get; set; }
 
         [DeleteBehavior(DeleteBehavior.NoAction)]
-        public Deposito Deposito { get; set; }
+        public Deposito DepositoSolicitante { get; set; }
+
+        [Range(1, int.MaxValue, ErrorMessage = "Debe seleccionar el depósito destino.")]
+        public int DepositoDestinoId { get; set; }
+
+        [DeleteBehavior(DeleteBehavior.NoAction)]
+        public Deposito DepositoDestino { get; set; }
 
         [Range(1, int.MaxValue, ErrorMessage = "Debe seleccionar un producto.")]
         public int ProductoId { get; set; }

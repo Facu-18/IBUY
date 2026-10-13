@@ -23,25 +23,6 @@ namespace IBUY.Server.Controllers
             return Ok(stocks);
         }
 
-        [HttpGet("critico")]
-        public async Task<ActionResult<List<StockDTO>>> GetCritico()
-        {
-            var stocks = await repositorio.Select();
-
-            var stocksCriticos = stocks
-                .Where(s => s.CantidadActual <= s.CantidadMinima)
-                .Select(s => new StockDTO
-                {
-                    CantidadActual = s.CantidadActual,
-                    CantidadMinima = s.CantidadMinima,
-                    DepositoId = s.DepositoId,
-                    ProductoId = s.ProductoId
-                })
-                .ToList();
-
-            return Ok(stocksCriticos);
-        }
-
         [HttpGet("{id:int}")]
         public async Task<ActionResult<StockDTO>> GetById(int id)
         {
@@ -55,7 +36,6 @@ namespace IBUY.Server.Controllers
             StockDTO dto = new StockDTO
             {
                 CantidadActual = stock!.CantidadActual,
-                CantidadMinima = stock.CantidadMinima,
                 DepositoId = stock.DepositoId,
                 ProductoId = stock.ProductoId
             };
@@ -69,7 +49,6 @@ namespace IBUY.Server.Controllers
             Stock stock = new Stock
             {
                 CantidadActual = stockDTO.CantidadActual,
-                CantidadMinima = stockDTO.CantidadMinima,
                 DepositoId = stockDTO.DepositoId,
                 ProductoId = stockDTO.ProductoId
             };
@@ -89,7 +68,6 @@ namespace IBUY.Server.Controllers
 
             var stock = await repositorio.SelectById(id);
             stock!.CantidadActual = stockDTO.CantidadActual;
-            stock.CantidadMinima = stockDTO.CantidadMinima;
             stock.DepositoId = stockDTO.DepositoId;
             stock.ProductoId = stockDTO.ProductoId;
 

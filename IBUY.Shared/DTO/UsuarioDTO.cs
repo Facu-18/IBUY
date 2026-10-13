@@ -26,5 +26,7 @@ namespace IBUY.Shared.DTO
         [Range(1, int.MaxValue, ErrorMessage = "Debe seleccionar una empresa.")]
         public int EmpresaId { get; set; }
 
+        public List<int> DepositoIds { get; set; } = [];
+
     }
 }

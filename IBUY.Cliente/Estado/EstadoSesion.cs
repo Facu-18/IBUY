@@ -12,7 +12,10 @@ namespace IBUY.Cliente.Estado
     /// </summary>
     public class EstadoSesion
     {
-        public string Empresa { get; } = "Constructora del Sur SA";
+        public string Empresa { get; private set; } = "Constructora del Sur SA";
+
+        /// <summary>Id de la empresa seleccionada en el encabezado; 0 hasta que se cargue el listado de empresas.</summary>
+        public int EmpresaId { get; private set; }
 
         public string Usuario { get; } = "Sergio Algorry";
 
@@ -20,7 +23,7 @@ namespace IBUY.Cliente.Estado
 
         public PerfilUsuario Perfil { get; private set; } = PerfilUsuario.Comprador;
 
-        /// <summary>Se dispara cuando cambia el perfil, para que los componentes se refresquen.</summary>
+        /// <summary>Se dispara cuando cambia el perfil o la empresa, para que los componentes se refresquen.</summary>
         public event Action? OnCambio;
 
         public string Iniciales
@@ -47,6 +50,18 @@ namespace IBUY.Cliente.Estado
             }
 
             Perfil = perfil;
+            OnCambio?.Invoke();
+        }
+
+        public void CambiarEmpresa(int empresaId, string razonSocial)
+        {
+            if (EmpresaId == empresaId)
+            {
+                return;
+            }
+
+            EmpresaId = empresaId;
+            Empresa = razonSocial;
             OnCambio?.Invoke();
         }
     }

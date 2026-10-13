@@ -4,6 +4,9 @@ namespace IBUY.Shared.DTO
 {
     public class EmpresaDTO
     {
+        /// <summary>Solo lectura: lo informa el servidor en los GET.</summary>
+        public int Id { get; set; }
+
         [Required(ErrorMessage = "La razón social es obligatoria.")]
         [MaxLength(100, ErrorMessage = "La razón social no puede superar los {1} caracteres.")]
         public string RazonSocial { get; set; } = string.Empty;

@@ -12,48 +12,92 @@ namespace IBUY.Server.Controllers
         
         private readonly IRepositorio<Deposito> repositorio;
         private readonly IRepositorio<Empresa> empresaRepositorio;
+        private readonly IRepositorio<Usuario> usuarioRepositorio;
+        private readonly IRepositorio<Stock> stockRepositorio;
+        private readonly IRepositorio<Producto> productoRepositorio;
 
-        public DepositoController(IRepositorio<Deposito> repositorio, IRepositorio<Empresa> empresaRepositorio)
+        public DepositoController(
+            IRepositorio<Deposito> repositorio,
+            IRepositorio<Empresa> empresaRepositorio,
+            IRepositorio<Usuario> usuarioRepositorio,
+            IRepositorio<Stock> stockRepositorio,
+            IRepositorio<Producto> productoRepositorio)
         {
             this.repositorio = repositorio;
             this.empresaRepositorio = empresaRepositorio;
+            this.usuarioRepositorio = usuarioRepositorio;
+            this.stockRepositorio = stockRepositorio;
+            this.productoRepositorio = productoRepositorio;
         }
 
         [HttpGet]
-        public async Task<ActionResult<List<Deposito>>> Get()
+        public async Task<ActionResult<List<DepositoDTO>>> Get([FromQuery] int? empresaId)
         {
             var depositos = await repositorio.Select();
-            return Ok(depositos);
+
+            if (empresaId.HasValue)
+            {
+                depositos = depositos.Where(d => d.EmpresaId == empresaId.Value).ToList();
+            }
+
+            return Ok(await CompletarDepositos(depositos));
         }
 
         [HttpGet("{id:int}")]
         public async Task<ActionResult<DepositoDTO>> GetById(int id)
+        {
+            var deposito = await repositorio.SelectById(id);
+            if (deposito is null)
+            {
+                return NotFound($"No se encontró el depósito de id: {id}");
+            }
+
+            var dtos = await CompletarDepositos([deposito]);
+            return Ok(dtos[0]);
+        }
+
+        /// <summary>
+        /// Existencias del depósito: une stock con producto para poder mostrar nombre y categoría.
+        /// </summary>
+        [HttpGet("{id:int}/stock")]
+        public async Task<ActionResult<List<StockDepositoDTO>>> GetStock(int id)
         {
             if (!await repositorio.Existe(id))
             {
                 return NotFound($"No se encontró el depósito de id: {id}");
             }
 
-            var deposito = await repositorio.SelectById(id);
+            var stocks = (await stockRepositorio.Select())
+                .Where(s => s.DepositoId == id)
+                .ToList();
 
-            DepositoDTO dto = new DepositoDTO();
-            dto.Nombre = deposito!.Nombre;
-            dto.Tipo = deposito.Tipo;
-            dto.Direccion = deposito.Direccion;
-            dto.Activo = deposito.Activo;
-            dto.EmpresaId = deposito.EmpresaId;
+            var productos = await productoRepositorio.Select();
+            var porId = productos.ToDictionary(p => p.Id);
 
-            return Ok(dto);
+            var respuesta = stocks
+                .Where(s => porId.ContainsKey(s.ProductoId))
+                .Select(s => new StockDepositoDTO
+                {
+                    StockId = s.Id,
+                    ProductoId = s.ProductoId,
+                    ProductoNombre = porId[s.ProductoId].Nombre,
+                    Categoria = porId[s.ProductoId].Categoria,
+                    CantidadActual = s.CantidadActual
+                })
+                .OrderBy(s => s.ProductoNombre)
+                .ToList();
+
+            return Ok(respuesta);
         }
+
 
         [HttpPost]
         public async Task<ActionResult<int>> Post(DepositoDTO depositoDTO)
         {
-            // La FK exige que la empresa exista: sin este control, SQL Server rechaza
-            // el INSERT y el error sale como un 500 en vez de un mensaje util.
-            if (!await empresaRepositorio.Existe(depositoDTO.EmpresaId))
+            var error = await ValidarRelaciones(depositoDTO);
+            if (error is not null)
             {
-                return BadRequest($"No existe la empresa de id: {depositoDTO.EmpresaId}");
+                return BadRequest(error);
             }
 
             Deposito deposito = new Deposito();
@@ -62,6 +106,7 @@ namespace IBUY.Server.Controllers
             deposito.Direccion = depositoDTO.Direccion;
             deposito.Activo = depositoDTO.Activo;
             deposito.EmpresaId = depositoDTO.EmpresaId;
+            deposito.UsuarioResponsableId = depositoDTO.UsuarioResponsableId;
 
             await repositorio.Insert(deposito);
 
@@ -77,9 +122,10 @@ namespace IBUY.Server.Controllers
                 return NotFound($"No existe el registro con id: {id}");
             }
 
-            if (!await empresaRepositorio.Existe(depositoDTO.EmpresaId))
+            var error = await ValidarRelaciones(depositoDTO);
+            if (error is not null)
             {
-                return BadRequest($"No existe la empresa de id: {depositoDTO.EmpresaId}");
+                return BadRequest(error);
             }
 
             deposito.Nombre = depositoDTO.Nombre;
@@ -87,6 +133,7 @@ namespace IBUY.Server.Controllers
             deposito.Direccion = depositoDTO.Direccion;
             deposito.Activo = depositoDTO.Activo;
             deposito.EmpresaId = depositoDTO.EmpresaId;
+            deposito.UsuarioResponsableId = depositoDTO.UsuarioResponsableId;
 
             var resultado = await repositorio.Update(deposito);
             return Ok(resultado);
@@ -103,6 +150,59 @@ namespace IBUY.Server.Controllers
             await repositorio.Delete(id);
 
             return Ok(true);
+        }
+
+        /// <summary>
+        /// Resuelve la razón social de la empresa y el nombre del responsable para cada depósito,
+        /// para que el listado y el detalle no dependan de navegaciones que no se cargan.
+        /// </summary>
+        private async Task<List<DepositoDTO>> CompletarDepositos(List<Deposito> depositos)
+        {
+            if (depositos.Count == 0)
+            {
+                return [];
+            }
+
+            var empresas = await empresaRepositorio.Select();
+            var usuarios = await usuarioRepositorio.Select();
+            var empresasPorId = empresas.ToDictionary(e => e.Id);
+            var usuariosPorId = usuarios.ToDictionary(u => u.Id);
+
+            return depositos.Select(d => new DepositoDTO
+            {
+                Id = d.Id,
+                Nombre = d.Nombre,
+                Tipo = d.Tipo,
+                Direccion = d.Direccion,
+                Activo = d.Activo,
+                EmpresaId = d.EmpresaId,
+                EmpresaRazonSocial = empresasPorId.TryGetValue(d.EmpresaId, out var empresa) ? empresa.RazonSocial : string.Empty,
+                UsuarioResponsableId = d.UsuarioResponsableId,
+                UsuarioResponsableNombre = d.UsuarioResponsableId.HasValue && usuariosPorId.TryGetValue(d.UsuarioResponsableId.Value, out var responsable)
+                    ? responsable.Nombre
+                    : string.Empty
+            })
+            .OrderBy(d => d.Nombre)
+            .ToList();
+        }
+
+        /// <summary>
+        /// Las FK exigen que la empresa y, si se informa, el usuario responsable existan.
+        /// Sin este control, SQL Server rechaza el INSERT/UPDATE con un 500.
+        /// </summary>
+        private async Task<string?> ValidarRelaciones(DepositoDTO depositoDTO)
+        {
+            if (!await empresaRepositorio.Existe(depositoDTO.EmpresaId))
+            {
+                return $"No existe la empresa de id: {depositoDTO.EmpresaId}";
+            }
+
+            if (depositoDTO.UsuarioResponsableId.HasValue && !await usuarioRepositorio.Existe(depositoDTO.UsuarioResponsableId.Value))
+            {
+                return $"No existe el usuario de id: {depositoDTO.UsuarioResponsableId}";
+            }
+
+            return null;
         }
     }
 }

@@ -87,9 +87,14 @@ namespace IBUY.BD.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<int?>("UsuarioResponsableId")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
                     b.HasIndex("EmpresaId");
+
+                    b.HasIndex("UsuarioResponsableId");
 
                     b.ToTable("Depositos");
                 });
@@ -201,8 +206,8 @@ namespace IBUY.BD.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("Cantidad")
-                        .HasColumnType("int");
+                    b.Property<decimal>("Cantidad")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<int>("ProductoId")
                         .HasColumnType("int");
@@ -230,7 +235,10 @@ namespace IBUY.BD.Migrations
                     b.Property<decimal>("CantidadRequerida")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<int>("DepositoId")
+                    b.Property<int>("DepositoDestinoId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DepositoSolicitanteId")
                         .HasColumnType("int");
 
                     b.Property<string>("Estado")
@@ -246,7 +254,9 @@ namespace IBUY.BD.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("DepositoId");
+                    b.HasIndex("DepositoDestinoId");
+
+                    b.HasIndex("DepositoSolicitanteId");
 
                     b.HasIndex("ProductoId");
 
@@ -355,10 +365,15 @@ namespace IBUY.BD.Migrations
                     b.Property<int>("EmpresaId")
                         .HasColumnType("int");
 
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
                     b.Property<DateTime>("FechaEmision")
                         .HasColumnType("datetime2");
 
-                    b.Property<DateTime>("FechaRecepcion")
+                    b.Property<DateTime?>("FechaRecepcion")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("Numero")
@@ -398,9 +413,6 @@ namespace IBUY.BD.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<decimal>("CantidadActual")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("CantidadMinima")
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<int>("DepositoId")
@@ -486,7 +498,14 @@ namespace IBUY.BD.Migrations
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
+                    b.HasOne("IBUY.BD.Datos.Entity.Usuario", "UsuarioResponsable")
+                        .WithMany()
+                        .HasForeignKey("UsuarioResponsableId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
                     b.Navigation("Empresa");
+
+                    b.Navigation("UsuarioResponsable");
                 });
 
             modelBuilder.Entity("IBUY.BD.Datos.Entity.ItemCotizacion", b =>
@@ -532,13 +551,13 @@ namespace IBUY.BD.Migrations
                     b.HasOne("IBUY.BD.Datos.Entity.Producto", "Producto")
                         .WithMany()
                         .HasForeignKey("ProductoId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
                     b.HasOne("IBUY.BD.Datos.Entity.Remito", "Remito")
                         .WithMany()
                         .HasForeignKey("RemitoId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
                     b.Navigation("Producto");
@@ -548,9 +567,15 @@ namespace IBUY.BD.Migrations
 
             modelBuilder.Entity("IBUY.BD.Datos.Entity.Necesidad", b =>
                 {
-                    b.HasOne("IBUY.BD.Datos.Entity.Deposito", "Deposito")
+                    b.HasOne("IBUY.BD.Datos.Entity.Deposito", "DepositoDestino")
                         .WithMany()
-                        .HasForeignKey("DepositoId")
+                        .HasForeignKey("DepositoDestinoId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("IBUY.BD.Datos.Entity.Deposito", "DepositoSolicitante")
+                        .WithMany()
+                        .HasForeignKey("DepositoSolicitanteId")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
@@ -560,7 +585,9 @@ namespace IBUY.BD.Migrations
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
-                    b.Navigation("Deposito");
+                    b.Navigation("DepositoDestino");
+
+                    b.Navigation("DepositoSolicitante");
 
                     b.Navigation("Producto");
                 });
@@ -613,26 +640,29 @@ namespace IBUY.BD.Migrations
                 {
                     b.HasOne("IBUY.BD.Datos.Entity.Cotizacion", "Cotizacion")
                         .WithMany()
-                        .HasForeignKey("CotizacionId");
+                        .HasForeignKey("CotizacionId")
+                        .OnDelete(DeleteBehavior.NoAction);
 
                     b.HasOne("IBUY.BD.Datos.Entity.Deposito", "DepositoDestino")
                         .WithMany()
-                        .HasForeignKey("DepositoDestinoId");
+                        .HasForeignKey("DepositoDestinoId")
+                        .OnDelete(DeleteBehavior.NoAction);
 
                     b.HasOne("IBUY.BD.Datos.Entity.Deposito", "DepositoOrigen")
                         .WithMany()
-                        .HasForeignKey("DepositoOrigenId");
+                        .HasForeignKey("DepositoOrigenId")
+                        .OnDelete(DeleteBehavior.NoAction);
 
                     b.HasOne("IBUY.BD.Datos.Entity.Empresa", "Empresa")
                         .WithMany()
                         .HasForeignKey("EmpresaId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
                     b.HasOne("IBUY.BD.Datos.Entity.Usuario", "Usuario")
                         .WithMany()
                         .HasForeignKey("UsuarioId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
                     b.Navigation("Cotizacion");
