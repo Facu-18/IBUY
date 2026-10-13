@@ -1,33 +1,43 @@
-<nav class="ibuy-menu @(Abierto ? "abierto" : null)" aria-label="Navegacion principal">
-    <div class="menu-scroll">
-        @foreach (var grupo in grupos)
-        {
-            <p class="menu-titulo">@grupo.Titulo</p>
-            <ul class="menu-lista">
-                @foreach (var opcion in grupo.Opciones)
-                {
-                    <li>
-                        <NavLink class="menu-link" href="@opcion.Ruta" Match="@opcion.Coincidencia">
-                            <Icono Nombre="@opcion.Icono" />
-                            <span>@opcion.Etiqueta</span>
-                        </NavLink>
-                    </li>
-                }
-            </ul>
-        }
-
-        <div class="menu-pie">
-            <a class="menu-link" href="https://localhost:7209/swagger" target="_blank" rel="noopener noreferrer">
-                <Icono Nombre="codigo" />
-                <span>Swagger API</span>
-            </a>
+<div class="bg-dark flex-shrink-0 col-lg-3 col-xl-2 overflow-auto">
+    <nav class="offcanvas-lg offcanvas-start text-bg-dark @(Abierto ? "show" : null)" tabindex="-1"
+         aria-label="Navegacion principal">
+        <div class="offcanvas-header border-bottom border-secondary">
+            <span class="offcanvas-title fw-bold">IBUY</span>
+            <button type="button" class="btn-close btn-close-white" aria-label="Cerrar menu" @onclick="AlCerrar"></button>
         </div>
-    </div>
-</nav>
+        <div class="offcanvas-body d-flex flex-column p-3">
+            @foreach (var grupo in grupos)
+            {
+                <p class="text-uppercase small fw-bold text-secondary px-3 mt-2 mb-2">@grupo.Titulo</p>
+                <ul class="nav nav-pills flex-column gap-1">
+                    @foreach (var opcion in grupo.Opciones)
+                    {
+                        <li class="nav-item">
+                            <NavLink class="nav-link text-white d-flex align-items-center gap-2" href="@opcion.Ruta" Match="@opcion.Coincidencia">
+                                <Icono Nombre="@opcion.Icono" />
+                                <span>@opcion.Etiqueta</span>
+                            </NavLink>
+                        </li>
+                    }
+                </ul>
+            }
+
+            <div class="border-top border-secondary mt-4 pt-3">
+                <a class="nav-link text-white d-flex align-items-center gap-2 px-3" href="https://localhost:7209/swagger" target="_blank" rel="noopener noreferrer">
+                    <Icono Nombre="codigo" />
+                    <span>Swagger API</span>
+                </a>
+            </div>
+        </div>
+    </nav>
+</div>
 
 @code {
     [Parameter]
     public bool Abierto { get; set; }
+
+    [Parameter]
+    public EventCallback AlCerrar { get; set; }
 
     private record Opcion(string Etiqueta, string Ruta, string Icono, NavLinkMatch Coincidencia = NavLinkMatch.Prefix);
 
