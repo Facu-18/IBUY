@@ -24,8 +24,9 @@
 ## Client UI
 
 - The client only contains features backed by the real API (currently Depósitos and the header empresa selector). Do not add mock services or in-memory fake data; a new page ships together with its `*ServicioHttp` implementation.
-- Style with Bootstrap 5 classes only (`wwwroot/lib/bootstrap`). Do not add custom CSS: no `.css` files of our own, no `<style>` blocks, no `.razor.css` scoped styles, and no `style=""` attributes. The only exception is `style="display:none"` on `#blazor-error-ui` in `index.html`, which Blazor needs to toggle it.
-- If a design need cannot be met with Bootstrap classes, use the closest Bootstrap option and say so, rather than adding CSS.
+- Use Bootstrap 5 classes (`wwwroot/lib/bootstrap`) for layout and components. The visual identity (palette, typography, sidebar/header look) follows the prototype `IBUY Prototipo.html` and lives in a single theme file, `wwwroot/css/tema.css`, loaded after Bootstrap.
+- `tema.css` overrides Bootstrap CSS variables (`--bs-*`, including component-level ones like `--bs-btn-bg`) rather than redefining Bootstrap rules. Add a rule there only when no Bootstrap class or variable covers the need.
+- No other custom CSS: no extra `.css` files, no `<style>` blocks, no `.razor.css` scoped styles, and no `style=""` attributes. The only exception is `style="display:none"` on `#blazor-error-ui` in `index.html`, which Blazor needs to toggle it.
 
 ## Entity Framework
 
