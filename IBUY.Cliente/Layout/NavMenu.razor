@@ -1,4 +1,4 @@
-<div class="bg-dark flex-shrink-0 col-lg-3 col-xl-2 overflow-auto">
+<div class="ibuy-menu flex-shrink-0 overflow-auto">
     <nav class="offcanvas-lg offcanvas-start text-bg-dark @(Abierto ? "show" : null)" tabindex="-1"
          aria-label="Navegacion principal">
         <div class="offcanvas-header border-bottom border-secondary">
@@ -8,12 +8,12 @@
         <div class="offcanvas-body d-flex flex-column p-3">
             @foreach (var grupo in grupos)
             {
-                <p class="text-uppercase small fw-bold text-secondary px-3 mt-2 mb-2">@grupo.Titulo</p>
+                <p class="ibuy-grupo text-uppercase px-3 mt-2 mb-2">@grupo.Titulo</p>
                 <ul class="nav nav-pills flex-column gap-1">
                     @foreach (var opcion in grupo.Opciones)
                     {
                         <li class="nav-item">
-                            <NavLink class="nav-link text-white d-flex align-items-center gap-2" href="@opcion.Ruta" Match="@opcion.Coincidencia">
+                            <NavLink class="nav-link d-flex align-items-center gap-2" href="@opcion.Ruta" Match="@opcion.Coincidencia">
                                 <Icono Nombre="@opcion.Icono" />
                                 <span>@opcion.Etiqueta</span>
                             </NavLink>

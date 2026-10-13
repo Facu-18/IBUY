@@ -45,7 +45,7 @@ else
                 <div class="col">
                     <dt class="small text-uppercase text-body-secondary">Estado</dt>
                     <dd class="mb-0">
-                        <span class="badge @(deposito.Activo ? "text-bg-success" : "text-bg-warning")">
+                        <span class="badge rounded-pill @(deposito.Activo ? "bg-success-subtle text-success-emphasis" : "bg-warning-subtle text-warning-emphasis")">
                             @(deposito.Activo ? "Activo" : "Inactivo")
                         </span>
                     </dd>
@@ -111,7 +111,7 @@ else
                             {
                                 <tr @key="item.StockId">
                                     <td class="fw-semibold">@item.ProductoNombre</td>
-                                    <td><span class="badge text-bg-primary">@item.Categoria</span></td>
+                                    <td><span class="badge rounded-pill bg-primary-subtle text-primary-emphasis">@item.Categoria</span></td>
                                     <td class="text-end">@item.CantidadActual.ToString("0.##")</td>
                                 </tr>
                             }

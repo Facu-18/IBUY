@@ -72,7 +72,7 @@ else
                                 <td>@deposito.Direccion</td>
                                 <td>@(string.IsNullOrWhiteSpace(deposito.UsuarioResponsableNombre) ? "Sin responsable" : deposito.UsuarioResponsableNombre)</td>
                                 <td>
-                                    <span class="badge @(deposito.Activo ? "text-bg-success" : "text-bg-warning")">
+                                    <span class="badge rounded-pill @(deposito.Activo ? "bg-success-subtle text-success-emphasis" : "bg-warning-subtle text-warning-emphasis")">
                                         @(deposito.Activo ? "Activo" : "Inactivo")
                                     </span>
                                 </td>

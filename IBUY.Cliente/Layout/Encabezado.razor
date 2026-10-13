@@ -2,16 +2,16 @@
 @inject EstadoSesion Sesion
 @inject ICatalogoServicio Catalogo
 
-<header class="d-flex align-items-center gap-3 bg-body border-bottom px-3 py-2">
+<header class="d-flex align-items-center gap-3 bg-white border-bottom px-3 py-3">
     <button type="button" class="btn btn-outline-secondary d-lg-none" @onclick="AlAlternarMenu"
             aria-label="@(MenuAbierto ? "Cerrar menu" : "Abrir menu")" aria-expanded="@MenuAbierto">
         <Icono Nombre="@(MenuAbierto ? "cerrar" : "menu")" />
     </button>
 
     <a class="d-flex align-items-center gap-2 text-decoration-none text-body" href="">
-        <span class="badge text-bg-primary fs-6">iB</span>
+        <span class="ibuy-logo">iB</span>
         <span class="d-flex flex-column lh-sm">
-            <strong>IBUY</strong>
+            <strong class="ibuy-marca">IBUY</strong>
             <small class="text-body-secondary d-none d-md-inline">Plataforma de compras y stock</small>
         </span>
     </a>

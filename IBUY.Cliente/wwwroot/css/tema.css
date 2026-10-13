@@ -1,0 +1,255 @@
+/* ==========================================================================
+   IBUY - tema sobre Bootstrap 5.3 (unico archivo de estilos propio)
+   Reemplaza variables de Bootstrap con la paleta del prototipo; solo agrega
+   reglas donde Bootstrap no ofrece una variable (menu lateral y encabezado).
+   ========================================================================== */
+
+/* ---------- Tokens del proyecto y variables de Bootstrap ---------- */
+:root {
+    --ibuy-navy: #0f1b35;
+    --ibuy-menu-ancho: 18.3rem;       /* 330px del prototipo a 18px */
+
+    /* Tipografia y colores base */
+    --bs-body-font-family: 'Nunito Sans', system-ui, sans-serif;
+    --bs-body-color: #0f172a;
+    --bs-body-color-rgb: 15, 23, 42;
+    --bs-body-bg: #f1f5f9;
+    --bs-body-bg-rgb: 241, 245, 249;
+    --bs-secondary-color: #475569;
+    --bs-secondary-color-rgb: 71, 85, 105;
+    --bs-tertiary-color: #64748b;
+    --bs-secondary-bg: #e2e8f0;
+    --bs-tertiary-bg: #f8fafc;
+    --bs-tertiary-bg-rgb: 248, 250, 252;
+    --bs-emphasis-color: #0f172a;
+    --bs-border-color: #e2e8f0;
+    --bs-border-color-translucent: #e2e8f0;
+    --bs-border-radius: 0.6rem;
+    --bs-border-radius-lg: 0.8rem;
+    --bs-heading-color: #0f172a;
+    --bs-link-color: #2563eb;
+    --bs-link-color-rgb: 37, 99, 235;
+    --bs-link-hover-color: #1d4ed8;
+    --bs-link-hover-color-rgb: 29, 78, 216;
+    --bs-focus-ring-color: rgba(37, 99, 235, 0.25);
+
+    /* Semanticos */
+    --bs-primary: #2563eb;
+    --bs-primary-rgb: 37, 99, 235;
+    --bs-primary-bg-subtle: #dbeafe;
+    --bs-primary-border-subtle: #bfdbfe;
+    --bs-primary-text-emphasis: #1e3a8a;
+    --bs-success: #16a34a;
+    --bs-success-rgb: 22, 163, 74;
+    --bs-success-bg-subtle: #dcfce7;
+    --bs-success-border-subtle: #bbf7d0;
+    --bs-success-text-emphasis: #15803d;
+    --bs-danger: #b91c1c;
+    --bs-danger-rgb: 185, 28, 28;
+    --bs-danger-bg-subtle: #fee2e2;
+    --bs-danger-border-subtle: #fecaca;
+    --bs-danger-text-emphasis: #b91c1c;
+    --bs-warning: #b45309;
+    --bs-warning-rgb: 180, 83, 9;
+    --bs-warning-bg-subtle: #fef3c7;
+    --bs-warning-border-subtle: #fde68a;
+    --bs-warning-text-emphasis: #b45309;
+    --bs-dark: #0f1b35;
+    --bs-dark-rgb: 15, 27, 53;
+}
+
+/* Tamano base del prototipo (18px): escala todos los rem de Bootstrap. */
+html {
+    font-size: 18px;
+}
+
+h1:focus {
+    outline: none; /* FocusOnNavigate de Blazor enfoca el h1 al navegar */
+}
+
+/* ---------- Botones ---------- */
+.btn {
+    --bs-btn-font-weight: 700;
+    --bs-btn-border-radius: 0.6rem;
+}
+
+.btn-primary {
+    --bs-btn-bg: #2563eb;
+    --bs-btn-border-color: #2563eb;
+    --bs-btn-hover-bg: #1d4ed8;
+    --bs-btn-hover-border-color: #1d4ed8;
+    --bs-btn-active-bg: #1e3a8a;
+    --bs-btn-active-border-color: #1e3a8a;
+    --bs-btn-disabled-bg: #2563eb;
+    --bs-btn-disabled-border-color: #2563eb;
+}
+
+.btn-success {
+    --bs-btn-bg: #16a34a;
+    --bs-btn-border-color: #16a34a;
+    --bs-btn-hover-bg: #15803d;
+    --bs-btn-hover-border-color: #15803d;
+    --bs-btn-active-bg: #166534;
+    --bs-btn-active-border-color: #166534;
+}
+
+.btn-outline-primary {
+    --bs-btn-color: #2563eb;
+    --bs-btn-border-color: #2563eb;
+    --bs-btn-hover-bg: #2563eb;
+    --bs-btn-hover-border-color: #2563eb;
+    --bs-btn-active-bg: #1d4ed8;
+    --bs-btn-active-border-color: #1d4ed8;
+}
+
+.btn-outline-secondary {
+    --bs-btn-color: #334155;
+    --bs-btn-border-color: #cbd5e1;
+    --bs-btn-hover-bg: #f1f5f9;
+    --bs-btn-hover-color: #0f172a;
+    --bs-btn-hover-border-color: #cbd5e1;
+    --bs-btn-active-bg: #e2e8f0;
+    --bs-btn-active-color: #0f172a;
+    --bs-btn-active-border-color: #cbd5e1;
+}
+
+/* ---------- Formularios ---------- */
+.form-control,
+.form-select {
+    border-color: #cbd5e1;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: #93c5fd;
+    box-shadow: 0 0 0 0.2rem rgba(147, 197, 253, 0.45);
+}
+
+.form-label {
+    font-weight: 600;
+    color: #334155;
+}
+
+.input-group-text {
+    background-color: #fff;
+    border-color: #cbd5e1;
+    color: #64748b;
+}
+
+/* ---------- Tarjetas, tablas e insignias ---------- */
+.card {
+    --bs-card-bg: #fff;
+    --bs-card-border-color: #e2e8f0;
+    --bs-card-border-radius: 0.8rem;
+    --bs-card-inner-border-radius: 0.8rem;
+}
+
+.table {
+    --bs-table-bg: transparent;
+    --bs-table-hover-bg: #f1f5f9;
+    --bs-table-border-color: #e2e8f0;
+}
+
+.table > thead > tr > th {
+    background-color: #f8fafc;
+    color: #475569;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding-block: 0.9rem;
+}
+
+.table > tbody > tr > td {
+    padding-block: 0.8rem;
+}
+
+.badge {
+    --bs-badge-font-weight: 600;
+    --bs-badge-padding-x: 0.8em;
+    --bs-badge-padding-y: 0.4em;
+}
+
+/* ---------- Encabezado ---------- */
+.ibuy-logo {
+    display: grid;
+    place-items: center;
+    width: 2.6rem;
+    height: 2.6rem;
+    border-radius: 0.65rem;
+    background-color: #2563eb;
+    color: #fff;
+    font-weight: 800;
+}
+
+.ibuy-marca {
+    font-weight: 800;
+    font-size: 1.2rem;
+    letter-spacing: 0.03em;
+}
+
+/* ---------- Menu lateral ---------- */
+.ibuy-menu {
+    background-color: var(--ibuy-navy);
+}
+
+@media (min-width: 992px) {
+    .ibuy-menu {
+        width: var(--ibuy-menu-ancho);
+    }
+}
+
+.ibuy-menu .nav-pills {
+    --bs-nav-pills-border-radius: 0.6rem;
+    --bs-nav-pills-link-active-bg: #2563eb;
+    --bs-nav-pills-link-active-color: #fff;
+    --bs-nav-link-color: #e2e8f0;
+    --bs-nav-link-hover-color: #fff;
+    --bs-nav-link-padding-x: 1rem;
+    --bs-nav-link-padding-y: 0.7rem;
+}
+
+.ibuy-menu .nav-link:hover:not(.active) {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+.ibuy-menu .nav-link.active {
+    font-weight: 700;
+}
+
+.ibuy-menu .ibuy-grupo {
+    color: #94a3b8;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+}
+
+/* Variantes outline de Bootstrap con colores fijos: se alinean a la paleta. */
+.btn-outline-warning {
+    --bs-btn-color: #b45309;
+    --bs-btn-border-color: #b45309;
+    --bs-btn-hover-bg: #b45309;
+    --bs-btn-hover-border-color: #b45309;
+    --bs-btn-hover-color: #fff;
+    --bs-btn-active-bg: #92400e;
+    --bs-btn-active-border-color: #92400e;
+    --bs-btn-active-color: #fff;
+}
+
+.btn-outline-danger {
+    --bs-btn-color: #b91c1c;
+    --bs-btn-border-color: #b91c1c;
+    --bs-btn-hover-bg: #b91c1c;
+    --bs-btn-hover-border-color: #b91c1c;
+    --bs-btn-active-bg: #991b1b;
+    --bs-btn-active-border-color: #991b1b;
+}
+
+.btn-outline-success {
+    --bs-btn-color: #16a34a;
+    --bs-btn-border-color: #16a34a;
+    --bs-btn-hover-bg: #16a34a;
+    --bs-btn-hover-border-color: #16a34a;
+    --bs-btn-active-bg: #15803d;
+    --bs-btn-active-border-color: #15803d;
+}
