@@ -2,15 +2,18 @@
 @implements IDisposable
 @inject NavigationManager Navegacion
 
-<div class="ibuy-layout">
+<div class="d-flex flex-column vh-100">
     <Encabezado AlAlternarMenu="AlternarMenu" MenuAbierto="menuAbierto" />
 
-    <div class="ibuy-cuerpo">
-        <NavMenu Abierto="menuAbierto" />
+    <div class="d-flex flex-grow-1 overflow-hidden">
+        <NavMenu Abierto="menuAbierto" AlCerrar="CerrarMenu" />
 
-        <div class="ibuy-fondo @(menuAbierto ? "visible" : null)" @onclick="CerrarMenu"></div>
+        @if (menuAbierto)
+        {
+            <div class="offcanvas-backdrop fade show d-lg-none" @onclick="CerrarMenu"></div>
+        }
 
-        <main class="ibuy-contenido">
+        <main class="flex-grow-1 overflow-auto p-3 p-lg-4">
             @Body
         </main>
     </div>

@@ -18,8 +18,15 @@
 - `IBUY.Server`: composition root, API controllers, static client hosting, and EF registration.
 - `IBUY.Cliente`: Blazor WebAssembly UI. Shared API contracts belong in `IBUY.Shared`, not in this project.
 - `IBUY.BD`: EF entities, `AppDbContext`, and migrations. Despite the project name, `AppDbContext`, `EntityBase`, and `IEntityBase` currently use namespace `Proyecto2026.BD.Datos`.
-- `IBUY.Repository`: generic EF CRUD abstraction. `Program.cs` registers the open generic `IRepositorio<>` to `Repositorio<>`; new entity repositories do not need individual DI registrations.
-- `IBUY.Servicios` is currently an empty client-referenced class library; do not assume it contains server business services.
+- `IBUY.Repository`: generic EF CRUD abstraction. `Program.cs` registers the open generic `IRepositorio<>` to `Repositorio<>` for plain CRUD; domain-specific repositories (`INecesidadRepositorio`, `IRemitoRepositorio`, etc.) derive from `Repositorio<E>` and are registered individually.
+- `IBUY.Servicios`: client-side services that call the API through `ServiciosHTTP/IHttpService` (responses wrapped in `HttpResp<T>`). It does not contain server business services.
+
+## Client UI
+
+- The client only contains features backed by the real API (currently Depósitos and the header empresa selector). Do not add mock services or in-memory fake data; a new page ships together with its `*ServicioHttp` implementation.
+- Use Bootstrap 5 classes (`wwwroot/lib/bootstrap`) for layout and components. The visual identity (palette, typography, sidebar/header look) follows the prototype `docs/IBUY Prototipo.html` (open it in a browser; it is a self-contained bundle, the markup lives inside its `__bundler` script blocks) and lives in a single theme file, `wwwroot/css/tema.css`, loaded after Bootstrap.
+- `tema.css` overrides Bootstrap CSS variables (`--bs-*`, including component-level ones like `--bs-btn-bg`) rather than redefining Bootstrap rules. Add a rule there only when no Bootstrap class or variable covers the need.
+- No other custom CSS: no extra `.css` files, no `<style>` blocks, no `.razor.css` scoped styles, and no `style=""` attributes. The only exception is `style="display:none"` on `#blazor-error-ui` in `index.html`, which Blazor needs to toggle it.
 
 ## Entity Framework
 

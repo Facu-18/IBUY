@@ -7,9 +7,9 @@
 
 <PageTitle>@(esEdicion ? "Editar deposito" : "Nuevo deposito") · IBUY</PageTitle>
 
-<div class="pagina-encabezado">
-    <h1>@(esEdicion ? "Editar deposito" : "Nuevo deposito")</h1>
-    <p>@(esEdicion ? "Actualiza los datos del deposito." : "Carga un deposito nuevo para la empresa seleccionada.")</p>
+<div class="mb-4">
+    <h1 class="h3 mb-1">@(esEdicion ? "Editar deposito" : "Nuevo deposito")</h1>
+    <p class="text-body-secondary mb-0">@(esEdicion ? "Actualiza los datos del deposito." : "Carga un deposito nuevo para la empresa seleccionada.")</p>
 </div>
 
 @if (cargando)
@@ -18,78 +18,83 @@
 }
 else if (deposito is null)
 {
-    <div class="resumen-errores">
-        No se encontro el deposito solicitado. <a href="depositos">Volver al listado</a>
+    <div class="alert alert-danger" role="alert">
+        No se encontro el deposito solicitado.
+        <a class="alert-link" href="depositos">Volver al listado</a>
     </div>
 }
 else
 {
     @if (!string.IsNullOrWhiteSpace(errorServidor))
     {
-        <div class="resumen-errores" style="margin-bottom:1rem">@errorServidor</div>
+        <div class="alert alert-danger" role="alert">@errorServidor</div>
     }
 
-    <EditForm Model="deposito" OnValidSubmit="Guardar" OnInvalidSubmit="MarcarInvalido" class="formulario">
-        <DataAnnotationsValidator />
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <EditForm Model="deposito" OnValidSubmit="Guardar" OnInvalidSubmit="MarcarInvalido">
+                <DataAnnotationsValidator />
 
-        <div class="campo">
-            <span>Empresa</span>
-            <input type="text" value="@Sesion.Empresa" disabled />
-            <small style="color:var(--ibuy-texto-suave)">El deposito se crea dentro de la empresa seleccionada en el encabezado.</small>
-        </div>
+                <div class="mb-3">
+                    <label class="form-label" for="deposito-empresa">Empresa</label>
+                    <input type="text" id="deposito-empresa" class="form-control" value="@Sesion.Empresa" disabled />
+                    <div class="form-text">El deposito se crea dentro de la empresa seleccionada en el encabezado.</div>
+                </div>
 
-        <div class="campo">
-            <span>Nombre</span>
-            <InputText @bind-Value="deposito!.Nombre" maxlength="100" placeholder="Ej.: Deposito central" />
-            <ValidationMessage For="() => deposito!.Nombre" />
-        </div>
+                <div class="mb-3">
+                    <label class="form-label" for="deposito-nombre">Nombre</label>
+                    <InputText id="deposito-nombre" class="form-control" @bind-Value="deposito!.Nombre" maxlength="100" placeholder="Ej.: Deposito central" />
+                    <ValidationMessage class="text-danger small" For="() => deposito!.Nombre" />
+                </div>
 
-        <div class="campo">
-            <span>Tipo</span>
-            <InputText @bind-Value="deposito!.Tipo" maxlength="50" placeholder="Ej.: Central, Obra, Sucursal" />
-            <ValidationMessage For="() => deposito!.Tipo" />
-        </div>
+                <div class="mb-3">
+                    <label class="form-label" for="deposito-tipo">Tipo</label>
+                    <InputText id="deposito-tipo" class="form-control" @bind-Value="deposito!.Tipo" maxlength="50" placeholder="Ej.: Central, Obra, Sucursal" />
+                    <ValidationMessage class="text-danger small" For="() => deposito!.Tipo" />
+                </div>
 
-        <div class="campo">
-            <span>Direccion</span>
-            <InputText @bind-Value="deposito!.Direccion" maxlength="200" placeholder="Ej.: Av. Colon 1450, Cordoba" />
-            <ValidationMessage For="() => deposito!.Direccion" />
-        </div>
+                <div class="mb-3">
+                    <label class="form-label" for="deposito-direccion">Direccion</label>
+                    <InputText id="deposito-direccion" class="form-control" @bind-Value="deposito!.Direccion" maxlength="200" placeholder="Ej.: Av. Colon 1450, Cordoba" />
+                    <ValidationMessage class="text-danger small" For="() => deposito!.Direccion" />
+                </div>
 
-        <div class="campo">
-            <span>Responsable (opcional)</span>
-            <select value="@responsableSeleccionado" @onchange="AlCambiarResponsable">
-                <option value="">Sin responsable</option>
-                @foreach (var usuario in usuarios)
+                <div class="mb-3">
+                    <label class="form-label" for="deposito-responsable">Responsable (opcional)</label>
+                    <select id="deposito-responsable" class="form-select" value="@responsableSeleccionado" @onchange="AlCambiarResponsable">
+                        <option value="">Sin responsable</option>
+                        @foreach (var usuario in usuarios)
+                        {
+                            <option value="@usuario.Id">@usuario.Nombre</option>
+                        }
+                    </select>
+                    @if (usuarios.Count == 0)
+                    {
+                        <div class="form-text">No hay usuarios activos en esta empresa.</div>
+                    }
+                </div>
+
+                <div class="form-check mb-3">
+                    <InputCheckbox @bind-Value="deposito!.Activo" id="deposito-activo" class="form-check-input" />
+                    <label class="form-check-label" for="deposito-activo">Deposito activo</label>
+                </div>
+
+                @if (intentado)
                 {
-                    <option value="@usuario.Id">@usuario.Nombre</option>
+                    <div class="alert alert-danger" role="alert">
+                        <ValidationSummary class="mb-0" />
+                    </div>
                 }
-            </select>
-            @if (usuarios.Count == 0)
-            {
-                <small style="color:var(--ibuy-texto-suave)">No hay usuarios activos en esta empresa.</small>
-            }
-        </div>
 
-        <div class="campo campo-check">
-            <InputCheckbox @bind-Value="deposito!.Activo" id="deposito-activo" />
-            <label for="deposito-activo">Deposito activo</label>
+                <div class="d-flex justify-content-end gap-2">
+                    <a class="btn btn-outline-secondary" href="depositos">Cancelar</a>
+                    <button type="submit" class="btn btn-primary" disabled="@guardando">
+                        @(guardando ? "Guardando..." : "Guardar")
+                    </button>
+                </div>
+            </EditForm>
         </div>
-
-        @if (intentado)
-        {
-            <div class="resumen-errores">
-                <ValidationSummary />
-            </div>
-        }
-
-        <div class="formulario-pie">
-            <a class="boton-secundario" href="depositos">Cancelar</a>
-            <button type="submit" class="boton-primario" disabled="@guardando">
-                @(guardando ? "Guardando..." : "Guardar")
-            </button>
-        </div>
-    </EditForm>
+    </div>
 }
 
 @code {

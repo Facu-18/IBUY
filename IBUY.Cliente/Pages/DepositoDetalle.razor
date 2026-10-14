@@ -11,27 +11,27 @@
 }
 else if (deposito is null)
 {
-    <div class="resumen-errores">
+    <div class="alert alert-danger" role="alert">
         No se encontro el deposito solicitado.
-        <a href="depositos">Volver al listado</a>
+        <a class="alert-link" href="depositos">Volver al listado</a>
     </div>
 }
 else
 {
-    <div class="detalle-cabecera">
-        <div class="pagina-encabezado" style="margin-bottom:0">
-            <h1>@deposito.Nombre</h1>
-            <p>@deposito.Tipo · @deposito.Direccion</p>
+    <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-4">
+        <div>
+            <h1 class="h3 mb-1">@deposito.Nombre</h1>
+            <p class="text-body-secondary mb-0">@deposito.Tipo · @deposito.Direccion</p>
         </div>
-        <div class="acciones">
-            <a class="accion-ver" href="depositos">
+        <div class="d-flex flex-wrap gap-2">
+            <a class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" href="depositos">
                 <Icono Nombre="volver" /> Volver
             </a>
-            <a class="accion-editar" href="@($"depositos/editar/{deposito.Id}")">
+            <a class="btn btn-outline-primary d-inline-flex align-items-center gap-2" href="@($"depositos/editar/{deposito.Id}")">
                 <Icono Nombre="editar" /> Editar
             </a>
             <button type="button"
-                    class="@(deposito.Activo ? "accion-desactivar" : "accion-activar")"
+                    class="btn @(deposito.Activo ? "btn-outline-warning" : "btn-outline-success")"
                     disabled="@guardando"
                     @onclick="AlternarEstado">
                 @(deposito.Activo ? "Desactivar" : "Activar")
@@ -39,79 +39,85 @@ else
         </div>
     </div>
 
-    <div class="tarjeta">
-        <dl class="detalle-datos">
-            <div class="dato">
-                <dt class="dato-etiqueta">Estado</dt>
-                <dd class="dato-valor">
-                    <span class="etiqueta @(deposito.Activo ? "etiqueta-verde" : "etiqueta-ambar")">
-                        @(deposito.Activo ? "Activo" : "Inactivo")
-                    </span>
-                </dd>
-            </div>
-            <div class="dato">
-                <dt class="dato-etiqueta">Empresa</dt>
-                <dd class="dato-valor">@deposito.EmpresaRazonSocial</dd>
-            </div>
-            <div class="dato">
-                <dt class="dato-etiqueta">Tipo</dt>
-                <dd class="dato-valor">@deposito.Tipo</dd>
-            </div>
-            <div class="dato">
-                <dt class="dato-etiqueta">Direccion</dt>
-                <dd class="dato-valor">@deposito.Direccion</dd>
-            </div>
-            <div class="dato">
-                <dt class="dato-etiqueta">Responsable</dt>
-                <dd class="dato-valor">@(string.IsNullOrWhiteSpace(deposito.UsuarioResponsableNombre) ? "Sin responsable" : deposito.UsuarioResponsableNombre)</dd>
-            </div>
-            <div class="dato">
-                <dt class="dato-etiqueta">Productos con stock</dt>
-                <dd class="dato-valor">@existencias.Count</dd>
-            </div>
-        </dl>
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <dl class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3 mb-0">
+                <div class="col">
+                    <dt class="small text-uppercase text-body-secondary">Estado</dt>
+                    <dd class="mb-0">
+                        <span class="badge rounded-pill @(deposito.Activo ? "bg-success-subtle text-success-emphasis" : "bg-warning-subtle text-warning-emphasis")">
+                            @(deposito.Activo ? "Activo" : "Inactivo")
+                        </span>
+                    </dd>
+                </div>
+                <div class="col">
+                    <dt class="small text-uppercase text-body-secondary">Empresa</dt>
+                    <dd class="mb-0">@deposito.EmpresaRazonSocial</dd>
+                </div>
+                <div class="col">
+                    <dt class="small text-uppercase text-body-secondary">Tipo</dt>
+                    <dd class="mb-0">@deposito.Tipo</dd>
+                </div>
+                <div class="col">
+                    <dt class="small text-uppercase text-body-secondary">Direccion</dt>
+                    <dd class="mb-0">@deposito.Direccion</dd>
+                </div>
+                <div class="col">
+                    <dt class="small text-uppercase text-body-secondary">Responsable</dt>
+                    <dd class="mb-0">@(string.IsNullOrWhiteSpace(deposito.UsuarioResponsableNombre) ? "Sin responsable" : deposito.UsuarioResponsableNombre)</dd>
+                </div>
+                <div class="col">
+                    <dt class="small text-uppercase text-body-secondary">Productos con stock</dt>
+                    <dd class="mb-0">@existencias.Count</dd>
+                </div>
+            </dl>
+        </div>
     </div>
 
-    <section class="seccion">
-        <div class="seccion-cabecera">
-            <h2>Existencias</h2>
-            <span class="contador">@existencias.Count @(existencias.Count == 1 ? "registro" : "registros")</span>
+    <section>
+        <div class="d-flex align-items-baseline justify-content-between mb-2">
+            <h2 class="h5 mb-0">Existencias</h2>
+            <span class="text-body-secondary">@existencias.Count @(existencias.Count == 1 ? "registro" : "registros")</span>
         </div>
 
-        <div class="tabla-contenedor">
+        <div class="card shadow-sm">
             @if (cargandoStock)
             {
-                <Cargando Texto="Cargando existencias..." />
+                <div class="card-body">
+                    <Cargando Texto="Cargando existencias..." />
+                </div>
             }
             else if (errorStock is not null)
             {
-                <p class="tabla-vacia">@errorStock</p>
+                <p class="text-center text-body-secondary py-5 mb-0">@errorStock</p>
             }
             else if (existencias.Count == 0)
             {
-                <p class="tabla-vacia">Este deposito no tiene existencias registradas.</p>
+                <p class="text-center text-body-secondary py-5 mb-0">Este deposito no tiene existencias registradas.</p>
             }
             else
             {
-                <table class="tabla tabla-responsiva">
-                    <thead>
-                        <tr>
-                            <th>Producto</th>
-                            <th>Categoria</th>
-                            <th class="celda-derecha">Cantidad actual</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var item in existencias)
-                        {
-                            <tr @key="item.StockId">
-                                <td class="celda-principal" data-label="Producto">@item.ProductoNombre</td>
-                                <td data-label="Categoria"><span class="etiqueta etiqueta-azul">@item.Categoria</span></td>
-                                <td class="celda-derecha" data-label="Cantidad actual">@item.CantidadActual.ToString("0.##")</td>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th>Categoria</th>
+                                <th class="text-end">Cantidad actual</th>
                             </tr>
-                        }
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in existencias)
+                            {
+                                <tr @key="item.StockId">
+                                    <td class="fw-semibold">@item.ProductoNombre</td>
+                                    <td><span class="badge rounded-pill bg-primary-subtle text-primary-emphasis">@item.Categoria</span></td>
+                                    <td class="text-end">@item.CantidadActual.ToString("0.##")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
             }
         </div>
     </section>
@@ -119,7 +125,11 @@ else
 
 @if (aviso is not null)
 {
-    <div class="toast" role="status">@aviso</div>
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div class="toast show text-bg-dark border-0" role="status">
+            <div class="toast-body">@aviso</div>
+        </div>
+    </div>
 }
 
 @code {

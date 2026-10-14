@@ -2,22 +2,22 @@
 @inject EstadoSesion Sesion
 @inject ICatalogoServicio Catalogo
 
-<header class="ibuy-encabezado">
-    <button type="button" class="boton-menu" @onclick="AlAlternarMenu"
+<header class="d-flex align-items-center gap-3 bg-white border-bottom px-3 py-3">
+    <button type="button" class="btn btn-outline-secondary d-lg-none" @onclick="AlAlternarMenu"
             aria-label="@(MenuAbierto ? "Cerrar menu" : "Abrir menu")" aria-expanded="@MenuAbierto">
         <Icono Nombre="@(MenuAbierto ? "cerrar" : "menu")" />
     </button>
 
-    <a class="marca" href="">
-        <span class="marca-logo">iB</span>
-        <span class="marca-texto">
-            <strong>IBUY</strong>
-            <small>Plataforma de compras y stock</small>
+    <a class="d-flex align-items-center gap-2 text-decoration-none text-body" href="">
+        <span class="ibuy-logo">iB</span>
+        <span class="d-flex flex-column lh-sm">
+            <strong class="ibuy-marca">IBUY</strong>
+            <small class="text-body-secondary d-none d-md-inline">Plataforma de compras y stock</small>
         </span>
     </a>
 
-    <div class="encabezado-derecha">
-        <select class="selector-empresa" aria-label="Empresa seleccionada"
+    <div class="ms-auto">
+        <select class="form-select" aria-label="Empresa seleccionada"
                 value="@Sesion.EmpresaId" @onchange="AlCambiarEmpresa" disabled="@(empresas.Count == 0)">
             @if (empresas.Count == 0)
             {
@@ -32,32 +32,10 @@
             }
         </select>
 
-        <div class="selector-perfil" role="group" aria-label="Perfil activo">
-            @foreach (var perfil in perfiles)
-            {
-                <button type="button"
-                        class="opcion-perfil @(Sesion.Perfil == perfil ? "activa" : null)"
-                        aria-pressed="@(Sesion.Perfil == perfil)"
-                        @onclick="() => Sesion.CambiarPerfil(perfil)">
-                    @perfil
-                </button>
-            }
-        </div>
-
-        <div class="identidad">
-            <div class="identidad-texto">
-                <span class="identidad-empresa">@Sesion.Empresa</span>
-                <span class="identidad-usuario">@Sesion.Usuario · @Sesion.Rol</span>
-            </div>
-            <div class="avatar" title="@Sesion.Usuario">@Sesion.Iniciales</div>
-        </div>
     </div>
 </header>
 
 @code {
-    private static readonly PerfilUsuario[] perfiles =
-        Enum.GetValues<PerfilUsuario>();
-
     private List<EmpresaDTO> empresas = [];
 
     [Parameter]

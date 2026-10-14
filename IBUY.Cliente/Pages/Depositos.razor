@@ -1,3 +1,4 @@
+@page "/"
 @page "/depositos"
 @implements IDisposable
 @inject IDepositoServicio DepositoServicio
@@ -5,9 +6,9 @@
 
 <PageTitle>Depositos · IBUY</PageTitle>
 
-<div class="pagina-encabezado">
-    <h1>Depositos</h1>
-    <p>Depositos donde cada empresa almacena su mercaderia.</p>
+<div class="mb-4">
+    <h1 class="h3 mb-1">Depositos</h1>
+    <p class="text-body-secondary mb-0">Depositos donde cada empresa almacena su mercaderia.</p>
 </div>
 
 @if (cargando)
@@ -16,27 +17,29 @@
 }
 else if (errorCarga is not null)
 {
-    <div class="resumen-errores">@errorCarga</div>
+    <div class="alert alert-danger" role="alert">@errorCarga</div>
 }
 else
 {
-    <div class="barra-filtros">
-        <label class="buscador">
-            <Icono Nombre="buscar" />
-            <input type="text" placeholder="Buscar por nombre, direccion o responsable"
-                   @bind="busqueda" @bind:event="oninput" />
-        </label>
-        <span class="contador">@filtrados.Count @(filtrados.Count == 1 ? "deposito" : "depositos")</span>
-        <a class="boton-primario" href="depositos/nuevo">
+    <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+        <div class="col-12 col-md-6 col-lg-4">
+            <label class="input-group">
+                <span class="input-group-text"><Icono Nombre="buscar" /></span>
+                <input type="text" class="form-control" placeholder="Buscar por nombre, direccion o responsable"
+                       aria-label="Buscar depositos" @bind="busqueda" @bind:event="oninput" />
+            </label>
+        </div>
+        <span class="text-body-secondary">@filtrados.Count @(filtrados.Count == 1 ? "deposito" : "depositos")</span>
+        <a class="btn btn-primary d-inline-flex align-items-center gap-2 ms-md-auto" href="depositos/nuevo">
             <Icono Nombre="mas" />
             Nuevo deposito
         </a>
     </div>
 
-    <div class="tabla-contenedor">
+    <div class="card shadow-sm">
         @if (depositos.Count == 0)
         {
-            <p class="tabla-vacia">
+            <p class="text-center text-body-secondary py-5 mb-0">
                 @(Sesion.EmpresaId == 0
                     ? "No hay empresa seleccionada. Elija una empresa en el encabezado para ver sus depositos."
                     : "La empresa seleccionada todavia no tiene depositos cargados.")
@@ -44,59 +47,67 @@ else
         }
         else if (filtrados.Count == 0)
         {
-            <p class="tabla-vacia">Sin resultados para la busqueda.</p>
+            <p class="text-center text-body-secondary py-5 mb-0">Sin resultados para la busqueda.</p>
         }
         else
         {
-            <table class="tabla tabla-responsiva">
-                <thead>
-                    <tr>
-                        <th>Nombre</th>
-                        <th>Tipo</th>
-                        <th>Direccion</th>
-                        <th>Responsable</th>
-                        <th>Estado</th>
-                        <th>Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var deposito in filtrados)
-                    {
-                        <tr @key="deposito.Id">
-                            <td class="celda-principal" data-label="Nombre">@deposito.Nombre</td>
-                            <td data-label="Tipo">@deposito.Tipo</td>
-                            <td data-label="Direccion">@deposito.Direccion</td>
-                            <td data-label="Responsable">@(string.IsNullOrWhiteSpace(deposito.UsuarioResponsableNombre) ? "Sin responsable" : deposito.UsuarioResponsableNombre)</td>
-                            <td data-label="Estado">
-                                <span class="etiqueta @(deposito.Activo ? "etiqueta-verde" : "etiqueta-ambar")">
-                                    @(deposito.Activo ? "Activo" : "Inactivo")
-                                </span>
-                            </td>
-                            <td class="acciones" data-label="Acciones">
-                                <a class="accion-ver" href="@($"depositos/{deposito.Id}")">
-                                    <Icono Nombre="ver" /> Ver
-                                </a>
-                                <a class="accion-editar" href="@($"depositos/editar/{deposito.Id}")">
-                                    <Icono Nombre="editar" /> Editar
-                                </a>
-                                <button type="button"
-                                        class="@(deposito.Activo ? "accion-desactivar" : "accion-activar")"
-                                        disabled="@guardando"
-                                        @onclick="() => AlternarEstado(deposito)">
-                                    @(deposito.Activo ? "Desactivar" : "Activar")
-                                </button>
-                            </td>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Tipo</th>
+                            <th>Direccion</th>
+                            <th>Responsable</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
                         </tr>
-                    }
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @foreach (var deposito in filtrados)
+                        {
+                            <tr @key="deposito.Id">
+                                <td class="fw-semibold">@deposito.Nombre</td>
+                                <td>@deposito.Tipo</td>
+                                <td>@deposito.Direccion</td>
+                                <td>@(string.IsNullOrWhiteSpace(deposito.UsuarioResponsableNombre) ? "Sin responsable" : deposito.UsuarioResponsableNombre)</td>
+                                <td>
+                                    <span class="badge rounded-pill @(deposito.Activo ? "bg-success-subtle text-success-emphasis" : "bg-warning-subtle text-warning-emphasis")">
+                                        @(deposito.Activo ? "Activo" : "Inactivo")
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="d-flex flex-wrap gap-1">
+                                        <a class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1" href="@($"depositos/{deposito.Id}")">
+                                            <Icono Nombre="ver" /> Ver
+                                        </a>
+                                        <a class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1" href="@($"depositos/editar/{deposito.Id}")">
+                                            <Icono Nombre="editar" /> Editar
+                                        </a>
+                                        <button type="button"
+                                                class="btn btn-sm @(deposito.Activo ? "btn-outline-warning" : "btn-outline-success")"
+                                                disabled="@guardando"
+                                                @onclick="() => AlternarEstado(deposito)">
+                                            @(deposito.Activo ? "Desactivar" : "Activar")
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
         }
     </div>
 }
 
 @if (aviso is not null)
 {
-    <div class="toast" role="status">@aviso</div>
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div class="toast show text-bg-dark border-0" role="status">
+            <div class="toast-body">@aviso</div>
+        </div>
+    </div>
 }
 
 @code {
