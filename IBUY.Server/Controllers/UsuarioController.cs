@@ -27,11 +27,28 @@ namespace IBUY.Server.Controllers
             this.depositoRepositorio = depositoRepositorio;
         }
 
+        /// <summary>
+        /// Listado de usuarios sin exponer la contraseña (ni su hash): se proyecta a UsuarioDTO,
+        /// que no declara el campo Contrasena.
+        /// </summary>
         [HttpGet]
-        public async Task<ActionResult<List<Usuario>>> Get()
+        public async Task<ActionResult<List<UsuarioDTO>>> Get()
         {
             var usuarios = await repositorio.Select();
-            return Ok(usuarios);
+
+            var dtos = usuarios
+                .Select(u => new UsuarioDTO
+                {
+                    Id = u.Id,
+                    Nombre = u.Nombre,
+                    Email = u.Email,
+                    Rol = u.Rol,
+                    Estado = u.Estado,
+                    EmpresaId = u.EmpresaId
+                })
+                .ToList();
+
+            return Ok(dtos);
         }
 
         /// <summary>
