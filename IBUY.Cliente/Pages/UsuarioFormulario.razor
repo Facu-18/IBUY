@@ -1,0 +1,314 @@
+@page "/usuarios/nuevo"
+@page "/usuarios/editar/{Id:int}"
+@page "/empresas/{EmpresaId:int}/usuarios/nuevo"
+@page "/empresas/{EmpresaId:int}/usuarios/editar/{Id:int}"
+@inject IUsuarioServicio UsuarioServicio
+@inject IEmpresaServicio EmpresaServicio
+@inject IDepositoServicio DepositoServicio
+@inject EstadoSesion Sesion
+@inject NavigationManager Navegacion
+
+<PageTitle>@(esEdicion ? "Editar usuario" : "Nuevo usuario") · IBUY</PageTitle>
+
+<div class="mb-4">
+    <h1 class="h3 mb-1">@(esEdicion ? "Editar usuario" : "Nuevo usuario")</h1>
+    <p class="text-body-secondary mb-0">
+        @(esEdicion
+            ? "Actualiza los datos y los depositos a cargo del usuario."
+            : "Crea un usuario con acceso a la plataforma y asignale sus depositos.")
+    </p>
+</div>
+
+@if (cargando)
+{
+    <Cargando Texto="Cargando formulario..." />
+}
+else if (usuario is null)
+{
+    <div class="alert alert-danger" role="alert">
+        No se encontro el usuario solicitado.
+        <a class="alert-link" href="@RutaVolver">Volver al listado</a>
+    </div>
+}
+else
+{
+    @if (!string.IsNullOrWhiteSpace(errorServidor))
+    {
+        <div class="alert alert-danger" role="alert">@errorServidor</div>
+    }
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <EditForm Model="usuario" OnValidSubmit="Guardar" OnInvalidSubmit="MarcarInvalido">
+                <DataAnnotationsValidator />
+
+                <div class="mb-3">
+                    <label class="form-label" for="usuario-empresa">Empresa</label>
+                    @if (enEmpresa)
+                    {
+                        <input type="text" id="usuario-empresa" class="form-control" value="@NombreEmpresa" disabled />
+                        <div class="form-text">El usuario pertenece a la empresa indicada en la direccion.</div>
+                    }
+                    else
+                    {
+                        <select id="usuario-empresa" class="form-select" value="@usuario!.EmpresaId" @onchange="AlCambiarEmpresa" disabled="@enEmpresa">
+                            <option value="0">Seleccione una empresa</option>
+                            @foreach (var empresa in empresas)
+                            {
+                                <option value="@empresa.Id">@empresa.RazonSocial</option>
+                            }
+                        </select>
+                        <ValidationMessage class="text-danger small" For="() => usuario!.EmpresaId" />
+                    }
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label" for="usuario-nombre">Nombre</label>
+                        <InputText id="usuario-nombre" class="form-control" @bind-Value="usuario!.Nombre" maxlength="100" placeholder="Ej.: Sergio Algorry" />
+                        <ValidationMessage class="text-danger small" For="() => usuario!.Nombre" />
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label" for="usuario-email">Email</label>
+                        <InputText id="usuario-email" type="email" class="form-control" @bind-Value="usuario!.Email" maxlength="100" placeholder="Ej.: usuario@empresa.com" />
+                        <ValidationMessage class="text-danger small" For="() => usuario!.Email" />
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label" for="usuario-rol">Rol</label>
+                        <InputSelect id="usuario-rol" class="form-select" @bind-Value="usuario!.Rol">
+                            <option value="">Seleccione un rol</option>
+                            @foreach (var rol in roles)
+                            {
+                                <option value="@rol">@rol</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage class="text-danger small" For="() => usuario!.Rol" />
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label" for="usuario-contrasena">Contraseña</label>
+                        <InputText id="usuario-contrasena" type="password" class="form-control" @bind-Value="usuario!.Contrasena"
+                                   autocomplete="new-password" placeholder="@(esEdicion ? "Nueva contraseña" : "Minimo 8 caracteres")" />
+                        <div class="form-text">
+                            @(esEdicion
+                                ? "Al guardar se reemplaza la contraseña del usuario (minimo 8 caracteres)."
+                                : "Minimo 8 caracteres.")
+                        </div>
+                        <ValidationMessage class="text-danger small" For="() => usuario!.Contrasena" />
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <span class="form-label d-block">Depositos asignados</span>
+                    @if (depositos.Count == 0)
+                    {
+                        <p class="text-body-secondary mb-0">No hay depositos cargados en la empresa seleccionada.</p>
+                    }
+                    else
+                    {
+                        <div class="row row-cols-1 row-cols-md-2 g-2">
+                            @foreach (var deposito in depositos)
+                            {
+                                var depositoId = deposito.Id;
+                                <div class="col">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="@($"usuario-deposito-{deposito.Id}")"
+                                               checked="@usuario!.DepositoIds.Contains(deposito.Id)"
+                                               @onchange="e => AlternarDeposito(depositoId, e)" />
+                                        <label class="form-check-label" for="@($"usuario-deposito-{deposito.Id}")">@deposito.Nombre</label>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                        <ValidationMessage class="text-danger small" For="() => usuario!.DepositoIds" />
+                    }
+                </div>
+
+                <div class="form-check mb-3">
+                    <InputCheckbox @bind-Value="usuario!.Estado" id="usuario-estado" class="form-check-input" />
+                    <label class="form-check-label" for="usuario-estado">Usuario activo</label>
+                </div>
+
+                @if (intentado)
+                {
+                    <div class="alert alert-danger" role="alert">
+                        <ValidationSummary class="mb-0" />
+                    </div>
+                }
+
+                <div class="d-flex justify-content-end gap-2">
+                    <a class="btn btn-outline-secondary" href="@RutaVolver">Cancelar</a>
+                    <button type="submit" class="btn btn-primary" disabled="@guardando">
+                        @(guardando ? "Guardando..." : "Guardar")
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int? Id { get; set; }
+
+    [Parameter]
+    public int? EmpresaId { get; set; }
+
+    private CrearUsuarioDTO? usuario;
+    private List<EmpresaDTO> empresas = [];
+    private List<DepositoDTO> depositos = [];
+    private List<string> roles = [];
+    private bool cargando = true;
+    private bool guardando;
+    private bool intentado;
+    private string? errorServidor;
+
+    private bool esEdicion => Id.HasValue && Id.Value > 0;
+
+    private bool enEmpresa => EmpresaId.HasValue && EmpresaId.Value > 0;
+
+    private string RutaVolver => enEmpresa ? $"empresas/{EmpresaId}/usuarios" : "usuarios";
+
+    private string NombreEmpresa => empresas.FirstOrDefault(e => e.Id == usuario?.EmpresaId)?.RazonSocial ?? string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        roles = ["Administrador", "Compras", "Deposito"];
+
+        var empresasResp = await EmpresaServicio.ObtenerTodasAsync();
+        if (!empresasResp.Error)
+        {
+            empresas = (empresasResp.Respuesta ?? []).OrderBy(e => e.RazonSocial).ToList();
+        }
+
+        usuario = new CrearUsuarioDTO
+        {
+            Estado = true,
+            EmpresaId = enEmpresa ? EmpresaId!.Value : Sesion.EmpresaId
+        };
+
+        if (esEdicion)
+        {
+            var respuesta = await UsuarioServicio.ObtenerPorIdAsync(Id!.Value);
+            if (respuesta.Error || respuesta.Respuesta is null)
+            {
+                errorServidor = $"No se encontro el usuario de id: {Id}. {respuesta.Mensaje}".Trim();
+                usuario = null;
+                cargando = false;
+                return;
+            }
+
+            var datos = respuesta.Respuesta;
+            usuario.Nombre = datos.Nombre;
+            usuario.Email = datos.Email;
+            usuario.Rol = datos.Rol;
+            usuario.Estado = datos.Estado;
+            usuario.EmpresaId = enEmpresa ? EmpresaId!.Value : datos.EmpresaId;
+            usuario.DepositoIds = [.. datos.DepositoIds];
+
+            if (!string.IsNullOrWhiteSpace(usuario.Rol) && !roles.Contains(usuario.Rol))
+            {
+                roles.Add(usuario.Rol);
+            }
+        }
+
+        await CargarDepositos();
+        cargando = false;
+    }
+
+    private async Task CargarDepositos()
+    {
+        if (usuario is null || usuario.EmpresaId <= 0)
+        {
+            depositos = [];
+            return;
+        }
+
+        var respuesta = await DepositoServicio.ObtenerTodosAsync(usuario.EmpresaId);
+        depositos = respuesta.Error ? [] : (respuesta.Respuesta ?? []);
+    }
+
+    private async Task AlCambiarEmpresa(ChangeEventArgs e)
+    {
+        if (usuario is null || !int.TryParse(e.Value?.ToString(), out var empresaId))
+        {
+            return;
+        }
+
+        usuario.EmpresaId = empresaId;
+        usuario.DepositoIds.Clear();
+        await CargarDepositos();
+    }
+
+    private void AlternarDeposito(int depositoId, ChangeEventArgs e)
+    {
+        if (usuario is null)
+        {
+            return;
+        }
+
+        var marcado = e.Value is bool valor && valor;
+
+        if (marcado)
+        {
+            if (!usuario.DepositoIds.Contains(depositoId))
+            {
+                usuario.DepositoIds.Add(depositoId);
+            }
+        }
+        else
+        {
+            usuario.DepositoIds.Remove(depositoId);
+        }
+    }
+
+    private void MarcarInvalido()
+    {
+        intentado = true;
+    }
+
+    private async Task Guardar()
+    {
+        if (usuario is null)
+        {
+            return;
+        }
+
+        if (enEmpresa)
+        {
+            usuario.EmpresaId = EmpresaId!.Value;
+        }
+
+        intentado = false;
+        guardando = true;
+        errorServidor = null;
+
+        if (esEdicion)
+        {
+            var respuesta = await UsuarioServicio.EditarAsync(Id!.Value, usuario);
+            if (respuesta.Error || !respuesta.Respuesta)
+            {
+                errorServidor = $"No se pudo guardar el usuario. {respuesta.Mensaje}".Trim();
+                guardando = false;
+                return;
+            }
+
+            Navegacion.NavigateTo(RutaVolver);
+            return;
+        }
+
+        var creacion = await UsuarioServicio.CrearAsync(usuario);
+        if (creacion.Error)
+        {
+            errorServidor = $"No se pudo crear el usuario. {creacion.Mensaje}".Trim();
+            guardando = false;
+            return;
+        }
+
+        Navegacion.NavigateTo(RutaVolver);
+    }
+}

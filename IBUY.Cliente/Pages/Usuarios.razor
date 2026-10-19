@@ -1,0 +1,261 @@
+@page "/usuarios"
+@page "/empresas/{EmpresaId:int}/usuarios"
+@inject IUsuarioServicio UsuarioServicio
+@inject IEmpresaServicio EmpresaServicio
+@inject IDepositoServicio DepositoServicio
+@inject NavigationManager Navegacion
+@inject IJSRuntime JS
+
+<PageTitle>Usuarios · IBUY</PageTitle>
+
+<div class="mb-4">
+    <h1 class="h3 mb-1">Usuarios</h1>
+    <p class="text-body-secondary mb-0">
+        @if (enEmpresa)
+        {
+            @($"Usuarios con acceso a {NombreEmpresa}.")
+        }
+        else
+        {
+            @("Usuarios con acceso a las empresas de la plataforma.")
+        }
+    </p>
+</div>
+
+@if (cargando)
+{
+    <Cargando Texto="Cargando usuarios..." />
+}
+else if (errorCarga is not null)
+{
+    <div class="alert alert-danger" role="alert">@errorCarga</div>
+}
+else
+{
+    <div class="d-flex flex-wrap align-items-end gap-3 mb-3">
+        <div class="col-12 col-lg-5 col-xl-4">
+            <label class="input-group">
+                <span class="input-group-text"><Icono Nombre="buscar" /></span>
+                <input type="text" class="form-control" placeholder="Buscar por nombre o email"
+                       aria-label="Buscar usuarios" @bind="busqueda" @bind:event="oninput" />
+            </label>
+        </div>
+
+        <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+            <label class="form-label" for="usuarios-rol">Rol</label>
+            <select id="usuarios-rol" class="form-select" @bind="rolFiltro">
+                <option value="">Todos</option>
+                @foreach (var rol in roles)
+                {
+                    <option value="@rol">@rol</option>
+                }
+            </select>
+        </div>
+
+        <span class="text-body-secondary pb-2">@filtrados.Count @(filtrados.Count == 1 ? "usuario" : "usuarios")</span>
+
+        <a class="btn btn-primary d-inline-flex align-items-center gap-2 ms-md-auto" href="@RutaNuevo">
+            <Icono Nombre="mas" />
+            Nuevo usuario
+        </a>
+    </div>
+
+    <div class="card shadow-sm">
+        @if (visibles.Count == 0)
+        {
+            <p class="text-center text-body-secondary py-5 mb-0">
+                @(enEmpresa
+                    ? "Esta empresa todavia no tiene usuarios cargados."
+                    : "Todavia no hay usuarios cargados.")
+            </p>
+        }
+        else if (filtrados.Count == 0)
+        {
+            <p class="text-center text-body-secondary py-5 mb-0">Sin resultados para la busqueda.</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Email</th>
+                            <th>Rol</th>
+                            @if (!enEmpresa)
+                            {
+                                <th>Empresa</th>
+                            }
+                            <th>Depositos</th>
+                            <th>Estado</th>
+                            <th class="text-end">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var usuario in filtrados)
+                        {
+                            <tr @key="usuario.Id">
+                                <td class="fw-semibold">@usuario.Nombre</td>
+                                <td>@usuario.Email</td>
+                                <td><span class="badge rounded-pill bg-primary-subtle text-primary-emphasis">@usuario.Rol</span></td>
+                                @if (!enEmpresa)
+                                {
+                                    <td>@NombreDeEmpresa(usuario.EmpresaId)</td>
+                                }
+                                <td>@NombreDeDepositos(usuario.Id)</td>
+                                <td>
+                                    <span class="badge rounded-pill @(usuario.Estado ? "bg-success-subtle text-success-emphasis" : "bg-warning-subtle text-warning-emphasis")">
+                                        @(usuario.Estado ? "Activo" : "Inactivo")
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="d-flex flex-wrap justify-content-end gap-1">
+                                        <a class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1" href="@RutaEditar(usuario.Id)">
+                                            <Icono Nombre="editar" /> Editar
+                                        </a>
+                                        <button type="button"
+                                                class="btn btn-sm @(usuario.Estado ? "btn-outline-warning" : "btn-outline-success")"
+                                                @onclick="() => AlternarEstado(usuario)">
+                                            @(usuario.Estado ? "Desactivar" : "Activar")
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+}
+
+@if (aviso is not null)
+{
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div class="toast show text-bg-dark border-0" role="status">
+            <div class="toast-body">@aviso</div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int? EmpresaId { get; set; }
+
+    private List<UsuarioDTO> usuarios = [];
+    private List<EmpresaDTO> empresas = [];
+    private List<DepositoDTO> depositos = [];
+    private string busqueda = string.Empty;
+    private string rolFiltro = string.Empty;
+    private bool cargando = true;
+    private string? errorCarga;
+    private string? aviso;
+
+    private bool enEmpresa => EmpresaId.HasValue && EmpresaId.Value > 0;
+
+    private string NombreEmpresa => NombreDeEmpresa(EmpresaId ?? 0);
+
+    private List<UsuarioDTO> visibles => enEmpresa
+        ? [.. usuarios.Where(u => u.EmpresaId == EmpresaId!.Value)]
+        : usuarios;
+
+    private List<string> roles => [.. visibles.Select(u => u.Rol).Where(r => !string.IsNullOrWhiteSpace(r)).Distinct().OrderBy(r => r)];
+
+    private List<UsuarioDTO> filtrados => [.. visibles.Where(Coincide).OrderBy(u => u.Nombre)];
+
+    private string RutaNuevo => enEmpresa ? $"empresas/{EmpresaId}/usuarios/nuevo" : "usuarios/nuevo";
+
+    private string RutaEditar(int usuarioId) => enEmpresa
+        ? $"empresas/{EmpresaId}/usuarios/editar/{usuarioId}"
+        : $"usuarios/editar/{usuarioId}";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Cargar();
+    }
+
+    private async Task Cargar()
+    {
+        cargando = true;
+        errorCarga = null;
+        StateHasChanged();
+
+        var empresasResp = await EmpresaServicio.ObtenerTodasAsync();
+        if (!empresasResp.Error)
+        {
+            empresas = empresasResp.Respuesta ?? [];
+        }
+
+        // Depositos de toda la plataforma: se usan para mostrar a cargo de quien esta cada uno.
+        var depositosResp = await DepositoServicio.ObtenerTodosAsync(null);
+        if (!depositosResp.Error)
+        {
+            depositos = depositosResp.Respuesta ?? [];
+        }
+
+        var usuariosResp = await UsuarioServicio.ObtenerTodosAsync();
+        if (usuariosResp.Error)
+        {
+            usuarios = [];
+            errorCarga = $"No se pudieron cargar los usuarios. {usuariosResp.Mensaje}".Trim();
+        }
+        else
+        {
+            usuarios = usuariosResp.Respuesta ?? [];
+        }
+
+        cargando = false;
+        StateHasChanged();
+    }
+
+    private bool Coincide(UsuarioDTO usuario)
+    {
+        if (!string.IsNullOrWhiteSpace(rolFiltro) &&
+            !string.Equals(usuario.Rol, rolFiltro, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(busqueda))
+        {
+            return true;
+        }
+
+        var filtro = busqueda.Trim().ToLowerInvariant();
+        return usuario.Nombre.ToLowerInvariant().Contains(filtro)
+            || usuario.Email.ToLowerInvariant().Contains(filtro);
+    }
+
+    private string NombreDeEmpresa(int empresaId)
+    {
+        return empresas.FirstOrDefault(e => e.Id == empresaId)?.RazonSocial ?? string.Empty;
+    }
+
+    private string NombreDeDepositos(int usuarioId)
+    {
+        var nombres = depositos
+            .Where(d => d.UsuarioResponsableId == usuarioId)
+            .Select(d => d.Nombre)
+            .ToList();
+
+        return nombres.Count == 0 ? "Sin depositos" : string.Join(", ", nombres);
+    }
+
+    /// <summary>
+    /// La API de usuarios exige contraseña en cada actualización, por eso el cambio de estado
+    /// se completa en el formulario de edición y el listado se recarga al volver.
+    /// </summary>
+    private async Task AlternarEstado(UsuarioDTO usuario)
+    {
+        if (usuario.Estado)
+        {
+            var confirmado = await JS.InvokeAsync<bool>("confirm", $"Desactivar el usuario {usuario.Nombre}?");
+            if (!confirmado)
+            {
+                return;
+            }
+        }
+
+        Navegacion.NavigateTo(RutaEditar(usuario.Id));
+    }
+}

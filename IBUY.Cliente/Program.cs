@@ -20,5 +20,7 @@ builder.Services.AddScoped<IHttpService, HttpService>();
 builder.Services.AddScoped<IDepositoServicio, DepositoServicioHttp>();
 builder.Services.AddScoped<IProductoServicio, ProductoServicioHttp>();
 builder.Services.AddScoped<ICatalogoServicio, CatalogoServicioHttp>();
+builder.Services.AddScoped<IEmpresaServicio, EmpresaServicioHttp>();
+builder.Services.AddScoped<IUsuarioServicio, UsuarioServicioHttp>();
 
 await builder.Build().RunAsync();

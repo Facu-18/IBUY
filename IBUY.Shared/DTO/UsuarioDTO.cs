@@ -8,6 +8,9 @@ namespace IBUY.Shared.DTO
 {
     public class UsuarioDTO
     {
+        /// <summary>Solo lectura: lo informa el servidor en los listados.</summary>
+        public int Id { get; set; }
+
         [Required(ErrorMessage = "El nombre es obligatorio.")]
         [MaxLength(100, ErrorMessage = "El nombre no puede superar los {1} caracteres.")]
         public string Nombre { get; set; } = string.Empty;

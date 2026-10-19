@@ -1,0 +1,185 @@
+@page "/empresas/{Id:int}"
+@inject IEmpresaServicio EmpresaServicio
+@inject IJSRuntime JS
+
+<PageTitle>@(empresa?.RazonSocial ?? "Empresa") · IBUY</PageTitle>
+
+@if (cargando)
+{
+    <Cargando Texto="Cargando empresa..." />
+}
+else if (empresa is null)
+{
+    <div class="alert alert-danger" role="alert">
+        No se encontro la empresa solicitada.
+        <a class="alert-link" href="empresas">Volver al listado</a>
+    </div>
+}
+else
+{
+    <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-4">
+        <div>
+            <h1 class="h3 mb-1">@empresa.RazonSocial</h1>
+            <p class="text-body-secondary mb-0">@empresa.Tipo</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <a class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" href="empresas">
+                <Icono Nombre="volver" /> Volver
+            </a>
+            <a class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" href="@($"empresas/{empresa.Id}/usuarios")">
+                <Icono Nombre="usuarios" /> Usuarios
+            </a>
+            <a class="btn btn-outline-primary d-inline-flex align-items-center gap-2" href="@($"empresas/editar/{empresa.Id}")">
+                <Icono Nombre="editar" /> Editar
+            </a>
+            <button type="button"
+                    class="btn @(empresa.Activo ? "btn-outline-warning" : "btn-outline-success")"
+                    disabled="@guardando"
+                    @onclick="AlternarEstado">
+                @(empresa.Activo ? "Desactivar" : "Activar")
+            </button>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <dl class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3 mb-0">
+                <div class="col">
+                    <dt class="small text-uppercase text-body-secondary">Estado</dt>
+                    <dd class="mb-0">
+                        <span class="badge rounded-pill @(empresa.Activo ? "bg-success-subtle text-success-emphasis" : "bg-warning-subtle text-warning-emphasis")">
+                            @(empresa.Activo ? "Activa" : "Inactiva")
+                        </span>
+                    </dd>
+                </div>
+                <div class="col">
+                    <dt class="small text-uppercase text-body-secondary">Razon social</dt>
+                    <dd class="mb-0">@empresa.RazonSocial</dd>
+                </div>
+                <div class="col">
+                    <dt class="small text-uppercase text-body-secondary">CUIT</dt>
+                    <dd class="mb-0">@empresa.Cuit</dd>
+                </div>
+                <div class="col">
+                    <dt class="small text-uppercase text-body-secondary">Rubro</dt>
+                    <dd class="mb-0">@empresa.Rubro</dd>
+                </div>
+                <div class="col">
+                    <dt class="small text-uppercase text-body-secondary">Tipo</dt>
+                    <dd class="mb-0">@empresa.Tipo</dd>
+                </div>
+                <div class="col">
+                    <dt class="small text-uppercase text-body-secondary">Email</dt>
+                    <dd class="mb-0">@empresa.Email</dd>
+                </div>
+            </dl>
+        </div>
+    </div>
+}
+
+@if (aviso is not null)
+{
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div class="toast show text-bg-dark border-0" role="status">
+            <div class="toast-body">@aviso</div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private EmpresaDTO? empresa;
+    private bool cargando = true;
+    private bool guardando;
+    private string? aviso;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Cargar();
+    }
+
+    private async Task Cargar()
+    {
+        cargando = true;
+        StateHasChanged();
+
+        var respuesta = await EmpresaServicio.ObtenerPorIdAsync(Id);
+
+        if (respuesta.Error || respuesta.Respuesta is null)
+        {
+            empresa = null;
+        }
+        else
+        {
+            empresa = respuesta.Respuesta;
+            // El endpoint de detalle no devuelve el id: se toma de la ruta.
+            empresa.Id = Id;
+        }
+
+        cargando = false;
+        StateHasChanged();
+    }
+
+    private async Task AlternarEstado()
+    {
+        if (empresa is null)
+        {
+            return;
+        }
+
+        if (empresa.Activo)
+        {
+            var confirmado = await JS.InvokeAsync<bool>("confirm", $"Desactivar la empresa {empresa.RazonSocial}?");
+            if (!confirmado)
+            {
+                return;
+            }
+        }
+
+        guardando = true;
+
+        var actualizado = new EmpresaDTO
+        {
+            Id = empresa.Id,
+            RazonSocial = empresa.RazonSocial,
+            Rubro = empresa.Rubro,
+            Cuit = empresa.Cuit,
+            Email = empresa.Email,
+            Tipo = empresa.Tipo,
+            Activo = !empresa.Activo
+        };
+
+        var respuesta = await EmpresaServicio.EditarAsync(empresa.Id, actualizado);
+
+        if (respuesta.Error || !respuesta.Respuesta)
+        {
+            await MostrarAviso($"No se pudo actualizar {empresa.RazonSocial}. {respuesta.Mensaje}".Trim());
+        }
+        else
+        {
+            empresa.Activo = actualizado.Activo;
+            await MostrarAviso(actualizado.Activo
+                ? $"{empresa.RazonSocial} activada."
+                : $"{empresa.RazonSocial} desactivada.");
+        }
+
+        guardando = false;
+        StateHasChanged();
+    }
+
+    private async Task MostrarAviso(string texto)
+    {
+        aviso = texto;
+        StateHasChanged();
+
+        await Task.Delay(3500);
+
+        if (aviso == texto)
+        {
+            aviso = null;
+            StateHasChanged();
+        }
+    }
+}
