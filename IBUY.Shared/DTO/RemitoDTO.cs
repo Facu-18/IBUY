@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace IBUY.Shared.DTO
 {
-    public class RemitoDTO
+    public class ItemRemitoDTO
     {
         [Required(ErrorMessage = "El tipo de remito es obligatorio.")]
         [MaxLength(20, ErrorMessage = "El tipo no puede superar los {1} caracteres.")]

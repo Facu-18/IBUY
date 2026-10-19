@@ -40,7 +40,7 @@ namespace IBUY.Server.Controllers
         }
 
         [HttpGet("{id:int}")]
-        public async Task<ActionResult<RemitoDTO>> GetById(int id)
+        public async Task<ActionResult<ItemRemitoDTO>> GetById(int id)
         {
             var (remito, items) = await repositorio.ObtenerDetalle(id);
             if (remito is null)
@@ -48,7 +48,7 @@ namespace IBUY.Server.Controllers
                 return NotFound($"No se encontró el remito de id: {id}");
             }
 
-            RemitoDTO dto = new RemitoDTO
+            ItemRemitoDTO dto = new ItemRemitoDTO
             {
                 Tipo = remito.Tipo,
                 Numero = remito.Numero,
@@ -71,7 +71,7 @@ namespace IBUY.Server.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult<int>> Post(RemitoDTO remitoDTO)
+        public async Task<ActionResult<int>> Post(ItemRemitoDTO remitoDTO)
         {
             if (remitoDTO.Items is null || remitoDTO.Items.Count == 0)
             {
@@ -164,7 +164,7 @@ namespace IBUY.Server.Controllers
         /// Valida el Tipo (sin distinguir mayusculas/minusculas) y que traiga los depositos
         /// que ese tipo necesita. Devuelve el Tipo canonico por out param.
         /// </summary>
-        private static string? ValidarTipoYDepositos(RemitoDTO dto, out string tipoCanonico)
+        private static string? ValidarTipoYDepositos(ItemRemitoDTO dto, out string tipoCanonico)
         {
             if (string.Equals(dto.Tipo, "Entrada", StringComparison.OrdinalIgnoreCase))
             {
@@ -213,7 +213,7 @@ namespace IBUY.Server.Controllers
         /// Las FK exigen que empresa, usuario, cotizacion (si hay), depositos y productos
         /// de los items existan. Devuelve null cuando esta todo bien.
         /// </summary>
-        private async Task<string?> ValidarRelaciones(RemitoDTO dto)
+        private async Task<string?> ValidarRelaciones(ItemRemitoDTO dto)
         {
             if (!await empresaRepositorio.Existe(dto.EmpresaId))
             {

@@ -19,5 +19,5 @@ builder.Services.AddScoped<IHttpService, HttpService>();
 // Servicios reales contra la API (usan IHttpService).
 builder.Services.AddScoped<IDepositoServicio, DepositoServicioHttp>();
 builder.Services.AddScoped<ICatalogoServicio, CatalogoServicioHttp>();
-
+builder.Services.AddScoped<IRemitoServicio, RemitoServicioHttp>();
 await builder.Build().RunAsync();
