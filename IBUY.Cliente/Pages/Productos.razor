@@ -1,0 +1,152 @@
+@page "/productos"
+@implements IDisposable
+@inject IProductoServicio ProductoServicio
+@inject EstadoSesion Sesion
+
+<PageTitle>Productos · IBUY</PageTitle>
+
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+    <div>
+        <h1 class="h3 mb-1">Productos</h1>
+        <p class="text-body-secondary mb-0">Catalogo de productos de la empresa seleccionada.</p>
+    </div>
+    @if (Sesion.EmpresaId > 0)
+    {
+        <a class="btn btn-primary d-inline-flex align-items-center gap-2" href="productos/nuevo">
+            <Icono Nombre="mas" /> Nuevo producto
+        </a>
+    }
+</div>
+
+<div class="row g-3 align-items-end mb-3">
+    <div class="col-12 col-md-6">
+        <label class="form-label" for="productos-busqueda">Buscar por nombre</label>
+        <div class="input-group">
+            <span class="input-group-text"><Icono Nombre="buscar" /></span>
+            <input id="productos-busqueda" class="form-control" type="search" placeholder="Nombre del producto"
+                   @bind="busqueda" @bind:event="oninput" />
+        </div>
+    </div>
+    <div class="col-12 col-md-4">
+        <label class="form-label" for="productos-categoria">Categoria</label>
+        <select id="productos-categoria" class="form-select" @bind="categoria">
+            <option value="">Todas las categorias</option>
+            @foreach (var opcion in categorias)
+            {
+                <option value="@opcion">@opcion</option>
+            }
+        </select>
+    </div>
+    <div class="col-12 col-md-2 text-body-secondary" role="status">@filtrados.Count productos</div>
+</div>
+
+@if (cargando)
+{
+    <Cargando Texto="Cargando productos..." />
+}
+else if (error is not null)
+{
+    <div class="alert alert-danger" role="alert">
+        @error
+        <button class="btn btn-sm btn-outline-danger ms-2" @onclick="Cargar">Reintentar</button>
+    </div>
+}
+else
+{
+    <div class="card shadow-sm">
+        @if (productos.Count == 0 || filtrados.Count == 0)
+        {
+            <p class="text-center text-body-secondary py-5 px-3 mb-0">
+                @(Sesion.EmpresaId == 0 ? "Seleccione una empresa en el encabezado para ver sus productos."
+                    : productos.Count == 0 ? "La empresa seleccionada todavia no tiene productos cargados."
+                    : "No hay productos que coincidan con la busqueda y la categoria seleccionada.")
+            </p>
+        }
+        else
+        {
+            <div class="table-responsive" role="region" aria-label="Catalogo de productos" tabindex="0">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr><th scope="col">Producto</th><th scope="col">Categoria</th><th scope="col">Acciones</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var producto in filtrados)
+                        {
+                            <tr @key="producto.Id">
+                                <td class="text-break">
+                                    <a class="fw-semibold text-decoration-none" href="@($"productos/{producto.Id}")">@producto.Nombre</a>
+                                    <div class="small text-body-secondary text-break">@producto.Descripcion</div>
+                                </td>
+                                <td class="text-break">@producto.Categoria</td>
+                                <td>
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <a class="btn btn-sm btn-outline-secondary" href="@($"productos/{producto.Id}")" aria-label="@($"Ver {producto.Nombre}")">
+                                            <Icono Nombre="ver" /> Ver
+                                        </a>
+                                        <a class="btn btn-sm btn-outline-primary" href="@($"productos/editar/{producto.Id}")" aria-label="@($"Editar {producto.Nombre}")">
+                                            <Icono Nombre="editar" /> Editar
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<ProductoDTO> productos = [];
+    private string busqueda = string.Empty;
+    private string categoria = string.Empty;
+    private bool cargando = true;
+    private string? error;
+    private int versionCarga;
+    private IEnumerable<string> categorias => productos.Select(p => p.Categoria)
+        .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(c => c);
+    private List<ProductoDTO> filtrados => [.. productos.Where(p =>
+        p.Nombre.Contains(busqueda.Trim(), StringComparison.OrdinalIgnoreCase) &&
+        (categoria.Length == 0 || string.Equals(p.Categoria, categoria, StringComparison.OrdinalIgnoreCase)))];
+
+    protected override async Task OnInitializedAsync()
+    {
+        Sesion.OnCambio += AlCambiarEmpresa;
+        await Cargar();
+    }
+
+    private void AlCambiarEmpresa()
+    {
+        busqueda = categoria = string.Empty;
+        _ = InvokeAsync(Cargar);
+    }
+
+    private async Task Cargar()
+    {
+        var version = ++versionCarga;
+        var empresaId = Sesion.EmpresaId;
+        productos = [];
+        error = null;
+        cargando = empresaId > 0;
+        StateHasChanged();
+        if (!cargando) return;
+
+        var respuesta = await ProductoServicio.ObtenerTodosAsync(empresaId);
+        // Una respuesta anterior no debe sobrescribir la empresa seleccionada ahora.
+        if (version != versionCarga || empresaId != Sesion.EmpresaId) return;
+
+        if (respuesta.Error)
+            error = $"No se pudieron cargar los productos. {respuesta.Mensaje}".Trim();
+        else
+            productos = [.. (respuesta.Respuesta ?? []).Where(p => p.EmpresaId == empresaId)];
+        cargando = false;
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        versionCarga++;
+        Sesion.OnCambio -= AlCambiarEmpresa;
+    }
+}
