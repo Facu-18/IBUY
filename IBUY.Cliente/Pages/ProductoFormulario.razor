@@ -1,0 +1,163 @@
+@page "/productos/nuevo"
+@page "/productos/editar/{Id:int}"
+@implements IDisposable
+@inject IProductoServicio ProductoServicio
+@inject EstadoSesion Sesion
+@inject NavigationManager Navegacion
+
+<PageTitle>@(Id.HasValue ? "Editar producto" : "Nuevo producto") · IBUY</PageTitle>
+
+<div class="mb-4">
+    <h1 class="h3 mb-1">@(Id.HasValue ? "Editar producto" : "Nuevo producto")</h1>
+    <p class="text-body-secondary mb-0">Complete los datos del producto para @Sesion.Empresa.</p>
+</div>
+
+@if (cargando)
+{
+    <Cargando Texto="Cargando formulario..." />
+}
+else if (producto is null)
+{
+    <div class="alert alert-warning" role="alert">
+        @(error ?? "Seleccione una empresa para cargar productos.")
+        <a class="alert-link" href="productos">Volver al catalogo</a>
+    </div>
+}
+else
+{
+    @if (error is not null)
+    {
+        <div class="alert alert-danger" role="alert">@error</div>
+    }
+    <div class="card shadow-sm">
+        <div class="card-body p-3 p-md-4">
+            <EditForm Model="producto" OnValidSubmit="Guardar" @key="producto">
+                <DataAnnotationsValidator />
+                <ValidationSummary class="text-danger" />
+                <fieldset disabled="@guardando">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label" for="producto-empresa">Empresa</label>
+                            <input id="producto-empresa" class="form-control" value="@Sesion.Empresa" disabled />
+                            <div class="form-text">El producto pertenece a esta empresa y no se puede transferir desde este formulario.</div>
+                        </div>
+                        <div class="col-12 col-md-7">
+                            <label class="form-label" for="producto-nombre">Nombre *</label>
+                            <InputText id="producto-nombre" class="form-control" @bind-Value="producto.Nombre" maxlength="100" aria-required="true" />
+                            <ValidationMessage class="text-danger small" For="() => producto.Nombre" />
+                        </div>
+                        <div class="col-12 col-md-5">
+                            <label class="form-label" for="producto-categoria">Categoria *</label>
+                            <InputText id="producto-categoria" class="form-control" @bind-Value="producto.Categoria" maxlength="50" aria-required="true" />
+                            <ValidationMessage class="text-danger small" For="() => producto.Categoria" />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="producto-descripcion">Descripcion (opcional)</label>
+                            <InputTextArea id="producto-descripcion" class="form-control" @bind-Value="producto.Descripcion" maxlength="500" rows="4" />
+                            <ValidationMessage class="text-danger small" For="() => producto.Descripcion" />
+                            <div class="form-text">Hasta 500 caracteres. Los campos con * son obligatorios.</div>
+                        </div>
+                    </div>
+                    <div class="d-flex flex-wrap justify-content-end gap-2 mt-4">
+                        <a class="btn btn-outline-secondary" href="productos">Cancelar</a>
+                        <button class="btn btn-primary" type="submit" disabled="@guardando">
+                            @(guardando ? "Guardando..." : "Guardar producto")
+                        </button>
+                    </div>
+                </fieldset>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int? Id { get; set; }
+    private ProductoDTO? producto;
+    private string? error;
+    private bool cargando = true;
+    private bool guardando;
+    private int versionCarga;
+    private int empresaFormulario;
+
+    protected override void OnInitialized() => Sesion.OnCambio += AlCambiarEmpresa;
+
+    protected override Task OnParametersSetAsync() => Cargar();
+
+    private async Task Cargar()
+    {
+        var version = ++versionCarga;
+        var empresaId = Sesion.EmpresaId;
+        empresaFormulario = empresaId;
+        producto = null;
+        error = null;
+        guardando = false;
+        cargando = false;
+        if (empresaId == 0) return;
+        if (!Id.HasValue)
+        {
+            producto = new ProductoDTO { EmpresaId = empresaId };
+            return;
+        }
+
+        cargando = true;
+        StateHasChanged();
+        var respuesta = await ProductoServicio.ObtenerPorIdAsync(Id.Value, empresaId);
+        if (version != versionCarga || empresaId != Sesion.EmpresaId) return;
+        if (respuesta.Error || respuesta.Respuesta is null || respuesta.Respuesta.EmpresaId != empresaId)
+            error = $"No se pudo cargar el producto en la empresa seleccionada. {respuesta.Mensaje}".Trim();
+        else
+            producto = respuesta.Respuesta;
+        cargando = false;
+    }
+
+    private void AlCambiarEmpresa()
+    {
+        if (empresaFormulario == 0)
+        {
+            _ = InvokeAsync(async () =>
+            {
+                await Cargar();
+                StateHasChanged();
+            });
+            return;
+        }
+
+        versionCarga++;
+        producto = null;
+        Navegacion.NavigateTo("productos");
+    }
+
+    private async Task Guardar()
+    {
+        if (guardando || producto is null || producto.EmpresaId != Sesion.EmpresaId) return;
+        var version = versionCarga;
+        var id = Id;
+        guardando = true;
+        error = null;
+        if (id.HasValue)
+        {
+            var respuesta = await ProductoServicio.EditarAsync(id.Value, producto);
+            if (version != versionCarga) return;
+            if (respuesta.Error || !respuesta.Respuesta)
+                error = $"No se pudo guardar el producto. {respuesta.Mensaje}".Trim();
+        }
+        else
+        {
+            var respuesta = await ProductoServicio.CrearAsync(producto);
+            if (version != versionCarga) return;
+            if (respuesta.Error || respuesta.Respuesta <= 0)
+                error = $"No se pudo crear el producto. {respuesta.Mensaje}".Trim();
+            else
+                id = respuesta.Respuesta;
+        }
+        guardando = false;
+        if (error is null)
+            Navegacion.NavigateTo($"productos/{id}?guardado=true");
+    }
+
+    public void Dispose()
+    {
+        versionCarga++;
+        Sesion.OnCambio -= AlCambiarEmpresa;
+    }
+}
