@@ -1,0 +1,236 @@
+@page "/necesidades"
+@implements IDisposable
+@inject INecesidadServicio NecesidadServicio
+@inject IDepositoServicio DepositoServicio
+@inject EstadoSesion Sesion
+
+<PageTitle>Necesidades · IBUY</PageTitle>
+
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+    <div>
+        <h1 class="h3 mb-1">Necesidades</h1>
+        <p class="text-body-secondary mb-0">Faltantes detectados entre los depositos de la empresa.</p>
+    </div>
+    @if (Sesion.EmpresaId > 0)
+    {
+        <a class="btn btn-primary d-inline-flex align-items-center gap-2" href="necesidades/nuevo">
+            <Icono Nombre="mas" /> Nueva necesidad
+        </a>
+    }
+</div>
+
+@if (cargando)
+{
+    <Cargando Texto="Cargando necesidades..." />
+}
+else if (errorCarga is not null)
+{
+    <div class="alert alert-danger" role="alert">
+        @errorCarga
+        <button class="btn btn-sm btn-outline-danger ms-2" @onclick="Cargar">Reintentar</button>
+    </div>
+}
+else
+{
+    <div class="row g-3 align-items-end mb-3">
+        <div class="col-12 col-lg-4">
+            <label class="form-label" for="necesidades-busqueda">Buscar</label>
+            <div class="input-group">
+                <span class="input-group-text"><Icono Nombre="buscar" /></span>
+                <input id="necesidades-busqueda" type="search" class="form-control" placeholder="Producto o deposito"
+                       @bind="busqueda" @bind:event="oninput" />
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-3">
+            <label class="form-label" for="necesidades-estado">Estado</label>
+            <select id="necesidades-estado" class="form-select" @bind="estado">
+                <option value="">Todos los estados</option>
+                <option value="@EstadosNecesidad.Pendiente">Pendiente</option>
+                <option value="@EstadosNecesidad.EnNota">En nota</option>
+                <option value="@EstadosNecesidad.Cubierta">Cubierta</option>
+            </select>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-3">
+            <label class="form-label" for="necesidades-deposito">Deposito</label>
+            <select id="necesidades-deposito" class="form-select" @bind="depositoId">
+                <option value="0">Todos los depositos</option>
+                @foreach (var deposito in depositos)
+                {
+                    <option value="@deposito.Id">@deposito.Nombre</option>
+                }
+            </select>
+        </div>
+        <div class="col-12 col-lg-2 text-body-secondary" role="status">
+            @filtrados.Count @(filtrados.Count == 1 ? "necesidad" : "necesidades")
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        @if (necesidades.Count == 0)
+        {
+            <p class="text-center text-body-secondary py-5 px-3 mb-0">
+                @(Sesion.EmpresaId == 0
+                    ? "No hay empresa seleccionada. Elija una empresa en el encabezado para ver sus necesidades."
+                    : "La empresa seleccionada todavia no tiene necesidades de reposicion cargadas.")
+            </p>
+        }
+        else if (filtrados.Count == 0)
+        {
+            <p class="text-center text-body-secondary py-5 px-3 mb-0">No hay necesidades que coincidan con la busqueda y los filtros seleccionados.</p>
+        }
+        else
+        {
+            <div class="table-responsive" role="region" aria-label="Listado de necesidades" tabindex="0">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th scope="col">Origen</th>
+                            <th scope="col">Destino</th>
+                            <th scope="col">Producto</th>
+                            <th scope="col" class="text-end">Cantidad requerida</th>
+                            <th scope="col">Fecha requerida</th>
+                            <th scope="col">Estado</th>
+                            <th scope="col">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var necesidad in filtrados)
+                        {
+                            <tr @key="necesidad.Id">
+                                <td class="fw-semibold">@necesidad.DepositoSolicitanteNombre</td>
+                                <td>@necesidad.DepositoDestinoNombre</td>
+                                <td>
+                                    @necesidad.ProductoNombre
+                                    <span class="badge rounded-pill bg-primary-subtle text-primary-emphasis ms-1">@necesidad.ProductoCategoria</span>
+                                </td>
+                                <td class="text-end">@necesidad.CantidadRequerida.ToString("0.##")</td>
+                                <td>@necesidad.FechaRequerida.ToString("dd/MM/yyyy")</td>
+                                <td>
+                                    <span class="badge rounded-pill @ClaseEstado(necesidad)">
+                                        @TextoEstado(necesidad)
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="d-flex flex-wrap gap-1">
+                                        <a class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1" href="@($"necesidades/{necesidad.Id}")">
+                                            <Icono Nombre="ver" /> Ver
+                                        </a>
+                                        <a class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1" href="@($"necesidades/editar/{necesidad.Id}")">
+                                            <Icono Nombre="editar" /> Editar
+                                        </a>
+                                        @if (necesidad.Estado == EstadosNecesidad.Pendiente)
+                                        {
+                                            <a class="btn btn-sm btn-success d-inline-flex align-items-center gap-1" href="@($"necesidades/{necesidad.Id}?nota=true")">
+                                                <Icono Nombre="notas" /> Generar nota
+                                            </a>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+}
+
+@if (aviso is not null)
+{
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div class="toast show text-bg-dark border-0" role="status">
+            <div class="toast-body">@aviso</div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<NecesidadDTO> necesidades = [];
+    private List<DepositoDTO> depositos = [];
+    private string busqueda = string.Empty;
+    private string estado = string.Empty;
+    private int depositoId;
+    private bool cargando = true;
+    private string? errorCarga;
+    private string? aviso;
+
+    private List<NecesidadDTO> filtrados => string.IsNullOrWhiteSpace(busqueda)
+        ? necesidades
+        : [.. necesidades.Where(n => Coincide(n, busqueda))];
+
+    protected override async Task OnInitializedAsync()
+    {
+        Sesion.OnCambio += AlCambiarSesion;
+        await Cargar();
+    }
+
+    private void AlCambiarSesion()
+    {
+        _ = InvokeAsync(Cargar);
+    }
+
+    private async Task Cargar()
+    {
+        cargando = true;
+        errorCarga = null;
+        aviso = null;
+        busqueda = string.Empty;
+        depositoId = 0;
+        StateHasChanged();
+
+        if (Sesion.EmpresaId == 0)
+        {
+            // Todavia no se cargo ninguna empresa: no se pide nada al servidor.
+            necesidades = [];
+            depositos = [];
+            cargando = false;
+            StateHasChanged();
+            return;
+        }
+
+        var depositosResp = await DepositoServicio.ObtenerTodosAsync(Sesion.EmpresaId);
+        depositos = depositosResp.Error ? [] : depositosResp.Respuesta ?? [];
+
+        var respuesta = await NecesidadServicio.ObtenerTodosAsync(Sesion.EmpresaId, estado, depositoId > 0 ? depositoId : null);
+
+        if (respuesta.Error)
+        {
+            necesidades = [];
+            errorCarga = $"No se pudieron cargar las necesidades. {respuesta.Mensaje}".Trim();
+        }
+        else
+        {
+            necesidades = respuesta.Respuesta ?? [];
+        }
+
+        cargando = false;
+        StateHasChanged();
+    }
+
+    private static bool Coincide(NecesidadDTO necesidad, string texto)
+    {
+        var filtro = texto.Trim().ToLowerInvariant();
+        return necesidad.ProductoNombre.ToLowerInvariant().Contains(filtro)
+            || necesidad.ProductoCategoria.ToLowerInvariant().Contains(filtro)
+            || necesidad.DepositoSolicitanteNombre.ToLowerInvariant().Contains(filtro)
+            || necesidad.DepositoDestinoNombre.ToLowerInvariant().Contains(filtro);
+    }
+
+    private static string ClaseEstado(NecesidadDTO necesidad) => necesidad.Estado switch
+    {
+        EstadosNecesidad.EnNota => "bg-primary-subtle text-primary-emphasis",
+        EstadosNecesidad.Cubierta => "bg-success-subtle text-success-emphasis",
+        _ => "bg-warning-subtle text-warning-emphasis"
+    };
+
+    private static string TextoEstado(NecesidadDTO necesidad) => necesidad.Estado switch
+    {
+        EstadosNecesidad.EnNota when necesidad.NotaPedidoId > 0 => $"En nota N.º {necesidad.NotaPedidoId}",
+        _ => necesidad.Estado
+    };
+
+    public void Dispose()
+    {
+        Sesion.OnCambio -= AlCambiarSesion;
+    }
+}

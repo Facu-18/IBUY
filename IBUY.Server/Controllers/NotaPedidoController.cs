@@ -186,6 +186,13 @@ namespace IBUY.Server.Controllers
                 return $"No existe la necesidad de id: {dto.NecesidadId}";
             }
 
+            // Una necesidad solo puede tener una nota de pedido: la vinculación es 1 a 1.
+            var notasDeLaNecesidad = await repositorio.ObtenerPorNecesidad(dto.NecesidadId);
+            if (notasDeLaNecesidad.Count > 0)
+            {
+                return $"La necesidad de id: {dto.NecesidadId} ya tiene la nota de pedido N.º {notasDeLaNecesidad[0].Id}.";
+            }
+
             foreach (var item in dto.Items)
             {
                 if (!await productoRepositorio.Existe(item.ProductoId))

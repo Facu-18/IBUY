@@ -1,0 +1,429 @@
+@page "/necesidades/nuevo"
+@page "/necesidades/editar/{Id:int}"
+@implements IDisposable
+@inject INecesidadServicio NecesidadServicio
+@inject IDepositoServicio DepositoServicio
+@inject IProductoServicio ProductoServicio
+@inject EstadoSesion Sesion
+@inject NavigationManager Navegacion
+
+<PageTitle>@(esEdicion ? "Editar necesidad" : "Nueva necesidad") · IBUY</PageTitle>
+
+<div class="mb-4">
+    <h1 class="h3 mb-1">@(esEdicion ? "Editar necesidad" : "Nueva necesidad")</h1>
+    <p class="text-body-secondary mb-0">
+        @(esEdicion
+            ? "Actualiza el faltante o cambia su estado."
+            : "Carga un faltante entre dos depositos de la empresa seleccionada.")
+    </p>
+</div>
+
+@if (cargando)
+{
+    <Cargando Texto="Cargando formulario..." />
+}
+else if (necesidad is null)
+{
+    <div class="alert alert-warning" role="alert">
+        @(errorServidor ?? "Seleccione una empresa para cargar necesidades.")
+        <a class="alert-link" href="necesidades">Volver al listado</a>
+    </div>
+}
+else
+{
+    @if (errorServidor is not null)
+    {
+        <div class="alert alert-danger" role="alert">@errorServidor</div>
+    }
+
+    @if (!esEdicion && sugerencias.Count > 0)
+    {
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2 mb-2">
+                    <h2 class="h5 mb-0">Productos con stock critico</h2>
+                    <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis">@sugerencias.Count</span>
+                </div>
+                <p class="text-body-secondary">
+                    Estos productos no tienen existencias en <span class="fw-semibold">@depositoSugerenciasNombre</span>.
+                    Elija uno para completar el formulario con el producto y el deposito.
+                </p>
+
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th scope="col">Producto</th>
+                                <th scope="col">Categoria</th>
+                                <th scope="col">Origen propuesto</th>
+                                <th scope="col" class="text-end">Stock actual</th>
+                                <th scope="col">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var sugerencia in sugerencias)
+                            {
+                                <tr @key="sugerencia.ProductoId">
+                                    <td class="fw-semibold">@sugerencia.ProductoNombre</td>
+                                    <td><span class="badge rounded-pill bg-primary-subtle text-primary-emphasis">@sugerencia.Categoria</span></td>
+                                    <td>@sugerencia.DepositoSolicitanteNombre</td>
+                                    <td class="text-end">@sugerencia.CantidadActual.ToString("0.##")</td>
+                                    <td>
+                                        @if (sugerencia.YaTienePendiente)
+                                        {
+                                            <span class="badge rounded-pill bg-secondary-subtle text-secondary-emphasis">Ya tiene pendiente</span>
+                                        }
+                                        else if (sugerencia.DepositoSolicitanteId == 0)
+                                        {
+                                            <span class="text-body-secondary">La empresa no tiene otro deposito.</span>
+                                        }
+                                        else
+                                        {
+                                            <button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => AplicarSugerencia(sugerencia)">
+                                                Usar en el formulario
+                                            </button>                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+
+    <div class="card shadow-sm">
+        <div class="card-body p-3 p-md-4">
+            <EditForm Model="necesidad" OnValidSubmit="Guardar" OnInvalidSubmit="MarcarInvalido" @key="necesidad">
+                <DataAnnotationsValidator />
+
+                <fieldset disabled="@guardando">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label" for="necesidad-empresa">Empresa</label>
+                            <input id="necesidad-empresa" class="form-control" value="@Sesion.Empresa" disabled />
+                            <div class="form-text">La necesidad se crea entre depositos de la empresa seleccionada en el encabezado.</div>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="necesidad-solicitante">Deposito solicitante *</label>
+                            <InputSelect id="necesidad-solicitante" class="form-select" @bind-Value="necesidad.DepositoSolicitanteId">
+                                <option value="0">Seleccione el deposito que pide</option>
+                                @foreach (var deposito in depositos)
+                                {
+                                    <option value="@deposito.Id">@deposito.Nombre</option>
+                                }
+                            </InputSelect>
+                            <ValidationMessage class="text-danger small" For="() => necesidad.DepositoSolicitanteId" />
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="necesidad-destino">Deposito destino *</label>
+                            <InputSelect id="necesidad-destino" class="form-select" Value="necesidad.DepositoDestinoId"
+                                         ValueChanged="@((int valor) => AlCambiarDestino(valor))" ValueExpression="() => necesidad.DepositoDestinoId">
+                                <option value="0">Seleccione el deposito donde falta</option>
+                                @foreach (var deposito in depositos)
+                                {
+                                    <option value="@deposito.Id">@deposito.Nombre</option>
+                                }
+                            </InputSelect>
+                            <ValidationMessage class="text-danger small" For="() => necesidad.DepositoDestinoId" />
+                            @if (depositos.Count < 2)
+                            {
+                                <div class="form-text">Hacen falta al menos dos depositos en la empresa.</div>
+                            }
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="necesidad-producto">Producto *</label>
+                            <InputSelect id="necesidad-producto" class="form-select" @bind-Value="necesidad.ProductoId">
+                                <option value="0">Seleccione el producto</option>
+                                @foreach (var producto in productos)
+                                {
+                                    <option value="@producto.Id">@producto.Nombre</option>
+                                }
+                            </InputSelect>
+                            <ValidationMessage class="text-danger small" For="() => necesidad.ProductoId" />
+                            @if (productos.Count == 0)
+                            {
+                                <div class="form-text">La empresa todavia no tiene productos cargados.</div>
+                            }
+                        </div>
+
+                        <div class="col-12 col-md-3">
+                            <label class="form-label" for="necesidad-cantidad">Cantidad requerida *</label>
+                            <InputNumber id="necesidad-cantidad" class="form-control" @bind-Value="necesidad.CantidadRequerida" step="0.01" min="0.01" />
+                            <ValidationMessage class="text-danger small" For="() => necesidad.CantidadRequerida" />
+                        </div>
+
+                        <div class="col-12 col-md-3">
+                            <label class="form-label" for="necesidad-fecha">Fecha requerida *</label>
+                            <InputDate id="necesidad-fecha" class="form-control" @bind-Value="necesidad.FechaRequerida" />
+                            <ValidationMessage class="text-danger small" For="() => necesidad.FechaRequerida" />
+                        </div>
+
+                        @if (esEdicion)
+                        {
+                            <div class="col-12 col-md-4">
+                                <label class="form-label" for="necesidad-estado">Estado *</label>
+                                <InputSelect id="necesidad-estado" class="form-select" @bind-Value="necesidad.Estado">
+                                    <option value="@EstadosNecesidad.Pendiente">Pendiente</option>
+                                    <option value="@EstadosNecesidad.EnNota">En nota</option>
+                                    <option value="@EstadosNecesidad.Cubierta">Cubierta</option>
+                                </InputSelect>
+                                <ValidationMessage class="text-danger small" For="() => necesidad.Estado" />
+                                @if (necesidad.NotaPedidoId > 0)
+                                {
+                                    <div class="form-text">Esta necesidad ya tiene la nota de pedido N.º @necesidad.NotaPedidoId.</div>
+                                }
+                            </div>
+                        }
+                    </div>
+
+                    @if (intentado && resumenInvalido)
+                    {
+                        <div class="alert alert-danger mt-3 mb-0" role="alert">
+                            <ValidationSummary class="mb-0" />
+                        </div>
+                    }
+
+                    @if (mensajeValidacion is not null)
+                    {
+                        <div class="alert alert-danger mt-3 mb-0" role="alert">@mensajeValidacion</div>
+                    }
+
+                    <div class="d-flex flex-wrap justify-content-end gap-2 mt-4">
+                        <a class="btn btn-outline-secondary" href="necesidades">Cancelar</a>
+                        <button type="submit" class="btn btn-primary" disabled="@guardando">
+                            @(guardando ? "Guardando..." : "Guardar")
+                        </button>
+                    </div>
+                </fieldset>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int? Id { get; set; }
+
+    private NecesidadDTO? necesidad;
+    private List<DepositoDTO> depositos = [];
+    private List<ProductoDTO> productos = [];
+    private List<SugerenciaNecesidadDTO> sugerencias = [];
+    private string depositoSugerenciasNombre = string.Empty;
+    private bool cargando = true;
+    private bool guardando;
+    private bool intentado;
+    private bool resumenInvalido;
+    private string? errorServidor;
+    private string? mensajeValidacion;
+
+    private bool esEdicion => Id.HasValue && Id.Value > 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Sesion.OnCambio += AlCambiarSesion;
+        await Cargar();
+    }
+
+    private void AlCambiarSesion()
+    {
+        _ = InvokeAsync(Cargar);
+    }
+
+    private async Task Cargar()
+    {
+        cargando = true;
+        errorServidor = null;
+        mensajeValidacion = null;
+        sugerencias = [];
+        StateHasChanged();
+
+        if (Sesion.EmpresaId == 0)
+        {
+            necesidad = null;
+            depositos = [];
+            productos = [];
+            cargando = false;
+            StateHasChanged();
+            return;
+        }
+
+        var depositosResp = await DepositoServicio.ObtenerTodosAsync(Sesion.EmpresaId);
+        depositos = depositosResp.Error ? [] : depositosResp.Respuesta ?? [];
+
+        var productosResp = await ProductoServicio.ObtenerTodosAsync(Sesion.EmpresaId);
+        productos = productosResp.Error ? [] : productosResp.Respuesta ?? [];
+
+        necesidad = new NecesidadDTO
+        {
+            Estado = EstadosNecesidad.Pendiente,
+            FechaRequerida = DateTime.Today
+        };
+
+        if (esEdicion)
+        {
+            var respuesta = await NecesidadServicio.ObtenerPorIdAsync(Id!.Value);
+            if (respuesta.Error || respuesta.Respuesta is null)
+            {
+                errorServidor = $"No se encontro la necesidad de id: {Id}. {respuesta.Mensaje}".Trim();
+                necesidad = null;
+            }
+            else
+            {
+                necesidad = respuesta.Respuesta;
+                necesidad.FechaRequerida = necesidad.FechaRequerida.Date;
+            }
+
+            cargando = false;
+            StateHasChanged();
+            return;
+        }
+
+        await CargarSugerencias();
+        cargando = false;
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Propone los faltantes del deposito destino elegido (por defecto el primero de la empresa).
+    /// Es solo una ayuda de carga: no crea nada hasta que el usuario guarda.
+    /// </summary>
+    private async Task CargarSugerencias()
+    {
+        var depositoDestino = depositos.FirstOrDefault();
+        if (depositoDestino is null)
+        {
+            return;
+        }
+
+        necesidad!.DepositoDestinoId = depositoDestino.Id;
+        await RefrescarSugerencias();
+    }
+
+    /// <summary>
+    /// Recarga los faltantes del deposito destino elegido. Es solo una ayuda de carga:
+    /// no crea nada hasta que el usuario guarda.
+    /// </summary>
+    private async Task RefrescarSugerencias()
+    {
+        if (necesidad is null || necesidad.DepositoDestinoId <= 0)
+        {
+            sugerencias = [];
+            depositoSugerenciasNombre = string.Empty;
+            return;
+        }
+
+        depositoSugerenciasNombre = depositos.FirstOrDefault(d => d.Id == necesidad.DepositoDestinoId)?.Nombre ?? string.Empty;
+
+        var respuesta = await NecesidadServicio.ObtenerSugerenciasAsync(necesidad.DepositoDestinoId);
+        sugerencias = respuesta.Error ? [] : respuesta.Respuesta ?? [];
+        StateHasChanged();
+    }
+
+    private async Task AlCambiarDestino(int depositoDestinoId)
+    {
+        if (necesidad is null)
+        {
+            return;
+        }
+
+        necesidad.DepositoDestinoId = depositoDestinoId;
+        errorServidor = null;
+        mensajeValidacion = null;
+        await RefrescarSugerencias();
+    }
+
+    private void AplicarSugerencia(SugerenciaNecesidadDTO sugerencia)
+    {        if (necesidad is null)
+        {
+            return;
+        }
+
+        necesidad.DepositoSolicitanteId = sugerencia.DepositoSolicitanteId;
+        necesidad.DepositoDestinoId = sugerencia.DepositoDestinoId;
+        necesidad.ProductoId = sugerencia.ProductoId;
+        necesidad.CantidadRequerida = sugerencia.CantidadSugerida;
+        necesidad.FechaRequerida = DateTime.Today;
+
+        errorServidor = null;
+        mensajeValidacion = null;
+        intentado = false;
+        resumenInvalido = false;
+        StateHasChanged();
+    }
+
+    private void MarcarInvalido()
+    {
+        intentado = true;
+        resumenInvalido = true;
+    }
+
+    private async Task Guardar()
+    {
+        if (necesidad is null || guardando)
+        {
+            return;
+        }
+
+        errorServidor = null;
+        mensajeValidacion = null;
+
+        // El EditForm valida con DataAnnotations; estos controles son los que el server
+        // rechaza igual y conviene avisar antes de viajar.
+        if (necesidad.DepositoSolicitanteId <= 0 || necesidad.DepositoDestinoId <= 0 || necesidad.ProductoId <= 0)
+        {
+            mensajeValidacion = "Seleccione el deposito solicitante, el deposito destino y el producto.";
+            return;
+        }
+
+        if (necesidad.DepositoSolicitanteId == necesidad.DepositoDestinoId)
+        {
+            mensajeValidacion = "El deposito solicitante y el deposito destino deben ser distintos.";
+            return;
+        }
+
+        if (necesidad.CantidadRequerida <= 0)
+        {
+            mensajeValidacion = "La cantidad requerida debe ser mayor a cero.";
+            return;
+        }
+
+        guardando = true;
+
+        if (esEdicion)
+        {
+            var respuesta = await NecesidadServicio.EditarAsync(Id!.Value, necesidad);
+            if (respuesta.Error || !respuesta.Respuesta)
+            {
+                errorServidor = $"No se pudo guardar la necesidad. {respuesta.Mensaje}".Trim();
+                guardando = false;
+                StateHasChanged();
+                return;
+            }
+
+            Navegacion.NavigateTo($"necesidades/{Id!.Value}");
+            return;
+        }
+
+        necesidad.Estado = EstadosNecesidad.Pendiente;
+
+        var creacion = await NecesidadServicio.CrearAsync(necesidad);
+        if (creacion.Error || creacion.Respuesta <= 0)
+        {
+            errorServidor = $"No se pudo crear la necesidad. {creacion.Mensaje}".Trim();
+            guardando = false;
+            StateHasChanged();
+            return;
+        }
+
+        Navegacion.NavigateTo($"necesidades/{creacion.Respuesta}");
+    }
+
+    public void Dispose()
+    {
+        Sesion.OnCambio -= AlCambiarSesion;
+    }
+}
