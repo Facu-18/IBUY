@@ -1,0 +1,436 @@
+@page "/necesidades/{Id:int}"
+@implements IDisposable
+@inject INecesidadServicio NecesidadServicio
+@inject ICatalogoServicio CatalogoServicio
+@inject EstadoSesion Sesion
+@inject NavigationManager Navegacion
+
+<PageTitle>@(necesidad?.ProductoNombre ?? "Necesidad") · IBUY</PageTitle>
+
+@if (cargando)
+{
+    <Cargando Texto="Cargando necesidad..." />
+}
+else if (necesidad is null)
+{
+    <div class="alert alert-danger" role="alert">
+        No se encontro la necesidad solicitada.
+        <a class="alert-link" href="necesidades">Volver al listado</a>
+    </div>
+}
+else
+{
+    <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-4">
+        <div>
+            <h1 class="h3 mb-1">@necesidad.ProductoNombre</h1>
+            <p class="text-body-secondary mb-0">
+                @necesidad.DepositoSolicitanteNombre &rarr; @necesidad.DepositoDestinoNombre
+            </p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <a class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" href="necesidades">
+                <Icono Nombre="volver" /> Volver
+            </a>
+            <a class="btn btn-outline-primary d-inline-flex align-items-center gap-2" href="@($"necesidades/editar/{necesidad.Id}")">
+                <Icono Nombre="editar" /> Editar
+            </a>
+            @if (necesidad.Estado == EstadosNecesidad.Pendiente)
+            {
+                <button type="button" class="btn btn-success d-inline-flex align-items-center gap-2" @onclick="AbrirNota">
+                    <Icono Nombre="notas" /> Generar nota de pedido
+                </button>
+            }
+            else if (necesidad.Estado == EstadosNecesidad.EnNota && necesidad.NotaPedidoId > 0)
+            {
+                <a class="btn btn-outline-success d-inline-flex align-items-center gap-2" href="@($"necesidades/{necesidad.Id}")">
+                    <Icono Nombre="notas" /> Nota de pedido N.º @necesidad.NotaPedidoId
+                </a>
+            }
+            @if (necesidad.Estado == EstadosNecesidad.Pendiente)
+            {
+                <button type="button" class="btn btn-outline-success" disabled="@guardando" @onclick="MarcarCubierta">
+                    Marcar cubierta
+                </button>
+            }
+        </div>
+    </div>
+
+    @if (errorAccion is not null)
+    {
+        <div class="alert alert-danger" role="alert">@errorAccion</div>
+    }
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <dl class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3 mb-0">
+                <div class="col">
+                    <dt class="small text-uppercase text-body-secondary">Estado</dt>
+                    <dd class="mb-0">
+                        <span class="badge rounded-pill @ClaseEstado(necesidad)">@TextoEstado(necesidad)</span>
+                    </dd>
+                </div>
+                <div class="col">
+                    <dt class="small text-uppercase text-body-secondary">Producto</dt>
+                    <dd class="mb-0">@necesidad.ProductoNombre</dd>
+                </div>
+                <div class="col">
+                    <dt class="small text-uppercase text-body-secondary">Categoria</dt>
+                    <dd class="mb-0">@necesidad.ProductoCategoria</dd>
+                </div>
+                <div class="col">
+                    <dt class="small text-uppercase text-body-secondary">Deposito solicitante</dt>
+                    <dd class="mb-0">@necesidad.DepositoSolicitanteNombre</dd>
+                </div>
+                <div class="col">
+                    <dt class="small text-uppercase text-body-secondary">Deposito destino</dt>
+                    <dd class="mb-0">@necesidad.DepositoDestinoNombre</dd>
+                </div>
+                <div class="col">
+                    <dt class="small text-uppercase text-body-secondary">Cantidad requerida</dt>
+                    <dd class="mb-0">@necesidad.CantidadRequerida.ToString("0.##")</dd>
+                </div>
+                <div class="col">
+                    <dt class="small text-uppercase text-body-secondary">Fecha requerida</dt>
+                    <dd class="mb-0">@necesidad.FechaRequerida.ToString("dd/MM/yyyy")</dd>
+                </div>
+                <div class="col">
+                    <dt class="small text-uppercase text-body-secondary">Stock en destino</dt>
+                    <dd class="mb-0">@necesidad.StockDisponible.ToString("0.##")</dd>
+                </div>
+                <div class="col">
+                    <dt class="small text-uppercase text-body-secondary">Nota de pedido</dt>
+                    <dd class="mb-0">
+                        @(necesidad.NotaPedidoId > 0 ? $"N.º {necesidad.NotaPedidoId}" : "Sin nota de pedido")
+                    </dd>
+                </div>
+            </dl>
+        </div>
+    </div>
+
+    <section>
+        <div class="d-flex align-items-baseline justify-content-between mb-2">
+            <h2 class="h5 mb-0">Revision de stock</h2>
+            <span class="text-body-secondary">Solo informativa</span>
+        </div>
+
+        <div class="card shadow-sm">
+            @if (cargandoRevision)
+            {
+                <div class="card-body">
+                    <Cargando Texto="Cargando revision..." />
+                </div>
+            }
+            else if (revision is null)
+            {
+                <p class="text-center text-body-secondary py-5 px-3 mb-0">No se pudo calcular la revision de stock.</p>
+            }
+            else
+            {
+                <div class="card-body">
+                    <dl class="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-3 mb-0">
+                        <div class="col">
+                            <dt class="small text-uppercase text-body-secondary">Stock disponible en destino</dt>
+                            <dd class="mb-0">@revision.StockDisponible.ToString("0.##")</dd>
+                        </div>
+                        <div class="col">
+                            <dt class="small text-uppercase text-body-secondary">Cantidad requerida</dt>
+                            <dd class="mb-0">@revision.CantidadRequerida.ToString("0.##")</dd>
+                        </div>
+                        <div class="col">
+                            <dt class="small text-uppercase text-body-secondary">Alcanza?</dt>
+                            <dd class="mb-0">
+                                <span class="badge rounded-pill @(revision.Alcanza ? "bg-success-subtle text-success-emphasis" : "bg-warning-subtle text-warning-emphasis")">
+                                    @(revision.Alcanza ? "Si" : "No")
+                                </span>
+                            </dd>
+                        </div>
+                        <div class="col">
+                            <dt class="small text-uppercase text-body-secondary">Faltante</dt>
+                            <dd class="mb-0">@revision.Faltante.ToString("0.##")</dd>
+                        </div>
+                    </dl>
+                    <p class="text-body-secondary small mb-0 mt-3">
+                        Esta revision es solo informativa. La nota de pedido se carga a mano y se completa con el producto y la cantidad de la necesidad.
+                    </p>
+                </div>
+            }
+        </div>
+    </section>
+}
+
+@if (notaAbierta && necesidad is not null)
+{
+    <div class="modal fade show d-block" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="nota-titulo">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title h5" id="nota-titulo">Generar nota de pedido</h2>
+                    <button type="button" class="btn-close" aria-label="Cerrar" @onclick="CerrarNota" disabled="@generandoNota"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-body-secondary">
+                        La nota se genera con el producto y la cantidad de la necesidad.
+                    </p>
+
+                    <dl class="row g-2 mb-3">
+                        <dt class="col-5 small text-uppercase text-body-secondary">Producto</dt>
+                        <dd class="col-7 fw-semibold mb-0">@necesidad.ProductoNombre</dd>
+                        <dt class="col-5 small text-uppercase text-body-secondary">Cantidad</dt>
+                        <dd class="col-7 fw-semibold mb-0">@necesidad.CantidadRequerida.ToString("0.##")</dd>
+                        <dt class="col-5 small text-uppercase text-body-secondary">Deposito destino</dt>
+                        <dd class="col-7 mb-0">@necesidad.DepositoDestinoNombre</dd>
+                    </dl>
+
+                    @if (errorNota is not null)
+                    {
+                        <div class="alert alert-danger" role="alert">@errorNota</div>
+                    }
+
+                    <div class="mb-3">
+                        <label class="form-label" for="nota-usuario">Usuario que crea la nota *</label>
+                        <select id="nota-usuario" class="form-select" @bind="usuarioId">
+                            <option value="0">Seleccione un usuario</option>
+                            @foreach (var usuario in usuarios)
+                            {
+                                <option value="@usuario.Id">@usuario.Nombre</option>
+                            }
+                        </select>
+                        @if (usuarios.Count == 0)
+                        {
+                            <div class="form-text">No hay usuarios activos en esta empresa.</div>
+                        }
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label" for="nota-vencimiento">Fecha de vencimiento *</label>
+                        <input id="nota-vencimiento" type="date" class="form-control" @bind="fechaVencimiento" />
+                    </div>
+
+                    <div class="mb-0">
+                        <label class="form-label" for="nota-observaciones">Observaciones (opcional)</label>
+                        <textarea id="nota-observaciones" class="form-control" rows="3" maxlength="500" @bind="observaciones"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" @onclick="CerrarNota" disabled="@generandoNota">Cancelar</button>
+                    <button type="button" class="btn btn-primary" @onclick="GenerarNota" disabled="@generandoNota">
+                        @(generandoNota ? "Generando..." : "Generar nota")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+@if (aviso is not null)
+{
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div class="toast show text-bg-dark border-0" role="status">
+            <div class="toast-body">@aviso</div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    [SupplyParameterFromQuery(Name = "nota")]
+    public bool NotaSolicitada { get; set; }
+
+    private NecesidadDTO? necesidad;
+    private RevisionNecesidadDTO? revision;
+    private List<UsuarioOpcionDTO> usuarios = [];
+    private bool cargando = true;
+    private bool cargandoRevision = true;
+    private bool guardando;
+    private bool notaAbierta;
+    private bool generandoNota;
+    private int usuarioId;
+    private DateTime fechaVencimiento = DateTime.Today.AddDays(15);
+    private string observaciones = string.Empty;
+    private string? errorAccion;
+    private string? errorNota;
+    private string? aviso;
+
+    private string TextoEstado(NecesidadDTO necesidad) => necesidad.Estado switch
+    {
+        EstadosNecesidad.EnNota when necesidad.NotaPedidoId > 0 => $"En nota N.º {necesidad.NotaPedidoId}",
+        _ => necesidad.Estado
+    };
+
+    private static string ClaseEstado(NecesidadDTO necesidad) => necesidad.Estado switch
+    {
+        EstadosNecesidad.EnNota => "bg-primary-subtle text-primary-emphasis",
+        EstadosNecesidad.Cubierta => "bg-success-subtle text-success-emphasis",
+        _ => "bg-warning-subtle text-warning-emphasis"
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        Sesion.OnCambio += AlCambiarSesion;
+        await Cargar();
+    }
+
+    private void AlCambiarSesion()
+    {
+        _ = InvokeAsync(Cargar);
+    }
+
+    private async Task Cargar()
+    {
+        cargando = true;
+        cargandoRevision = true;
+        errorAccion = null;
+        errorNota = null;
+        StateHasChanged();
+
+        var respuesta = await NecesidadServicio.ObtenerPorIdAsync(Id);
+        necesidad = respuesta.Error ? null : respuesta.Respuesta;
+        cargando = false;
+        StateHasChanged();
+
+        if (necesidad is null)
+        {
+            cargandoRevision = false;
+            return;
+        }
+
+        var usuariosResp = await CatalogoServicio.ObtenerUsuariosAsync(necesidad.EmpresaId);
+        if (!usuariosResp.Error)
+        {
+            usuarios = usuariosResp.Respuesta ?? [];
+            if (usuarioId == 0 && usuarios.Count == 1)
+            {
+                usuarioId = usuarios[0].Id;
+            }
+        }
+
+        var revisionResp = await NecesidadServicio.ObtenerRevisionAsync(Id);
+        revision = revisionResp.Error ? null : revisionResp.Respuesta;
+        cargandoRevision = false;
+
+        if (NotaSolicitada && necesidad.Estado == EstadosNecesidad.Pendiente)
+        {
+            AbrirNota();
+        }
+
+        StateHasChanged();
+    }
+
+    private void AbrirNota()
+    {
+        errorNota = null;
+        errorAccion = null;
+        notaAbierta = true;
+    }
+
+    private void CerrarNota()
+    {
+        notaAbierta = false;
+        errorNota = null;
+    }
+
+    private async Task GenerarNota()
+    {
+        if (necesidad is null || generandoNota)
+        {
+            return;
+        }
+
+        errorNota = null;
+
+        if (usuarioId <= 0)
+        {
+            errorNota = "Seleccione el usuario que crea la nota de pedido.";
+            return;
+        }
+
+        if (fechaVencimiento.Date < DateTime.Today)
+        {
+            errorNota = "La fecha de vencimiento no puede ser anterior a hoy.";
+            return;
+        }
+
+        generandoNota = true;
+
+        var datos = new CrearNotaDesdeNecesidadDTO
+        {
+            UsuarioId = usuarioId,
+            FechaVencimiento = fechaVencimiento.Date,
+            Observaciones = observaciones
+        };
+
+        var respuesta = await NecesidadServicio.GenerarNotaPedidoAsync(necesidad.Id, datos);
+
+        if (respuesta.Error || respuesta.Respuesta <= 0)
+        {
+            errorNota = $"No se pudo generar la nota de pedido. {respuesta.Mensaje}".Trim();
+            generandoNota = false;
+            StateHasChanged();
+            return;
+        }
+
+        notaAbierta = false;
+        generandoNota = false;
+        await Cargar();
+        await MostrarAviso($"Nota de pedido N.º {respuesta.Respuesta} generada y vinculada a la necesidad.");
+    }
+
+    private async Task MarcarCubierta()
+    {
+        if (necesidad is null || guardando)
+        {
+            return;
+        }
+
+        guardando = true;
+        errorAccion = null;
+
+        var actualizada = new NecesidadDTO
+        {
+            Id = necesidad.Id,
+            CantidadRequerida = necesidad.CantidadRequerida,
+            FechaRequerida = necesidad.FechaRequerida,
+            Estado = EstadosNecesidad.Cubierta,
+            DepositoSolicitanteId = necesidad.DepositoSolicitanteId,
+            DepositoDestinoId = necesidad.DepositoDestinoId,
+            ProductoId = necesidad.ProductoId
+        };
+
+        var respuesta = await NecesidadServicio.EditarAsync(necesidad.Id, actualizada);
+
+        if (respuesta.Error || !respuesta.Respuesta)
+        {
+            errorAccion = $"No se pudo cambiar el estado de la necesidad. {respuesta.Mensaje}".Trim();
+        }
+        else
+        {
+            necesidad.Estado = EstadosNecesidad.Cubierta;
+            await MostrarAviso("Necesidad marcada como cubierta.");
+        }
+
+        guardando = false;
+        StateHasChanged();
+    }
+
+    private async Task MostrarAviso(string texto)
+    {
+        aviso = texto;
+        StateHasChanged();
+
+        await Task.Delay(3500);
+
+        if (aviso == texto)
+        {
+            aviso = null;
+            StateHasChanged();
+        }
+    }
+
+    public void Dispose()
+    {
+        Sesion.OnCambio -= AlCambiarSesion;
+    }
+}

@@ -44,5 +44,12 @@ namespace IBUY.Repository.Repositorios
 
             return (notaPedido, items);
         }
+
+        public async Task<List<NotaPedido>> ObtenerPorNecesidad(int necesidadId)
+        {
+            return await context.Set<NotaPedido>()
+                .Where(n => n.NecesidadId == necesidadId)
+                .ToListAsync();
+        }
     }
 }

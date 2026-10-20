@@ -7,18 +7,17 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.App.Internal.Assets" Version="10.0.8" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.9" />
-    <PackageReference Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="10.0.9" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.9">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.13">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.9" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.9">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.13" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.13">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <!-- SqlClient trae System.Security.Cryptography.Pkcs 9.0.11 (vulnerable); se fija la versión parcheada. -->
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
   </ItemGroup>
 
   <ItemGroup>
