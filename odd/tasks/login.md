@@ -28,8 +28,8 @@ Off — source: project-wide choice (no test project, see `backend-version-final
 ## Tasks
 - [x] T1 Backend: `IUsuarioRepositorio.SelectPorEmail(email)`; `AuthController` uses it instead of loading all users.
 - [x] T2 Client session: `IAuthServicio`/`AuthServicioHttp` (+ register), `EstadoSesion` with `Usuario` (`LoginRespuestaDTO?`), `EstaLogueado`, `IniciarSesionAsync`, `CerrarSesionAsync`, `RestaurarAsync` (localStorage), restore before `RunAsync`.
-- [ ] T3 UI: `LoginLayout` + `/login` page, guard in `MainLayout`, header without company selector (user/company/role + "Cerrar sesión"), page copy no longer says "seleccione una empresa en el encabezado".
-- [ ] T4 Docs: CLAUDE.md/AGENTS.md client section (login, session) + how to create the first user via Swagger.
+- [x] T3 UI: `LoginLayout` + `/login` page, guard in `MainLayout`, header without company selector (user/company/role + "Cerrar sesión"), page copy no longer says "seleccione una empresa en el encabezado".
+- [x] T4 Docs: CLAUDE.md/AGENTS.md client section (login, session) + how to create the first user via Swagger.
 
 ## Route
 - T1 inline candidate (1–2 files) but bundled with T2–T4 in one delegated writer: writer trigger (2+ non-trivial files across client/servicios/server).
@@ -40,6 +40,7 @@ Strategy `ask-on-risk`; forecast ~300–400 authored lines, single PR expected.
 ## Progress / Evidence
 - T1: 5c7dceb
 - T2: 70f807c (includes the Encabezado rewrite so the build compiles once CambiarEmpresa was removed)
+- T3: be43608
 
 ## Next step
 Delegate writer for T1–T4, one commit per task.

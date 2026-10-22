@@ -50,6 +50,14 @@ Stock only moves through `Remito` (`api/remito`, no PUT/DELETE). `Tipo` is `Entr
 
 ### Client: real API only, Bootstrap + theme
 
-The client only ships features backed by the API — currently Depósitos (list, detail with stock, create/edit) via `IDepositoServicio`, plus the header empresa selector via `ICatalogoServicio`. There are no mocks; a new page comes with its `*ServicioHttp` implementation registered in `IBUY.Cliente/Program.cs`, and pages depend only on the interface. There is no login on the client yet (it does not call `api/auth/login`): `Estado/EstadoSesion` only holds the empresa selected in the header and raises `OnCambio` so pages reload.
+The client only ships features backed by the API (Depósitos, Productos, Necesidades, Empresas, Usuarios). There are no mocks; a new page comes with its `*ServicioHttp` implementation registered in `IBUY.Cliente/Program.cs`, and pages depend only on the interface.
+
+
+
+**Login and session.** `/login` (`Pages/Login.razor`, `Layout/LoginLayout`) calls `POST api/auth/login` through `IAuthServicio`/`AuthServicioHttp` and shows the server's 401 message on failure. `Estado/EstadoSesion` (singleton) holds the logged `LoginRespuestaDTO` (`Usuario`, `EstaLogueado`); `Empresa`/`EmpresaId` are derived from that user (there is no company selector anymore) and `OnCambio` still makes pages reload. The session is persisted as JSON in `localStorage` (key `ibuy.sesion`, via `IJSRuntime`, no extra JS) and restored in `Program.cs` before `RunAsync`. `MainLayout` is a UI-only guard: without a session it redirects to `/login` (keeping a local `returnUrl`), and the header shows user, company, role and "Cerrar sesión". The API is still unprotected (no JWT/cookies/`[Authorize]`, no role-based permissions), so the guard is not a security boundary.
+
+
+
+**Primer usuario.** There is no seed and the UI requires login, so create the first data through Swagger (`/swagger`), in this order: (1) `POST api/empresa` with `EmpresaDTO` (`RazonSocial`, `Rubro`, `Cuit` as 11 digits `XX-XXXXXXXX-X`, `Email`, `Tipo`, `Activo`) → returns the empresa id; (2) `POST api/deposito` with `DepositoDTO` (`Nombre`, `Tipo`, `Direccion`, `Activo`, `EmpresaId`, leave `UsuarioResponsableId` null/omitted) → returns the depósito id; (3) `POST api/usuario` with `CrearUsuarioDTO` (`Nombre`, `Email`, `Contrasena` 8–200 chars, `Rol`, `Estado` true, `EmpresaId`, `DepositoIds` with at least one id of a depósito of that same empresa). Creating the usuario assigns itself as `UsuarioResponsableId` of the listed depósitos. Then log in at `/login` with that email and password.
 
 Styling is Bootstrap 5 classes (`wwwroot/lib/bootstrap`) for layout and components, plus one theme file `wwwroot/css/tema.css` that overrides Bootstrap variables with the palette and typography of the design prototype `docs/IBUY Prototipo.html` (navy sidebar, `#2563eb` primary, slate grays, Nunito Sans). No other custom CSS files, `<style>` blocks, `.razor.css` or `style=""`, except `style="display:none"` on `#blazor-error-ui` (Blazor toggles it via inline style, which Bootstrap's `!important` `d-none` would block). See `AGENTS.md`.
