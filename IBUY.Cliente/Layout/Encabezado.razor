@@ -1,6 +1,5 @@
 @implements IDisposable
 @inject EstadoSesion Sesion
-@inject NavigationManager Navegacion
 
 <header class="d-flex align-items-center gap-3 bg-white border-bottom px-3 py-3">
     <button type="button" class="btn btn-outline-secondary d-lg-none" @onclick="AlAlternarMenu"
@@ -44,7 +43,6 @@
     private async Task CerrarSesion()
     {
         await Sesion.CerrarSesionAsync();
-        Navegacion.NavigateTo("login");
     }
 
     private void Refrescar() => StateHasChanged();

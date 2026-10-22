@@ -1,23 +1,27 @@
 @inherits LayoutComponentBase
 @implements IDisposable
 @inject NavigationManager Navegacion
+@inject EstadoSesion Sesion
 
-<div class="d-flex flex-column vh-100">
-    <Encabezado AlAlternarMenu="AlternarMenu" MenuAbierto="menuAbierto" />
+@if (Sesion.EstaLogueado)
+{
+    <div class="d-flex flex-column vh-100">
+        <Encabezado AlAlternarMenu="AlternarMenu" MenuAbierto="menuAbierto" />
 
-    <div class="d-flex flex-grow-1 overflow-hidden">
-        <NavMenu Abierto="menuAbierto" AlCerrar="CerrarMenu" />
+        <div class="d-flex flex-grow-1 overflow-hidden">
+            <NavMenu Abierto="menuAbierto" AlCerrar="CerrarMenu" />
 
-        @if (menuAbierto)
-        {
-            <div class="offcanvas-backdrop fade show d-lg-none" @onclick="CerrarMenu"></div>
-        }
+            @if (menuAbierto)
+            {
+                <div class="offcanvas-backdrop fade show d-lg-none" @onclick="CerrarMenu"></div>
+            }
 
-        <main class="flex-grow-1 overflow-auto p-3 p-lg-4">
-            @Body
-        </main>
+            <main class="flex-grow-1 overflow-auto p-3 p-lg-4">
+                @Body
+            </main>
+        </div>
     </div>
-</div>
+}
 
 @code {
     private bool menuAbierto;
@@ -25,6 +29,32 @@
     protected override void OnInitialized()
     {
         Navegacion.LocationChanged += AlNavegar;
+        Sesion.OnCambio += AlCambiarSesion;
+        RedirigirSiNoHaySesion();
+    }
+
+    // Guard solo de interfaz: la API sigue abierta. Sin sesion se envia a /login recordando la ruta pedida.
+    private void RedirigirSiNoHaySesion()
+    {
+        if (Sesion.EstaLogueado)
+        {
+            return;
+        }
+
+        var ruta = "/" + Navegacion.ToBaseRelativePath(Navegacion.Uri);
+        var destino = ruta == "/" ? "login" : $"login?returnUrl={Uri.EscapeDataString(ruta)}";
+        Navegacion.NavigateTo(destino, replace: true);
+    }
+
+    // Al cerrar sesion (desde el encabezado) se vuelve al login.
+    private void AlCambiarSesion()
+    {
+        if (!Sesion.EstaLogueado)
+        {
+            Navegacion.NavigateTo("login", replace: true);
+        }
+
+        StateHasChanged();
     }
 
     private void AlternarMenu() => menuAbierto = !menuAbierto;
@@ -44,5 +74,6 @@
     public void Dispose()
     {
         Navegacion.LocationChanged -= AlNavegar;
+        Sesion.OnCambio -= AlCambiarSesion;
     }
 }
