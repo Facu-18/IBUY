@@ -1,30 +1,74 @@
+using System.Text.Json;
+using IBUY.Shared.DTO;
+using Microsoft.JSInterop;
+
 namespace IBUY.Cliente.Estado
 {
     /// <summary>
-    /// Estado de sesion del cliente. Mientras no exista login, solo mantiene la empresa
-    /// seleccionada en el encabezado.
+    /// Estado de sesion del cliente: usuario logueado (con su empresa y depositos a cargo),
+    /// persistido en localStorage para sobrevivir a una recarga. La empresa activa es la del usuario.
     /// </summary>
     public class EstadoSesion
     {
-        /// <summary>Razon social de la empresa seleccionada; vacia hasta que el encabezado cargue el listado.</summary>
-        public string Empresa { get; private set; } = string.Empty;
+        private const string ClaveAlmacen = "ibuy.sesion";
 
-        /// <summary>Id de la empresa seleccionada en el encabezado; 0 hasta que se cargue el listado de empresas.</summary>
-        public int EmpresaId { get; private set; }
+        private readonly IJSRuntime js;
 
-        /// <summary>Se dispara cuando cambia la empresa, para que los componentes se refresquen.</summary>
+        public EstadoSesion(IJSRuntime js)
+        {
+            this.js = js;
+        }
+
+        /// <summary>Usuario logueado; null si no hay sesion.</summary>
+        public LoginRespuestaDTO? Usuario { get; private set; }
+
+        public bool EstaLogueado => Usuario is not null;
+
+        /// <summary>Razon social de la empresa del usuario; vacia sin sesion.</summary>
+        public string Empresa => Usuario?.EmpresaRazonSocial ?? string.Empty;
+
+        /// <summary>Id de la empresa del usuario; 0 sin sesion.</summary>
+        public int EmpresaId => Usuario?.EmpresaId ?? 0;
+
+        /// <summary>Se dispara cuando cambia la sesion, para que los componentes se refresquen.</summary>
         public event Action? OnCambio;
 
-        public void CambiarEmpresa(int empresaId, string razonSocial)
+        public async Task IniciarSesionAsync(LoginRespuestaDTO usuario)
         {
-            if (EmpresaId == empresaId)
+            Usuario = usuario;
+            await js.InvokeVoidAsync("localStorage.setItem", ClaveAlmacen, JsonSerializer.Serialize(usuario));
+            OnCambio?.Invoke();
+        }
+
+        public async Task CerrarSesionAsync()
+        {
+            Usuario = null;
+            await js.InvokeVoidAsync("localStorage.removeItem", ClaveAlmacen);
+            OnCambio?.Invoke();
+        }
+
+        /// <summary>Recupera la sesion guardada; un valor ausente o corrupto se descarta.</summary>
+        public async Task RestaurarAsync()
+        {
+            var json = await js.InvokeAsync<string?>("localStorage.getItem", ClaveAlmacen);
+            if (string.IsNullOrWhiteSpace(json))
             {
                 return;
             }
 
-            EmpresaId = empresaId;
-            Empresa = razonSocial;
-            OnCambio?.Invoke();
+            try
+            {
+                Usuario = JsonSerializer.Deserialize<LoginRespuestaDTO>(json);
+            }
+            catch (JsonException)
+            {
+                Usuario = null;
+            }
+
+            if (Usuario is null)
+            {
+                await js.InvokeVoidAsync("localStorage.removeItem", ClaveAlmacen);
+            }
         }
     }
 }
