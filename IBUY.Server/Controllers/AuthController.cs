@@ -10,12 +10,12 @@ namespace IBUY.Server.Controllers
     [Route("api/auth")]
     public class AuthController : Controller
     {
-        private readonly IRepositorio<Usuario> usuarioRepositorio;
+        private readonly IUsuarioRepositorio usuarioRepositorio;
         private readonly IRepositorio<Empresa> empresaRepositorio;
         private readonly IRepositorio<Deposito> depositoRepositorio;
 
         public AuthController(
-            IRepositorio<Usuario> usuarioRepositorio,
+            IUsuarioRepositorio usuarioRepositorio,
             IRepositorio<Empresa> empresaRepositorio,
             IRepositorio<Deposito> depositoRepositorio)
         {
@@ -27,8 +27,7 @@ namespace IBUY.Server.Controllers
         [HttpPost("login")]
         public async Task<ActionResult<LoginRespuestaDTO>> Login(LoginDTO loginDTO)
         {
-            var usuarios = await usuarioRepositorio.Select();
-            var usuario = usuarios.FirstOrDefault(u => u.Email.Equals(loginDTO.Email, StringComparison.OrdinalIgnoreCase));
+            var usuario = await usuarioRepositorio.SelectPorEmail(loginDTO.Email);
 
             if (usuario is null || !usuario.Estado || !HashContrasenas.Verificar(loginDTO.Contrasena, usuario.Contrasena))
             {
