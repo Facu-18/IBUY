@@ -42,5 +42,10 @@ Strategy `ask-on-risk`; forecast ~300–400 authored lines, single PR expected.
 - T2: 70f807c (includes the Encabezado rewrite so the build compiles once CambiarEmpresa was removed)
 - T3: be43608
 
+- T4: 2747c0c
+- Checks: `dotnet build IBUY.slnx` 0 errors (parent re-run); API smoke OK (200 login with Rol/EmpresaId, 401 wrong password, `/login` 200); no custom CSS. Test data: depósito 10 "Deposito Prueba Login" (empresa 2), usuario 7 `login.prueba@ibuy.test` / `Prueba1234`.
+- Review: assessed medium (`slice_budget_reached`, base 9454deb, 432 lines); consent granted; lens review-reliability → approved and acknowledged. Informational follow-ups: localStorage interop failures not caught (`EstadoSesion.RestaurarAsync` at startup, `IniciarSesionAsync` in `Login.Ingresar`); email lookup relies on SQL Server CI collation; redirect/restore untested.
+- Pending: manual browser check (login form, guard redirect, F5 keeps session, logout).
+
 ## Next step
-Delegate writer for T1–T4, one commit per task.
+Manual browser check; then push/PR (user decision).
