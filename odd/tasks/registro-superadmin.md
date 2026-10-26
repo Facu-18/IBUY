@@ -1,0 +1,20 @@
+# Feature: registro-superadmin
+Objective: self-service company registration, a SuperAdmin role that alone sees Empresas, and users created from Usuarios always saved as Administrador.
+Branch: `feature/registro-superadmin` (from `feature/login`). Delivery: `ask-on-risk`. Test runner: none (no test project; checks are `dotnet build IBUY.slnx` + API smoke against LocalDB).
+
+## Specs
+- S1 "sacar la seccion de empresas solo superadmin puede ver esa seccion": the Empresas menu entry and every `/empresas...` page (including `/empresas/{id}/usuarios...`) are only visible to role `SuperAdmin`; other roles are redirected to the home page. UI-only guard: the API stays open (same accepted trade-off as `login`).
+- S2 "dar de alta un usuario superadmin": a SuperAdmin user exists. Assumption (default chosen, not asked): idempotent startup seed from the `SuperAdmin` config section (`appsettings.Development.json`), creating a platform empresa "IBUY" plus the user if no `SuperAdmin` user exists; skipped when the section is missing; a DB failure only logs a warning.
+- S3 "La empresa la crea un usuario cuando se registra en la pagina crea su cuenta y usuario hay que levantar un register": public `/registro` page (no session needed) with company + user data. User-confirmed (2026-10-26): one atomic endpoint `POST api/auth/registro` creates the empresa and its first user with role `Administrador`, no depósito required, in one transaction; duplicate email → 400.
+- S4 "luego utilizar el endpoint que crea la empresa para acceder al sistema": after a successful registration the user is logged in (the endpoint returns `LoginRespuestaDTO`) and enters the system.
+- S5 "a la hora de dar de alta un usuario de la empresa en la seccion de usuarios no preguntemos el rol guardemos administrador directamente": the user form has no role field; creating saves `Administrador`; editing keeps the user's existing role.
+
+## Tasks
+- T1 (S2, S3, S4) backend: `Roles` constants in Shared, `RegistroDTO`, `IUsuarioRepositorio.RegistrarConEmpresa`, `POST api/auth/registro`, SuperAdmin startup seed + config. Route: inline. Commit: pending.
+- T2 (S1, S3, S4, S5) client: `IAuthServicio.RegistrarAsync`, `/registro` page + link from `/login`, `EstadoSesion.EsSuperAdmin`, menu filter, `SuperAdminLayout` for Empresas pages + in-page guard for `/empresas/{id}/usuarios...`, user form without role. Route: inline. Commit: pending.
+- T3 docs: CLAUDE.md client/auth/first-user sections. Route: inline. Commit: pending.
+
+## Log
+- L1 (2026-10-26, user): "bien necesito sacar la seccion de empresas solo superadmin puede ver esa seccion dar de alta un usuario superadmin. La empresa la crea un usuario cuando se registra en la pagina crea su cuenta y usuario hay que levantar un register y luego utilizar el endpoint que crea la empresa para acceder al sistema. Y a la hora de dar de alta un usuario de la empresa en la seccion de usuarios no preguntemos el rol guardemos administrador directamente"
+- L2 (2026-10-26): `POST api/usuario` requires `DepositoIds` MinLength(1), so chaining empresa → usuario from the client fails for a new company and is not atomic. Proposed an atomic `POST api/auth/registro`; user: "perfecto hagamos eso".
+- L3: Risk item 2 (auth/guards) → independent verifier at feature end; RDD assess per commit.

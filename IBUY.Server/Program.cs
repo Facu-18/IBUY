@@ -1,4 +1,5 @@
 using IBUY.Repository.Repositorios;
+using IBUY.Server.Seguridad;
 using Microsoft.EntityFrameworkCore;
 using Proyecto2026.BD.Datos;
 
@@ -24,6 +25,8 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+
+await SembradoSuperAdmin.EjecutarAsync(app.Services, app.Configuration, app.Logger);
 
 app.UseHttpsRedirection();
 app.UseBlazorFrameworkFiles();
