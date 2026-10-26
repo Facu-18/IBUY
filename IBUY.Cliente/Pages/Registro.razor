@@ -1,0 +1,138 @@
+@page "/registro"
+@layout LoginLayout
+@inject EstadoSesion Sesion
+@inject IAuthServicio AuthServicio
+@inject NavigationManager Navegacion
+
+<PageTitle>Registrar empresa - IBUY</PageTitle>
+
+<div class="card shadow-sm">
+    <div class="card-body p-4">
+        <h1 class="h4 mb-1">Registrar empresa</h1>
+        <p class="text-body-secondary mb-4">Cree la cuenta de su empresa y su usuario administrador.</p>
+
+        @if (!string.IsNullOrEmpty(error))
+        {
+            <div class="alert alert-danger" role="alert">@error</div>
+        }
+
+        <EditForm Model="registro" OnValidSubmit="Registrar">
+            <DataAnnotationsValidator />
+
+            <h2 class="h6 text-uppercase text-body-secondary mb-3">Empresa</h2>
+
+            <div class="mb-3">
+                <label class="form-label" for="razon-social">Razón social</label>
+                <InputText id="razon-social" class="form-control" maxlength="100" @bind-Value="registro.RazonSocial" />
+                <ValidationMessage For="() => registro.RazonSocial" class="text-danger small" />
+            </div>
+
+            <div class="row">
+                <div class="col-sm-6 mb-3">
+                    <label class="form-label" for="cuit">CUIT</label>
+                    <InputText id="cuit" class="form-control" maxlength="13" placeholder="XX-XXXXXXXX-X" @bind-Value="registro.Cuit" />
+                    <ValidationMessage For="() => registro.Cuit" class="text-danger small" />
+                </div>
+                <div class="col-sm-6 mb-3">
+                    <label class="form-label" for="tipo">Tipo</label>
+                    <InputSelect id="tipo" class="form-select" @bind-Value="registro.Tipo">
+                        <option value="">Seleccione un tipo</option>
+                        @foreach (var tipo in tipos)
+                        {
+                            <option value="@tipo">@tipo</option>
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="() => registro.Tipo" class="text-danger small" />
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-sm-6 mb-3">
+                    <label class="form-label" for="rubro">Rubro</label>
+                    <InputText id="rubro" class="form-control" maxlength="50" @bind-Value="registro.Rubro" />
+                    <ValidationMessage For="() => registro.Rubro" class="text-danger small" />
+                </div>
+                <div class="col-sm-6 mb-3">
+                    <label class="form-label" for="email-empresa">Email de la empresa</label>
+                    <InputText id="email-empresa" class="form-control" type="email" maxlength="100" @bind-Value="registro.EmailEmpresa" />
+                    <ValidationMessage For="() => registro.EmailEmpresa" class="text-danger small" />
+                </div>
+            </div>
+
+            <h2 class="h6 text-uppercase text-body-secondary mt-2 mb-3">Usuario administrador</h2>
+
+            <div class="mb-3">
+                <label class="form-label" for="nombre">Nombre</label>
+                <InputText id="nombre" class="form-control" maxlength="100" autocomplete="name" @bind-Value="registro.Nombre" />
+                <ValidationMessage For="() => registro.Nombre" class="text-danger small" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label" for="email">Email</label>
+                <InputText id="email" class="form-control" type="email" maxlength="100" autocomplete="username" @bind-Value="registro.Email" />
+                <ValidationMessage For="() => registro.Email" class="text-danger small" />
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label" for="contrasena">Contraseña</label>
+                <InputText id="contrasena" class="form-control" type="password" autocomplete="new-password" placeholder="Mínimo 8 caracteres" @bind-Value="registro.Contrasena" />
+                <ValidationMessage For="() => registro.Contrasena" class="text-danger small" />
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100" disabled="@enviando">
+                @if (enviando)
+                {
+                    <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                    <span>Registrando...</span>
+                }
+                else
+                {
+                    <span>Registrar y entrar</span>
+                }
+            </button>
+        </EditForm>
+
+        <p class="text-center text-body-secondary small mt-3 mb-0">
+            ¿Ya tiene cuenta? <a href="login">Iniciar sesión</a>
+        </p>
+    </div>
+</div>
+
+@code {
+    private readonly RegistroDTO registro = new();
+    private readonly List<string> tipos = ["Compradora", "Proveedora"];
+    private bool enviando;
+    private string? error;
+
+    protected override void OnInitialized()
+    {
+        if (Sesion.EstaLogueado)
+        {
+            Navegacion.NavigateTo("", replace: true);
+        }
+    }
+
+    private async Task Registrar()
+    {
+        enviando = true;
+        error = null;
+
+        try
+        {
+            var respuesta = await AuthServicio.RegistrarAsync(registro);
+            if (respuesta.Error || respuesta.Respuesta is null)
+            {
+                error = string.IsNullOrWhiteSpace(respuesta.Mensaje) ? "No se pudo registrar la empresa." : respuesta.Mensaje;
+                return;
+            }
+
+            // El registro devuelve la sesion del usuario creado: entra directo al sistema.
+            await Sesion.IniciarSesionAsync(respuesta.Respuesta);
+            Navegacion.NavigateTo("", replace: true);
+        }
+        finally
+        {
+            enviando = false;
+        }
+    }
+}

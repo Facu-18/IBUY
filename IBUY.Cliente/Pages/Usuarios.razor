@@ -4,6 +4,7 @@
 @inject IEmpresaServicio EmpresaServicio
 @inject IDepositoServicio DepositoServicio
 @inject NavigationManager Navegacion
+@inject EstadoSesion Sesion
 @inject IJSRuntime JS
 
 <PageTitle>Usuarios · IBUY</PageTitle>
@@ -155,9 +156,12 @@ else
 
     private string NombreEmpresa => NombreDeEmpresa(EmpresaId ?? 0);
 
+    // El SuperAdmin ve todos (o los de la empresa de la ruta); los demas solo los de su propia empresa.
     private List<UsuarioDTO> visibles => enEmpresa
         ? [.. usuarios.Where(u => u.EmpresaId == EmpresaId!.Value)]
-        : usuarios;
+        : Sesion.EsSuperAdmin
+            ? usuarios
+            : [.. usuarios.Where(u => u.EmpresaId == Sesion.EmpresaId)];
 
     private List<string> roles => [.. visibles.Select(u => u.Rol).Where(r => !string.IsNullOrWhiteSpace(r)).Distinct().OrderBy(r => r)];
 
@@ -171,6 +175,13 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        // /empresas/{id}/usuarios es parte de la seccion Empresas: solo para el SuperAdmin.
+        if (enEmpresa && !Sesion.EsSuperAdmin)
+        {
+            Navegacion.NavigateTo("usuarios", replace: true);
+            return;
+        }
+
         await Cargar();
     }
 

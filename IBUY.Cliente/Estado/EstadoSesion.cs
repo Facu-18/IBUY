@@ -24,6 +24,9 @@ namespace IBUY.Cliente.Estado
 
         public bool EstaLogueado => Usuario is not null;
 
+        /// <summary>Solo el SuperAdmin ve y gestiona las empresas de la plataforma.</summary>
+        public bool EsSuperAdmin => Roles.EsSuperAdmin(Usuario?.Rol);
+
         /// <summary>Razon social de la empresa del usuario; vacia sin sesion.</summary>
         public string Empresa => Usuario?.EmpresaRazonSocial ?? string.Empty;
 

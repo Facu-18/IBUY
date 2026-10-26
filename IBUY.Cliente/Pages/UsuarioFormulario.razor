@@ -49,6 +49,11 @@ else
                         <input type="text" id="usuario-empresa" class="form-control" value="@NombreEmpresa" disabled />
                         <div class="form-text">El usuario pertenece a la empresa indicada en la direccion.</div>
                     }
+                    else if (!Sesion.EsSuperAdmin)
+                    {
+                        <input type="text" id="usuario-empresa" class="form-control" value="@Sesion.Empresa" disabled />
+                        <div class="form-text">El usuario pertenece a su empresa.</div>
+                    }
                     else
                     {
                         <select id="usuario-empresa" class="form-select" value="@usuario!.EmpresaId" @onchange="AlCambiarEmpresa" disabled="@enEmpresa">
@@ -77,18 +82,6 @@ else
                 </div>
 
                 <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label" for="usuario-rol">Rol</label>
-                        <InputSelect id="usuario-rol" class="form-select" @bind-Value="usuario!.Rol">
-                            <option value="">Seleccione un rol</option>
-                            @foreach (var rol in roles)
-                            {
-                                <option value="@rol">@rol</option>
-                            }
-                        </InputSelect>
-                        <ValidationMessage class="text-danger small" For="() => usuario!.Rol" />
-                    </div>
-
                     <div class="col-md-6 mb-3">
                         <label class="form-label" for="usuario-contrasena">Contraseña</label>
                         <InputText id="usuario-contrasena" type="password" class="form-control" @bind-Value="usuario!.Contrasena"
@@ -161,7 +154,6 @@ else
     private CrearUsuarioDTO? usuario;
     private List<EmpresaDTO> empresas = [];
     private List<DepositoDTO> depositos = [];
-    private List<string> roles = [];
     private bool cargando = true;
     private bool guardando;
     private bool intentado;
@@ -177,7 +169,12 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        roles = ["Administrador", "Compras", "Deposito"];
+        // /empresas/{id}/usuarios/... es parte de la seccion Empresas: solo para el SuperAdmin.
+        if (enEmpresa && !Sesion.EsSuperAdmin)
+        {
+            Navegacion.NavigateTo("usuarios", replace: true);
+            return;
+        }
 
         var empresasResp = await EmpresaServicio.ObtenerTodasAsync();
         if (!empresasResp.Error)
@@ -185,9 +182,11 @@ else
             empresas = (empresasResp.Respuesta ?? []).OrderBy(e => e.RazonSocial).ToList();
         }
 
+        // El rol no se pregunta: el alta guarda Administrador y la edicion conserva el rol que ya tenia.
         usuario = new CrearUsuarioDTO
         {
             Estado = true,
+            Rol = Roles.Administrador,
             EmpresaId = enEmpresa ? EmpresaId!.Value : Sesion.EmpresaId
         };
 
@@ -209,11 +208,6 @@ else
             usuario.Estado = datos.Estado;
             usuario.EmpresaId = enEmpresa ? EmpresaId!.Value : datos.EmpresaId;
             usuario.DepositoIds = [.. datos.DepositoIds];
-
-            if (!string.IsNullOrWhiteSpace(usuario.Rol) && !roles.Contains(usuario.Rol))
-            {
-                roles.Add(usuario.Rol);
-            }
         }
 
         await CargarDepositos();

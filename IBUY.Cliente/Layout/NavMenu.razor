@@ -1,3 +1,5 @@
+@inject EstadoSesion Sesion
+
 <div class="ibuy-menu flex-shrink-0 overflow-auto">
     <nav class="offcanvas-lg offcanvas-start text-bg-dark @(Abierto ? "show" : null)" tabindex="-1"
          aria-label="Navegacion principal">
@@ -10,7 +12,7 @@
             {
                 <p class="ibuy-grupo text-uppercase px-3 mt-2 mb-2">@grupo.Titulo</p>
                 <ul class="nav nav-pills flex-column gap-1">
-                    @foreach (var opcion in grupo.Opciones)
+                    @foreach (var opcion in grupo.Opciones.Where(o => !o.SoloSuperAdmin || Sesion.EsSuperAdmin))
                     {
                         <li class="nav-item">
                             <NavLink class="nav-link d-flex align-items-center gap-2" href="@opcion.Ruta" Match="@opcion.Coincidencia">
@@ -39,7 +41,8 @@
     [Parameter]
     public EventCallback AlCerrar { get; set; }
 
-    private record Opcion(string Etiqueta, string Ruta, string Icono, NavLinkMatch Coincidencia = NavLinkMatch.Prefix);
+    // SoloSuperAdmin: la opcion se oculta a los demas roles (Empresas es de la plataforma, no de cada empresa).
+    private record Opcion(string Etiqueta, string Ruta, string Icono, NavLinkMatch Coincidencia = NavLinkMatch.Prefix, bool SoloSuperAdmin = false);
 
     private record Grupo(string Titulo, Opcion[] Opciones);
 
@@ -47,7 +50,7 @@
     [
         new Grupo("Administracion",
         [
-            new Opcion("Empresas", "empresas", "empresas"),
+            new Opcion("Empresas", "empresas", "empresas", SoloSuperAdmin: true),
             new Opcion("Usuarios", "usuarios", "usuarios"),
             new Opcion("Depositos", "depositos", "depositos"),
             new Opcion("Productos", "productos", "productos")

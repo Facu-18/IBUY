@@ -18,5 +18,10 @@ namespace IBUY.Servicios
         {
             return http.PostAsync<LoginDTO, LoginRespuestaDTO>($"{Base}/login", login);
         }
+
+        public Task<HttpResp<LoginRespuestaDTO?>> RegistrarAsync(RegistroDTO registro)
+        {
+            return http.PostAsync<RegistroDTO, LoginRespuestaDTO>($"{Base}/registro", registro);
+        }
     }
 }
