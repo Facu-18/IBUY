@@ -6,47 +6,49 @@
 
 <PageTitle>Iniciar sesión - IBUY</PageTitle>
 
-<div class="card shadow-sm">
-    <div class="card-body p-4">
-        <h1 class="h4 mb-1">Iniciar sesión</h1>
-        <p class="text-body-secondary mb-4">Ingrese con su email y contraseña.</p>
+<div class="col-12 col-sm-10 col-md-7 col-lg-5 col-xl-4">
+    <div class="card shadow-sm">
+        <div class="card-body p-4">
+            <h1 class="h4 mb-1">Iniciar sesión</h1>
+            <p class="text-body-secondary mb-4">Ingrese con su email y contraseña.</p>
 
-        @if (!string.IsNullOrEmpty(error))
-        {
-            <div class="alert alert-danger" role="alert">@error</div>
-        }
+            @if (!string.IsNullOrEmpty(error))
+            {
+                <div class="alert alert-danger" role="alert">@error</div>
+            }
 
-        <EditForm Model="login" OnValidSubmit="Ingresar">
-            <DataAnnotationsValidator />
+            <EditForm Model="login" OnValidSubmit="Ingresar">
+                <DataAnnotationsValidator />
 
-            <div class="mb-3">
-                <label class="form-label" for="email">Email</label>
-                <InputText id="email" class="form-control" type="email" autocomplete="username" @bind-Value="login.Email" />
-                <ValidationMessage For="() => login.Email" class="text-danger small" />
-            </div>
+                <div class="mb-3">
+                    <label class="form-label" for="email">Email</label>
+                    <InputText id="email" class="form-control" type="email" autocomplete="username" @bind-Value="login.Email" />
+                    <ValidationMessage For="() => login.Email" class="text-danger small" />
+                </div>
 
-            <div class="mb-4">
-                <label class="form-label" for="contrasena">Contraseña</label>
-                <InputText id="contrasena" class="form-control" type="password" autocomplete="current-password" @bind-Value="login.Contrasena" />
-                <ValidationMessage For="() => login.Contrasena" class="text-danger small" />
-            </div>
+                <div class="mb-4">
+                    <label class="form-label" for="contrasena">Contraseña</label>
+                    <InputText id="contrasena" class="form-control" type="password" autocomplete="current-password" @bind-Value="login.Contrasena" />
+                    <ValidationMessage For="() => login.Contrasena" class="text-danger small" />
+                </div>
 
-            <button type="submit" class="btn btn-primary w-100" disabled="@enviando">
-                @if (enviando)
-                {
-                    <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
-                    <span>Ingresando...</span>
-                }
-                else
-                {
-                    <span>Ingresar</span>
-                }
-            </button>
-        </EditForm>
+                <button type="submit" class="btn btn-primary w-100" disabled="@enviando">
+                    @if (enviando)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                        <span>Ingresando...</span>
+                    }
+                    else
+                    {
+                        <span>Ingresar</span>
+                    }
+                </button>
+            </EditForm>
 
-        <p class="text-center text-body-secondary small mt-3 mb-0">
-            ¿Su empresa no tiene cuenta? <a href="registro">Registrar empresa</a>
-        </p>
+            <p class="text-center text-body-secondary small mt-3 mb-0">
+                ¿Su empresa no tiene cuenta? <a href="registro">Registrar empresa</a>
+            </p>
+        </div>
     </div>
 </div>
 
