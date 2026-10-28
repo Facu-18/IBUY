@@ -1,0 +1,98 @@
+@page "/login"
+@layout LoginLayout
+@inject EstadoSesion Sesion
+@inject IAuthServicio AuthServicio
+@inject NavigationManager Navegacion
+
+<PageTitle>Iniciar sesión - IBUY</PageTitle>
+
+<div class="card shadow-sm">
+    <div class="card-body p-4">
+        <h1 class="h4 mb-1">Iniciar sesión</h1>
+        <p class="text-body-secondary mb-4">Ingrese con su email y contraseña.</p>
+
+        @if (!string.IsNullOrEmpty(error))
+        {
+            <div class="alert alert-danger" role="alert">@error</div>
+        }
+
+        <EditForm Model="login" OnValidSubmit="Ingresar">
+            <DataAnnotationsValidator />
+
+            <div class="mb-3">
+                <label class="form-label" for="email">Email</label>
+                <InputText id="email" class="form-control" type="email" autocomplete="username" @bind-Value="login.Email" />
+                <ValidationMessage For="() => login.Email" class="text-danger small" />
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label" for="contrasena">Contraseña</label>
+                <InputText id="contrasena" class="form-control" type="password" autocomplete="current-password" @bind-Value="login.Contrasena" />
+                <ValidationMessage For="() => login.Contrasena" class="text-danger small" />
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100" disabled="@enviando">
+                @if (enviando)
+                {
+                    <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                    <span>Ingresando...</span>
+                }
+                else
+                {
+                    <span>Ingresar</span>
+                }
+            </button>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private readonly LoginDTO login = new();
+    private bool enviando;
+    private string? error;
+
+    [SupplyParameterFromQuery(Name = "returnUrl")]
+    public string? ReturnUrl { get; set; }
+
+    protected override void OnInitialized()
+    {
+        if (Sesion.EstaLogueado)
+        {
+            Navegacion.NavigateTo(DestinoLocal(), replace: true);
+        }
+    }
+
+    private async Task Ingresar()
+    {
+        enviando = true;
+        error = null;
+
+        try
+        {
+            var respuesta = await AuthServicio.IniciarSesionAsync(login);
+            if (respuesta.Error || respuesta.Respuesta is null)
+            {
+                error = string.IsNullOrWhiteSpace(respuesta.Mensaje) ? "No se pudo iniciar sesión." : respuesta.Mensaje;
+                return;
+            }
+
+            await Sesion.IniciarSesionAsync(respuesta.Respuesta);
+            Navegacion.NavigateTo(DestinoLocal(), replace: true);
+        }
+        finally
+        {
+            enviando = false;
+        }
+    }
+
+    // Solo se acepta una ruta relativa propia ("/algo"); cualquier otra cosa vuelve al inicio.
+    private string DestinoLocal()
+    {
+        if (!string.IsNullOrEmpty(ReturnUrl) && ReturnUrl.StartsWith('/') && !ReturnUrl.StartsWith("//") && !ReturnUrl.StartsWith("/\\"))
+        {
+            return ReturnUrl;
+        }
+
+        return "";
+    }
+}

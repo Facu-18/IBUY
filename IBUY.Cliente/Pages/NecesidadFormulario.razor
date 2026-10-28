@@ -25,7 +25,7 @@
 else if (necesidad is null)
 {
     <div class="alert alert-warning" role="alert">
-        @(errorServidor ?? "Seleccione una empresa para cargar necesidades.")
+        @(errorServidor ?? "No hay una empresa asociada a la sesión para cargar necesidades.")
         <a class="alert-link" href="necesidades">Volver al listado</a>
     </div>
 }
@@ -102,7 +102,7 @@ else
                         <div class="col-12">
                             <label class="form-label" for="necesidad-empresa">Empresa</label>
                             <input id="necesidad-empresa" class="form-control" value="@Sesion.Empresa" disabled />
-                            <div class="form-text">La necesidad se crea entre depositos de la empresa seleccionada en el encabezado.</div>
+                            <div class="form-text">La necesidad se crea entre depositos de la empresa de su sesión.</div>
                         </div>
 
                         <div class="col-12 col-md-6">

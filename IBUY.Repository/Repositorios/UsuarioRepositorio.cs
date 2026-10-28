@@ -77,5 +77,12 @@ namespace IBUY.Repository.Repositorios
                 .Select(d => d.Id)
                 .ToListAsync();
         }
+
+        public async Task<Usuario?> SelectPorEmail(string email)
+        {
+            // SQL Server usa por defecto una collation insensible a mayusculas, asi que la igualdad
+            // traducida por EF ya ignora el caso y se resuelve en la base sin traer todos los usuarios.
+            return await context.Set<Usuario>().FirstOrDefaultAsync(u => u.Email == email);
+        }
     }
 }

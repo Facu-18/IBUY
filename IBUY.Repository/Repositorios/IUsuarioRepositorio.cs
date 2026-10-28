@@ -9,5 +9,7 @@ namespace IBUY.Repository.Repositorios
         Task<bool> ActualizarConDepositos(Usuario usuario, List<int> depositoIds);
 
         Task<List<int>> ObtenerDepositoIds(int usuarioId);
+
+        Task<Usuario?> SelectPorEmail(string email);
     }
 }

@@ -1,6 +1,5 @@
 @implements IDisposable
 @inject EstadoSesion Sesion
-@inject ICatalogoServicio Catalogo
 
 <header class="d-flex align-items-center gap-3 bg-white border-bottom px-3 py-3">
     <button type="button" class="btn btn-outline-secondary d-lg-none" @onclick="AlAlternarMenu"
@@ -16,63 +15,34 @@
         </span>
     </a>
 
-    <div class="ms-auto">
-        <select class="form-select" aria-label="Empresa seleccionada"
-                value="@Sesion.EmpresaId" @onchange="AlCambiarEmpresa" disabled="@(empresas.Count == 0)">
-            @if (empresas.Count == 0)
-            {
-                <option value="0">Sin empresas</option>
-            }
-            else
-            {
-                @foreach (var empresa in empresas)
-                {
-                    <option value="@empresa.Id">@empresa.RazonSocial</option>
-                }
-            }
-        </select>
-
-    </div>
+    @if (Sesion.Usuario is not null)
+    {
+        <div class="ms-auto d-flex align-items-center gap-3">
+            <div class="d-flex flex-column lh-sm text-end">
+                <strong>@Sesion.Usuario.Nombre</strong>
+                <small class="text-body-secondary d-none d-md-inline">@Sesion.Usuario.EmpresaRazonSocial</small>
+            </div>
+            <span class="badge text-bg-primary d-none d-sm-inline">@Sesion.Usuario.Rol</span>
+            <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="CerrarSesion">Cerrar sesión</button>
+        </div>
+    }
 </header>
 
 @code {
-    private List<EmpresaDTO> empresas = [];
-
     [Parameter]
     public EventCallback AlAlternarMenu { get; set; }
 
     [Parameter]
     public bool MenuAbierto { get; set; }
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
-        var respuesta = await Catalogo.ObtenerEmpresasAsync();
-        if (!respuesta.Error && respuesta.Respuesta is not null)
-        {
-            empresas = respuesta.Respuesta;
-
-            // Primera carga: toma la primera empresa como activa.
-            if (Sesion.EmpresaId == 0 && empresas.Count > 0)
-            {
-                Sesion.CambiarEmpresa(empresas[0].Id, empresas[0].RazonSocial);
-            }
-        }
-
         Sesion.OnCambio += Refrescar;
     }
 
-    private void AlCambiarEmpresa(ChangeEventArgs e)
+    private async Task CerrarSesion()
     {
-        if (!int.TryParse(e.Value?.ToString(), out var empresaId))
-        {
-            return;
-        }
-
-        var empresa = empresas.FirstOrDefault(x => x.Id == empresaId);
-        if (empresa is not null)
-        {
-            Sesion.CambiarEmpresa(empresa.Id, empresa.RazonSocial);
-        }
+        await Sesion.CerrarSesionAsync();
     }
 
     private void Refrescar() => StateHasChanged();

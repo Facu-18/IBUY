@@ -22,11 +22,11 @@
 - `IBUY.BD`: EF entities, `AppDbContext`, and migrations. Despite the project name, `AppDbContext`, `EntityBase`, and `IEntityBase` currently use namespace `Proyecto2026.BD.Datos`.
 - `IBUY.Repository`: generic EF CRUD abstraction. `Program.cs` registers the open generic `IRepositorio<>` to `Repositorio<>` for plain CRUD; domain-specific repositories (`INecesidadRepositorio`, `IRemitoRepositorio`, etc.) derive from `Repositorio<E>` and are registered individually.
 - `IBUY.Servicios`: client-side services that call the API through `ServiciosHTTP/IHttpService` (responses wrapped in `HttpResp<T>`). It does not contain server business services.
-- `IBUY.Cliente/Estado/EstadoSesion` holds only the header's selected empresa, not an authenticated user. The client does not yet call the backend login endpoint.
+- `IBUY.Cliente/Estado/EstadoSesion` holds the logged user (`LoginRespuestaDTO` from `POST api/auth/login`, persisted in `localStorage`); `Empresa`/`EmpresaId` derive from it. `/login` plus the `MainLayout` guard are UI-only: the API itself is still unprotected (no JWT/`[Authorize]`). There is no seed data: create the first empresa, depósito and usuario through `/swagger` (`POST api/empresa`, `POST api/deposito`, then `POST api/usuario` with `DepositoIds` of at least one depósito of that empresa) before logging in.
 
 ## Client UI
 
-- The client only contains features backed by the real API (Depósitos, Productos, and the header empresa selector). No mock services or fake data: new pages depend on service interfaces, with `*ServicioHttp` implementations registered in `IBUY.Cliente/Program.cs`.
+- The client only contains features backed by the real API (Depósitos, Productos, Necesidades, Empresas, Usuarios, and login). No mock services or fake data: new pages depend on service interfaces, with `*ServicioHttp` implementations registered in `IBUY.Cliente/Program.cs`.
 - Use Bootstrap 5 classes (`wwwroot/lib/bootstrap`) for layout and components. The visual identity (palette, typography, sidebar/header look) follows the prototype `docs/IBUY Prototipo.html` (open it in a browser; it is a self-contained bundle, the markup lives inside its `__bundler` script blocks) and lives in a single theme file, `wwwroot/css/tema.css`, loaded after Bootstrap.
 - `tema.css` overrides Bootstrap CSS variables (`--bs-*`, including component-level ones like `--bs-btn-bg`) rather than redefining Bootstrap rules. Add a rule there only when no Bootstrap class or variable covers the need.
 - No other custom CSS: no extra `.css` files, `<style>` blocks, `.razor.css` scoped styles, or `style=""` attributes. Preserve `style="display:none"` on `#blazor-error-ui` in `index.html`: Blazor toggles it inline; Bootstrap's `d-none` would prevent it from appearing.
