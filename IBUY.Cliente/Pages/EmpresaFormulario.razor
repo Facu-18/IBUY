@@ -46,18 +46,6 @@ else
                         <InputText id="empresa-cuit" class="form-control" @bind-Value="empresa!.Cuit" maxlength="13" placeholder="Ej.: 30-71234567-8" />
                         <ValidationMessage class="text-danger small" For="() => empresa!.Cuit" />
                     </div>
-
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label" for="empresa-tipo">Tipo</label>
-                        <InputSelect id="empresa-tipo" class="form-select" @bind-Value="empresa!.Tipo">
-                            <option value="">Seleccione un tipo</option>
-                            @foreach (var tipo in tipos)
-                            {
-                                <option value="@tipo">@tipo</option>
-                            }
-                        </InputSelect>
-                        <ValidationMessage class="text-danger small" For="() => empresa!.Tipo" />
-                    </div>
                 </div>
 
                 <div class="mb-3">
@@ -100,7 +88,6 @@ else
     public int? Id { get; set; }
 
     private EmpresaDTO? empresa;
-    private List<string> tipos = [];
     private bool cargando = true;
     private bool guardando;
     private bool intentado;
@@ -110,8 +97,6 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        tipos = ["Compradora", "Proveedora"];
-
         empresa = new EmpresaDTO { Activo = true };
 
         if (esEdicion)
@@ -126,12 +111,6 @@ else
             {
                 empresa = respuesta.Respuesta;
                 empresa.Id = Id!.Value;
-
-                // El tipo viene de la base: si no esta entre las opciones conocidas se agrega.
-                if (!string.IsNullOrWhiteSpace(empresa.Tipo) && !tipos.Contains(empresa.Tipo))
-                {
-                    tipos.Add(empresa.Tipo);
-                }
             }
         }
 
