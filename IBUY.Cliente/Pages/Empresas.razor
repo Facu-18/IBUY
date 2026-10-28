@@ -30,17 +30,6 @@ else
         </div>
 
         <div class="col-6 col-md-4 col-lg-3 col-xl-2">
-            <label class="form-label" for="empresas-tipo">Tipo</label>
-            <select id="empresas-tipo" class="form-select" @bind="tipoFiltro">
-                <option value="">Todos</option>
-                @foreach (var tipo in tipos)
-                {
-                    <option value="@tipo">@tipo</option>
-                }
-            </select>
-        </div>
-
-        <div class="col-6 col-md-4 col-lg-3 col-xl-2">
             <label class="form-label" for="empresas-estado">Estado</label>
             <select id="empresas-estado" class="form-select" @bind="estadoFiltro">
                 <option value="todas">Todas</option>
@@ -74,7 +63,6 @@ else
                         <tr>
                             <th>Razon social</th>
                             <th>CUIT</th>
-                            <th>Tipo</th>
                             <th>Estado</th>
                             <th class="text-end">Acciones</th>
                         </tr>
@@ -85,7 +73,6 @@ else
                             <tr @key="empresa.Id">
                                 <td class="fw-semibold">@empresa.RazonSocial</td>
                                 <td>@empresa.Cuit</td>
-                                <td><span class="badge rounded-pill bg-primary-subtle text-primary-emphasis">@empresa.Tipo</span></td>
                                 <td>
                                     <span class="badge rounded-pill @(empresa.Activo ? "bg-success-subtle text-success-emphasis" : "bg-warning-subtle text-warning-emphasis")">
                                         @(empresa.Activo ? "Activa" : "Inactiva")
@@ -128,14 +115,11 @@ else
 @code {
     private List<EmpresaDTO> empresas = [];
     private string busqueda = string.Empty;
-    private string tipoFiltro = string.Empty;
     private string estadoFiltro = "todas";
     private bool cargando = true;
     private bool guardando;
     private string? errorCarga;
     private string? aviso;
-
-    private List<string> tipos => [.. empresas.Select(e => e.Tipo).Where(t => !string.IsNullOrWhiteSpace(t)).Distinct().OrderBy(t => t)];
 
     private List<EmpresaDTO> filtrados => [.. empresas.Where(Coincide)];
 
@@ -168,12 +152,6 @@ else
 
     private bool Coincide(EmpresaDTO empresa)
     {
-        if (!string.IsNullOrWhiteSpace(tipoFiltro) &&
-            !string.Equals(empresa.Tipo, tipoFiltro, StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
         if (estadoFiltro == "activas" && !empresa.Activo)
         {
             return false;
@@ -214,7 +192,6 @@ else
             Rubro = empresa.Rubro,
             Cuit = empresa.Cuit,
             Email = empresa.Email,
-            Tipo = empresa.Tipo,
             Activo = !empresa.Activo
         };
 

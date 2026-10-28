@@ -27,10 +27,6 @@ namespace IBUY.BD.Datos.Entity
         [MaxLength(100, ErrorMessage = "El email no puede superar los {1} caracteres.")]
         public string Email { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "El tipo de empresa es obligatorio.")]
-        [MaxLength(20, ErrorMessage = "El tipo no puede superar los {1} caracteres.")]
-        public string Tipo { get; set; } = string.Empty;
-
         public bool Activo { get; set; } = true;
 
     }

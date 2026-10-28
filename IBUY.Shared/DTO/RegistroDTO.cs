@@ -27,10 +27,6 @@ namespace IBUY.Shared.DTO
         [MaxLength(100, ErrorMessage = "El email de la empresa no puede superar los {1} caracteres.")]
         public string EmailEmpresa { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "El tipo de empresa es obligatorio.")]
-        [MaxLength(20, ErrorMessage = "El tipo no puede superar los {1} caracteres.")]
-        public string Tipo { get; set; } = string.Empty;
-
         [Required(ErrorMessage = "El nombre es obligatorio.")]
         [MaxLength(100, ErrorMessage = "El nombre no puede superar los {1} caracteres.")]
         public string Nombre { get; set; } = string.Empty;
