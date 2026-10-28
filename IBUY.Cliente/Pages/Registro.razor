@@ -1,0 +1,166 @@
+@page "/registro"
+@layout LoginLayout
+@inject EstadoSesion Sesion
+@inject IAuthServicio AuthServicio
+@inject NavigationManager Navegacion
+
+<PageTitle>Registrar empresa - IBUY</PageTitle>
+
+<div class="col-12 col-md-10 col-lg-8 col-xl-7">
+    <div class="card shadow-sm">
+        <div class="card-body p-4 p-md-5">
+            <h1 class="h4 mb-1">Registrar empresa</h1>
+            <p class="text-body-secondary mb-4">Cree la cuenta de su empresa y su usuario administrador. Al terminar ingresa directamente al sistema.</p>
+
+            @if (!string.IsNullOrEmpty(error))
+            {
+                <div class="alert alert-danger" role="alert">@error</div>
+            }
+
+            <EditForm Model="registro" OnValidSubmit="Registrar">
+                <DataAnnotationsValidator />
+
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <span class="badge rounded-pill text-bg-primary">1</span>
+                    <h2 class="h6 fw-bold mb-0">Datos de la empresa</h2>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label" for="razon-social">Razón social</label>
+                        <InputText id="razon-social" class="form-control" maxlength="100" placeholder="Ej.: Distribuidora del Sur S.A." @bind-Value="registro.RazonSocial" />
+                        <ValidationMessage For="() => registro.RazonSocial" class="text-danger small" />
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label" for="cuit">CUIT</label>
+                        <InputText id="cuit" class="form-control" maxlength="13" placeholder="XX-XXXXXXXX-X" @bind-Value="registro.Cuit" />
+                        <div class="form-text">Formato con guiones.</div>
+                        <ValidationMessage For="() => registro.Cuit" class="text-danger small" />
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label" for="rubro">Rubro</label>
+                        <InputText id="rubro" class="form-control" maxlength="50" placeholder="Ej.: Construcción" @bind-Value="registro.Rubro" />
+                        <ValidationMessage For="() => registro.Rubro" class="text-danger small" />
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label" for="email-empresa">Email de la empresa</label>
+                        <InputText id="email-empresa" class="form-control" type="email" maxlength="100" placeholder="compras@empresa.com" @bind-Value="registro.EmailEmpresa" />
+                        <ValidationMessage For="() => registro.EmailEmpresa" class="text-danger small" />
+                    </div>
+
+                    <div class="col-12">
+                        <span class="form-label d-block">Tipo de empresa</span>
+                        <InputRadioGroup @bind-Value="registro.Tipo">
+                            <div class="row g-2">
+                                @foreach (var tipo in tipos)
+                                {
+                                    <div class="col-sm-6">
+                                        <InputRadio id="@($"tipo-{tipo.Nombre}")" class="btn-check" Value="@tipo.Nombre" />
+                                        <label class="btn btn-outline-primary w-100 h-100 text-start p-3" for="@($"tipo-{tipo.Nombre}")">
+                                            <strong class="d-block">@tipo.Nombre</strong>
+                                            <small class="d-block fw-normal opacity-75">@tipo.Descripcion</small>
+                                        </label>
+                                    </div>
+                                }
+                            </div>
+                        </InputRadioGroup>
+                        <ValidationMessage For="() => registro.Tipo" class="text-danger small" />
+                    </div>
+                </div>
+
+                <hr class="my-4" />
+
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <span class="badge rounded-pill text-bg-primary">2</span>
+                    <h2 class="h6 fw-bold mb-0">Usuario administrador</h2>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label" for="nombre">Nombre</label>
+                        <InputText id="nombre" class="form-control" maxlength="100" autocomplete="name" placeholder="Nombre y apellido" @bind-Value="registro.Nombre" />
+                        <ValidationMessage For="() => registro.Nombre" class="text-danger small" />
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label" for="email">Email</label>
+                        <InputText id="email" class="form-control" type="email" maxlength="100" autocomplete="username" placeholder="usuario@empresa.com" @bind-Value="registro.Email" />
+                        <div class="form-text">Lo usará para iniciar sesión.</div>
+                        <ValidationMessage For="() => registro.Email" class="text-danger small" />
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label" for="contrasena">Contraseña</label>
+                        <InputText id="contrasena" class="form-control" type="password" autocomplete="new-password" @bind-Value="registro.Contrasena" />
+                        <div class="form-text">Mínimo 8 caracteres.</div>
+                        <ValidationMessage For="() => registro.Contrasena" class="text-danger small" />
+                    </div>
+                </div>
+
+                <div class="d-flex flex-column-reverse flex-sm-row justify-content-between align-items-sm-center gap-3 mt-4 pt-3 border-top">
+                    <span class="text-body-secondary small text-center">
+                        ¿Ya tiene cuenta? <a href="login">Iniciar sesión</a>
+                    </span>
+                    <button type="submit" class="btn btn-primary px-4" disabled="@enviando">
+                        @if (enviando)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                            <span>Registrando...</span>
+                        }
+                        else
+                        {
+                            <span>Registrar y entrar</span>
+                        }
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+</div>
+
+@code {
+    private readonly RegistroDTO registro = new();
+
+    private readonly List<(string Nombre, string Descripcion)> tipos =
+    [
+        ("Compradora", "Publica notas de pedido y recibe cotizaciones."),
+        ("Proveedora", "Cotiza las notas de pedido de otras empresas.")
+    ];
+    private bool enviando;
+    private string? error;
+
+    protected override void OnInitialized()
+    {
+        if (Sesion.EstaLogueado)
+        {
+            Navegacion.NavigateTo("", replace: true);
+        }
+    }
+
+    private async Task Registrar()
+    {
+        enviando = true;
+        error = null;
+
+        try
+        {
+            var respuesta = await AuthServicio.RegistrarAsync(registro);
+            if (respuesta.Error || respuesta.Respuesta is null)
+            {
+                error = string.IsNullOrWhiteSpace(respuesta.Mensaje) ? "No se pudo registrar la empresa." : respuesta.Mensaje;
+                return;
+            }
+
+            // El registro devuelve la sesion del usuario creado: entra directo al sistema.
+            await Sesion.IniciarSesionAsync(respuesta.Respuesta);
+            Navegacion.NavigateTo("", replace: true);
+        }
+        finally
+        {
+            enviando = false;
+        }
+    }
+}
