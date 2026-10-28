@@ -171,21 +171,30 @@ h1:focus {
 }
 
 /* ---------- Encabezado ---------- */
-.ibuy-logo {
-    display: grid;
-    place-items: center;
-    width: 2.6rem;
-    height: 2.6rem;
-    border-radius: 0.65rem;
-    background-color: #2563eb;
-    color: #fff;
-    font-weight: 800;
+/* Logotipo "ibuy" (Componentes/Marca.razor): i sin punto + rombo primario como punto. */
+.ibuy-marca {
+    display: inline-block;
+    font-size: 1.75rem;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: -0.01em;
 }
 
-.ibuy-marca {
-    font-weight: 800;
-    font-size: 1.2rem;
-    letter-spacing: 0.03em;
+.ibuy-marca-i {
+    display: inline-block;
+    position: relative;
+}
+
+.ibuy-marca-i::before {
+    content: "";
+    position: absolute;
+    top: 0.1em;
+    left: 50%;
+    width: 0.22em;
+    height: 0.22em;
+    border-radius: 0.05em;
+    background-color: #2563eb;
+    transform: translateX(-50%) rotate(45deg);
 }
 
 /* ---------- Menu lateral ---------- */
