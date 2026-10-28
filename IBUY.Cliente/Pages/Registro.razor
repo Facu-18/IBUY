@@ -7,137 +7,305 @@
 <PageTitle>Registrar empresa - IBUY</PageTitle>
 
 <div class="col-12 col-md-10 col-lg-8 col-xl-7">
-    <div class="card shadow-sm">
+    <div class="card ibuy-acceso-tarjeta">
         <div class="card-body p-4 p-md-5">
-            <h1 class="h4 mb-1">Registrar empresa</h1>
-            <p class="text-body-secondary mb-4">Cree la cuenta de su empresa y su usuario administrador. Al terminar ingresa directamente al sistema.</p>
-
-            @if (!string.IsNullOrEmpty(error))
+            @if (registrado)
             {
-                <div class="alert alert-danger" role="alert">@error</div>
+                <div class="text-center py-4 ibuy-paso-adelante" role="status">
+                    <div class="ibuy-exito-icono mx-auto mb-4">
+                        <Icono Nombre="check" />
+                    </div>
+                    <h1 class="h4 mb-2">¡Empresa registrada!</h1>
+                    <p class="text-body-secondary mb-4">@registro.RazonSocial ya tiene su cuenta en IBUY.</p>
+                    <div class="d-inline-flex align-items-center gap-2 text-primary fw-semibold">
+                        <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                        <span>Ingresando al sistema...</span>
+                    </div>
+                </div>
             }
-
-            <EditForm Model="registro" OnValidSubmit="Registrar">
-                <DataAnnotationsValidator />
-
-                <div class="d-flex align-items-center gap-2 mb-3">
-                    <span class="badge rounded-pill text-bg-primary">1</span>
-                    <h2 class="h6 fw-bold mb-0">Datos de la empresa</h2>
+            else
+            {
+                <div class="d-flex justify-content-between align-items-start gap-3 mb-4">
+                    <div>
+                        <h1 class="h4 mb-1">Registrar empresa</h1>
+                        <p class="text-body-secondary mb-0">Cree la cuenta de su empresa y su usuario administrador.</p>
+                    </div>
+                    <span class="badge rounded-pill text-bg-light border text-nowrap">Paso @(paso + 1) de @pasos.Length</span>
                 </div>
 
-                <div class="row g-3">
-                    <div class="col-12">
-                        <label class="form-label" for="razon-social">Razón social</label>
-                        <InputText id="razon-social" class="form-control" maxlength="100" placeholder="Ej.: Distribuidora del Sur S.A." @bind-Value="registro.RazonSocial" />
-                        <ValidationMessage For="() => registro.RazonSocial" class="text-danger small" />
-                    </div>
+                <ol class="ibuy-pasos mb-3" aria-label="Pasos del registro">
+                    @for (var i = 0; i < pasos.Length; i++)
+                    {
+                        var indice = i;
+                        <li class="@ClasePaso(indice)">
+                            <button type="button" disabled="@(!PuedeIrA(indice) || enviando)" @onclick="() => IrAPaso(indice)"
+                                    aria-current="@(indice == paso ? "step" : null)">
+                                <span class="ibuy-paso-punto">
+                                    @if (indice < paso)
+                                    {
+                                        <Icono Nombre="check" />
+                                    }
+                                    else
+                                    {
+                                        @(indice + 1)
+                                    }
+                                </span>
+                                <span class="ibuy-paso-nombre d-none d-sm-block">@pasos[indice]</span>
+                            </button>
+                        </li>
+                    }
+                </ol>
 
-                    <div class="col-md-6">
-                        <label class="form-label" for="cuit">CUIT</label>
-                        <InputText id="cuit" class="form-control" maxlength="13" placeholder="XX-XXXXXXXX-X" @bind-Value="registro.Cuit" />
-                        <div class="form-text">Formato con guiones.</div>
-                        <ValidationMessage For="() => registro.Cuit" class="text-danger small" />
-                    </div>
-
-                    <div class="col-md-6">
-                        <label class="form-label" for="rubro">Rubro</label>
-                        <InputText id="rubro" class="form-control" maxlength="50" placeholder="Ej.: Construcción" @bind-Value="registro.Rubro" />
-                        <ValidationMessage For="() => registro.Rubro" class="text-danger small" />
-                    </div>
-
-                    <div class="col-12">
-                        <label class="form-label" for="email-empresa">Email de la empresa</label>
-                        <InputText id="email-empresa" class="form-control" type="email" maxlength="100" placeholder="compras@empresa.com" @bind-Value="registro.EmailEmpresa" />
-                        <ValidationMessage For="() => registro.EmailEmpresa" class="text-danger small" />
-                    </div>
-
-                    <div class="col-12">
-                        <span class="form-label d-block">Tipo de empresa</span>
-                        <InputRadioGroup @bind-Value="registro.Tipo">
-                            <div class="row g-2">
-                                @foreach (var tipo in tipos)
-                                {
-                                    <div class="col-sm-6">
-                                        <InputRadio id="@($"tipo-{tipo.Nombre}")" class="btn-check" Value="@tipo.Nombre" />
-                                        <label class="btn btn-outline-primary w-100 h-100 text-start p-3" for="@($"tipo-{tipo.Nombre}")">
-                                            <strong class="d-block">@tipo.Nombre</strong>
-                                            <small class="d-block fw-normal opacity-75">@tipo.Descripcion</small>
-                                        </label>
-                                    </div>
-                                }
-                            </div>
-                        </InputRadioGroup>
-                        <ValidationMessage For="() => registro.Tipo" class="text-danger small" />
-                    </div>
+                <div class="progress ibuy-progreso mb-4" data-paso="@(paso + 1)" role="progressbar"
+                     aria-label="Avance del registro" aria-valuenow="@Porcentaje" aria-valuemin="0" aria-valuemax="100">
+                    <div class="progress-bar @(enviando ? "progress-bar-striped progress-bar-animated" : "")"></div>
                 </div>
 
-                <hr class="my-4" />
+                @if (!string.IsNullOrEmpty(error))
+                {
+                    <div @key="intentosFallidos" class="alert alert-danger ibuy-sacudir" role="alert">@error</div>
+                }
 
-                <div class="d-flex align-items-center gap-2 mb-3">
-                    <span class="badge rounded-pill text-bg-primary">2</span>
-                    <h2 class="h6 fw-bold mb-0">Usuario administrador</h2>
-                </div>
+                <EditForm EditContext="editContext" OnSubmit="Enviar">
+                    <DataAnnotationsValidator />
 
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <label class="form-label" for="nombre">Nombre</label>
-                        <InputText id="nombre" class="form-control" maxlength="100" autocomplete="name" placeholder="Nombre y apellido" @bind-Value="registro.Nombre" />
-                        <ValidationMessage For="() => registro.Nombre" class="text-danger small" />
-                    </div>
-
-                    <div class="col-md-6">
-                        <label class="form-label" for="email">Email</label>
-                        <InputText id="email" class="form-control" type="email" maxlength="100" autocomplete="username" placeholder="usuario@empresa.com" @bind-Value="registro.Email" />
-                        <div class="form-text">Lo usará para iniciar sesión.</div>
-                        <ValidationMessage For="() => registro.Email" class="text-danger small" />
-                    </div>
-
-                    <div class="col-md-6">
-                        <label class="form-label" for="contrasena">Contraseña</label>
-                        <InputText id="contrasena" class="form-control" type="password" autocomplete="new-password" @bind-Value="registro.Contrasena" />
-                        <div class="form-text">Mínimo 8 caracteres.</div>
-                        <ValidationMessage For="() => registro.Contrasena" class="text-danger small" />
-                    </div>
-                </div>
-
-                <div class="d-flex flex-column-reverse flex-sm-row justify-content-between align-items-sm-center gap-3 mt-4 pt-3 border-top">
-                    <span class="text-body-secondary small text-center">
-                        ¿Ya tiene cuenta? <a href="login">Iniciar sesión</a>
-                    </span>
-                    <button type="submit" class="btn btn-primary px-4" disabled="@enviando">
-                        @if (enviando)
+                    @* @key recrea el bloque al cambiar de paso para que la animacion de entrada se repita. *@
+                    <div @key="paso" class="@(avanzando ? "ibuy-paso-adelante" : "ibuy-paso-atras")">
+                        @switch (paso)
                         {
-                            <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
-                            <span>Registrando...</span>
+                            case 0:
+                                <h2 class="h6 fw-bold mb-3">Datos de la empresa</h2>
+                                <div class="row g-3">
+                                    <div class="col-12">
+                                        <label class="form-label" for="razon-social">Razón social</label>
+                                        <InputText id="razon-social" class="form-control" maxlength="100" placeholder="Ej.: Distribuidora del Sur S.A." @bind-Value="registro.RazonSocial" />
+                                        <ValidationMessage For="() => registro.RazonSocial" class="text-danger small" />
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="cuit">CUIT</label>
+                                        <InputText id="cuit" class="form-control" maxlength="13" placeholder="XX-XXXXXXXX-X" @bind-Value="registro.Cuit" />
+                                        <div class="form-text">Formato con guiones.</div>
+                                        <ValidationMessage For="() => registro.Cuit" class="text-danger small" />
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="rubro">Rubro</label>
+                                        <InputText id="rubro" class="form-control" maxlength="50" placeholder="Ej.: Construcción" @bind-Value="registro.Rubro" />
+                                        <ValidationMessage For="() => registro.Rubro" class="text-danger small" />
+                                    </div>
+
+                                    <div class="col-12">
+                                        <label class="form-label" for="email-empresa">Email de la empresa</label>
+                                        <InputText id="email-empresa" class="form-control" type="email" maxlength="100" placeholder="compras@empresa.com" @bind-Value="registro.EmailEmpresa" />
+                                        <ValidationMessage For="() => registro.EmailEmpresa" class="text-danger small" />
+                                    </div>
+                                </div>
+                                break;
+
+                            case 1:
+                                <h2 class="h6 fw-bold mb-1">Usuario administrador</h2>
+                                <p class="text-body-secondary small mb-3">Con este usuario va a ingresar y crear al resto del equipo.</p>
+                                <div class="row g-3">
+                                    <div class="col-12">
+                                        <label class="form-label" for="nombre">Nombre</label>
+                                        <InputText id="nombre" class="form-control" maxlength="100" autocomplete="name" placeholder="Nombre y apellido" @bind-Value="registro.Nombre" />
+                                        <ValidationMessage For="() => registro.Nombre" class="text-danger small" />
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="email">Email</label>
+                                        <InputText id="email" class="form-control" type="email" maxlength="100" autocomplete="username" placeholder="usuario@empresa.com" @bind-Value="registro.Email" />
+                                        <div class="form-text">Lo usará para iniciar sesión.</div>
+                                        <ValidationMessage For="() => registro.Email" class="text-danger small" />
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="contrasena">Contraseña</label>
+                                        <div class="input-group">
+                                            <InputText id="contrasena" class="form-control" type="@(verContrasena ? "text" : "password")" autocomplete="new-password" @bind-Value="registro.Contrasena" />
+                                            <button type="button" class="btn btn-outline-secondary" @onclick="() => verContrasena = !verContrasena"
+                                                    aria-label="@(verContrasena ? "Ocultar contraseña" : "Mostrar contraseña")">
+                                                <Icono Nombre="@(verContrasena ? "ocultar" : "ver")" />
+                                            </button>
+                                        </div>
+                                        <div class="form-text">Mínimo 8 caracteres.</div>
+                                        <ValidationMessage For="() => registro.Contrasena" class="text-danger small" />
+                                    </div>
+                                </div>
+                                break;
+
+                            default:
+                                <h2 class="h6 fw-bold mb-1">Confirmar datos</h2>
+                                <p class="text-body-secondary small mb-3">Revise que todo esté bien antes de crear la cuenta.</p>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <div class="border rounded-3 p-3 h-100 bg-body-tertiary">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <span class="text-body-secondary small fw-bold text-uppercase">Empresa</span>
+                                                <button type="button" class="btn btn-link btn-sm p-0" disabled="@enviando" @onclick="() => IrAPaso(0)">Editar</button>
+                                            </div>
+                                            <p class="fw-bold mb-1">@registro.RazonSocial</p>
+                                            <p class="small text-body-secondary mb-1">CUIT @registro.Cuit · @registro.Rubro</p>
+                                            <p class="small text-body-secondary mb-0">@registro.EmailEmpresa</p>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="border rounded-3 p-3 h-100 bg-body-tertiary">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <span class="text-body-secondary small fw-bold text-uppercase">Administrador</span>
+                                                <button type="button" class="btn btn-link btn-sm p-0" disabled="@enviando" @onclick="() => IrAPaso(1)">Editar</button>
+                                            </div>
+                                            <p class="fw-bold mb-1">@registro.Nombre</p>
+                                            <p class="small text-body-secondary mb-1">@registro.Email</p>
+                                            <p class="small text-body-secondary mb-0">Rol: Administrador</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                break;
+                        }
+                    </div>
+
+                    <div class="d-flex flex-column-reverse flex-sm-row justify-content-between align-items-sm-center gap-3 mt-4 pt-3 border-top">
+                        @if (paso == 0)
+                        {
+                            <span class="text-body-secondary small text-center">
+                                ¿Ya tiene cuenta? <a href="login">Iniciar sesión</a>
+                            </span>
                         }
                         else
                         {
-                            <span>Registrar y entrar</span>
+                            <button type="button" class="btn btn-outline-secondary px-4" disabled="@enviando" @onclick="Anterior">
+                                <span class="d-inline-flex align-items-center gap-2"><Icono Nombre="volver" /> Anterior</span>
+                            </button>
                         }
-                    </button>
-                </div>
-            </EditForm>
+
+                        <button type="submit" class="btn btn-primary px-4" disabled="@enviando">
+                            @if (enviando)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                                <span>Registrando...</span>
+                            }
+                            else if (EsUltimoPaso)
+                            {
+                                <span>Registrar y entrar</span>
+                            }
+                            else
+                            {
+                                <span class="d-inline-flex align-items-center gap-2">Siguiente <Icono Nombre="siguiente" /></span>
+                            }
+                        </button>
+                    </div>
+                </EditForm>
+            }
         </div>
     </div>
 </div>
 
 @code {
     private readonly RegistroDTO registro = new();
+    private EditContext editContext = default!;
 
-    private readonly List<(string Nombre, string Descripcion)> tipos =
+    private readonly string[] pasos = ["Empresa", "Administrador", "Confirmar"];
+
+    // Campos que se validan al salir de cada paso; el ultimo paso solo confirma.
+    private readonly string[][] camposPorPaso =
     [
-        ("Compradora", "Publica notas de pedido y recibe cotizaciones."),
-        ("Proveedora", "Cotiza las notas de pedido de otras empresas.")
+        [nameof(RegistroDTO.RazonSocial), nameof(RegistroDTO.Cuit), nameof(RegistroDTO.Rubro), nameof(RegistroDTO.EmailEmpresa)],
+        [nameof(RegistroDTO.Nombre), nameof(RegistroDTO.Email), nameof(RegistroDTO.Contrasena)],
+        []
     ];
+
+    private int paso;
+    private int pasoMaximo;
+    private bool avanzando = true;
+    private bool verContrasena;
     private bool enviando;
+    private bool registrado;
+    private int intentosFallidos;
     private string? error;
+
+    private bool EsUltimoPaso => paso == pasos.Length - 1;
+    private int Porcentaje => (paso + 1) * 100 / pasos.Length;
 
     protected override void OnInitialized()
     {
+        editContext = new EditContext(registro);
+
         if (Sesion.EstaLogueado)
         {
             Navegacion.NavigateTo("", replace: true);
         }
+    }
+
+    private string ClasePaso(int indice) =>
+        indice < paso ? "completo" : indice == paso ? "activo" : "";
+
+    // Se puede volver a cualquier paso ya visitado; para avanzar se usa "Siguiente".
+    private bool PuedeIrA(int indice) => indice != paso && indice <= pasoMaximo;
+
+    private void IrAPaso(int indice)
+    {
+        if (!PuedeIrA(indice))
+        {
+            return;
+        }
+
+        // Saltar hacia adelante exige que los pasos intermedios sigan siendo validos.
+        for (var i = paso; i < indice; i++)
+        {
+            if (!PasoValido(i))
+            {
+                CambiarPaso(i);
+                return;
+            }
+        }
+
+        CambiarPaso(indice);
+    }
+
+    private void Anterior() => CambiarPaso(paso - 1);
+
+    private void CambiarPaso(int nuevoPaso)
+    {
+        avanzando = nuevoPaso > paso;
+        paso = nuevoPaso;
+        pasoMaximo = Math.Max(pasoMaximo, paso);
+        error = null;
+    }
+
+    // Valida solo los campos del paso: DataAnnotationsValidator revalida cada campo notificado.
+    private bool PasoValido(int indice)
+    {
+        var campos = camposPorPaso[indice].Select(c => editContext.Field(c)).ToList();
+        foreach (var campo in campos)
+        {
+            editContext.NotifyFieldChanged(campo);
+        }
+
+        return campos.All(c => !editContext.GetValidationMessages(c).Any());
+    }
+
+    private async Task Enviar()
+    {
+        if (!EsUltimoPaso)
+        {
+            if (PasoValido(paso))
+            {
+                CambiarPaso(paso + 1);
+            }
+            return;
+        }
+
+        if (!editContext.Validate())
+        {
+            // No deberia pasar por la validacion por paso, pero se vuelve al primer paso con errores.
+            var pasoConError = Array.FindIndex(camposPorPaso, campos => campos.Any(c => editContext.GetValidationMessages(editContext.Field(c)).Any()));
+            CambiarPaso(Math.Max(pasoConError, 0));
+            return;
+        }
+
+        await Registrar();
     }
 
     private async Task Registrar()
@@ -151,11 +319,15 @@
             if (respuesta.Error || respuesta.Respuesta is null)
             {
                 error = string.IsNullOrWhiteSpace(respuesta.Mensaje) ? "No se pudo registrar la empresa." : respuesta.Mensaje;
+                intentosFallidos++;
                 return;
             }
 
-            // El registro devuelve la sesion del usuario creado: entra directo al sistema.
+            // El registro devuelve la sesion del usuario creado: se muestra la confirmacion y entra directo.
             await Sesion.IniciarSesionAsync(respuesta.Respuesta);
+            registrado = true;
+            StateHasChanged();
+            await Task.Delay(1600);
             Navegacion.NavigateTo("", replace: true);
         }
         finally
