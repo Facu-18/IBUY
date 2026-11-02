@@ -24,6 +24,10 @@
 - `IBUY.Servicios`: client-side services that call the API through `ServiciosHTTP/IHttpService` (responses wrapped in `HttpResp<T>`). It does not contain server business services.
 - `IBUY.Cliente/Estado/EstadoSesion` holds the logged user (`LoginRespuestaDTO` from `POST api/auth/login`, persisted in `localStorage`); `Empresa`/`EmpresaId` derive from it. `/login` plus the `MainLayout` guard are UI-only: the API itself is still unprotected (no JWT/`[Authorize]`). Companies sign up at `/registro` (`POST api/auth/registro`: empresa + first `Administrador` user in one transaction, logs in directly). A `SuperAdmin` user is seeded at server startup from the `SuperAdmin` config section (`appsettings.Development.json`); only `SuperAdmin` sees Empresas (menu filter + `Layout/SuperAdminLayout`), and users created from Usuarios are always saved as `Administrador` (role names in `IBUY.Shared/DTO/Roles`). Role checks are UI-only too.
 
+## Remitos
+
+- `Remito.Tipo` is `Interno` (between depósitos of the same empresa) or `Externo` (received from a company typed by hand in `OrigenExterno`). Every remito is born `Emitido`; the server generates `Numero` (`R-0001`) and ignores `Estado`, `FechaEmision` and `FechaRecepcion` from the client. `Interno` decrements origin stock on creation, `Externo` moves none, and the destination is credited only by `POST api/remito/{id}/recepcion` (total reception, once; a second one is 400). Items carry a required `Unidad`. There is no PUT/DELETE. Details in `CLAUDE.md`.
+
 ## Client UI
 
 - The client only contains features backed by the real API (Depósitos, Productos, Necesidades, Empresas, Usuarios, and login). No mock services or fake data: new pages depend on service interfaces, with `*ServicioHttp` implementations registered in `IBUY.Cliente/Program.cs`.
