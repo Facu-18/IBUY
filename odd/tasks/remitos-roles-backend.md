@@ -113,3 +113,4 @@ L8 (T3): independent verifier over HEAD with isolated databases. One blocker: GE
 L9: Advisories left open for the user: unguarded endpoints not named in S2 (remito POST/recepcion, stock/necesidad/nota-pedido writes, GET usuario/producto); PUT nota accepts Estado variants with whitespace; parallel Interno creations can oversell stock (baseline pattern); PUT deposito accepts a responsable from another empresa; a SuperAdmin cannot be edited via PUT.
 L10: Migrations RemitosInternosExternos and RolesVentasEncargado are NOT applied to the user IBUY database (A6). The client breaks against this API until its task: no X-Usuario-Id header, Rol Administrador rejected.
 Next step: user go-ahead for the migrations, then the client tasks.
+L11 (user go-ahead): both migrations applied to the IBUY database after a backup. Resulting roles: 3 EncargadoDeposito, 12 Ventas, 1 SuperAdmin.
