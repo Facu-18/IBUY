@@ -1,5 +1,6 @@
 using IBUY.BD.Datos.Entity;
 using IBUY.Repository.Repositorios;
+using IBUY.Server.Seguridad;
 using IBUY.Shared.DTO;
 using Microsoft.AspNetCore.Mvc;
 
@@ -15,14 +16,17 @@ namespace IBUY.Server.Controllers
         private readonly IRepositorio<Usuario> usuarioRepositorio;
         private readonly IRepositorio<Stock> stockRepositorio;
         private readonly IRepositorio<Producto> productoRepositorio;
+        private readonly IPermisosUsuario permisos;
 
         public DepositoController(
             IRepositorio<Deposito> repositorio,
             IRepositorio<Empresa> empresaRepositorio,
             IRepositorio<Usuario> usuarioRepositorio,
             IRepositorio<Stock> stockRepositorio,
-            IRepositorio<Producto> productoRepositorio)
+            IRepositorio<Producto> productoRepositorio,
+            IPermisosUsuario permisos)
         {
+            this.permisos = permisos;
             this.repositorio = repositorio;
             this.empresaRepositorio = empresaRepositorio;
             this.usuarioRepositorio = usuarioRepositorio;
@@ -31,25 +35,94 @@ namespace IBUY.Server.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<List<DepositoDTO>>> Get([FromQuery] int? empresaId)
+        public async Task<ActionResult<List<DepositoDTO>>> Get(
+            [FromQuery] int? empresaId,
+            [FromQuery] int? depositoId,
+            [FromHeader(Name = IPermisosUsuario.Encabezado)] string? usuarioId)
         {
-            var depositos = await repositorio.Select();
+            var acceso = await permisos.Autenticar(usuarioId);
+            if (acceso is null && empresaId.HasValue)
+            {
+                acceso = permisos.ExigirEmpresa(empresaId.Value);
+            }
+
+            if (acceso is null && depositoId.HasValue)
+            {
+                acceso = permisos.ExigirDeposito(depositoId.Value);
+            }
+
+            if (acceso is not null)
+            {
+                return acceso;
+            }
+
+            // Solo los depósitos que el usuario puede ver, más los filtros opcionales.
+            var depositos = (await repositorio.Select())
+                .Where(d => permisos.PuedeVerDeposito(d.Id))
+                .ToList();
 
             if (empresaId.HasValue)
             {
                 depositos = depositos.Where(d => d.EmpresaId == empresaId.Value).ToList();
             }
 
+            if (depositoId.HasValue)
+            {
+                depositos = depositos.Where(d => d.Id == depositoId.Value).ToList();
+            }
+
             return Ok(await CompletarDepositos(depositos));
         }
 
-        [HttpGet("{id:int}")]
-        public async Task<ActionResult<DepositoDTO>> GetById(int id)
+        /// <summary>
+        /// Id y Nombre de los depósitos de la empresa del usuario, para los selectores de destino.
+        /// Cualquier rol con acceso puede pedirlos; solo SuperAdmin puede indicar otra empresa.
+        /// </summary>
+        [HttpGet("opciones")]
+        public async Task<ActionResult<List<DepositoOpcionDTO>>> GetOpciones(
+            [FromQuery] int? empresaId,
+            [FromHeader(Name = IPermisosUsuario.Encabezado)] string? usuarioId)
         {
+            var acceso = await permisos.Autenticar(usuarioId);
+            if (acceso is null && empresaId.HasValue)
+            {
+                acceso = permisos.ExigirEmpresa(empresaId.Value);
+            }
+
+            if (acceso is not null)
+            {
+                return acceso;
+            }
+
+            int empresa = empresaId ?? permisos.EmpresaId;
+            var opciones = (await repositorio.Select())
+                .Where(d => d.EmpresaId == empresa)
+                .OrderBy(d => d.Nombre)
+                .Select(d => new DepositoOpcionDTO { Id = d.Id, Nombre = d.Nombre })
+                .ToList();
+
+            return Ok(opciones);
+        }
+
+        [HttpGet("{id:int}")]
+        public async Task<ActionResult<DepositoDTO>> GetById(int id, [FromHeader(Name = IPermisosUsuario.Encabezado)] string? usuarioId)
+        {
+            var acceso = await permisos.Autenticar(usuarioId);
+            if (acceso is not null)
+            {
+                return acceso;
+            }
+
             var deposito = await repositorio.SelectById(id);
             if (deposito is null)
             {
                 return NotFound($"No se encontró el depósito de id: {id}");
+            }
+
+            acceso = permisos.ExigirDeposito(id);
+            if (acceso is not null)
+            {
+                return acceso;
             }
 
             var dtos = await CompletarDepositos([deposito]);
@@ -60,11 +133,23 @@ namespace IBUY.Server.Controllers
         /// Existencias del depósito: une stock con producto para poder mostrar nombre y categoría.
         /// </summary>
         [HttpGet("{id:int}/stock")]
-        public async Task<ActionResult<List<StockDepositoDTO>>> GetStock(int id)
+        public async Task<ActionResult<List<StockDepositoDTO>>> GetStock(int id, [FromHeader(Name = IPermisosUsuario.Encabezado)] string? usuarioId)
         {
+            var acceso = await permisos.Autenticar(usuarioId);
+            if (acceso is not null)
+            {
+                return acceso;
+            }
+
             if (!await repositorio.Existe(id))
             {
                 return NotFound($"No se encontró el depósito de id: {id}");
+            }
+
+            acceso = permisos.ExigirDeposito(id);
+            if (acceso is not null)
+            {
+                return acceso;
             }
 
             var stocks = (await stockRepositorio.Select())
@@ -92,8 +177,14 @@ namespace IBUY.Server.Controllers
 
 
         [HttpPost]
-        public async Task<ActionResult<int>> Post(DepositoDTO depositoDTO)
+        public async Task<ActionResult<int>> Post(DepositoDTO depositoDTO, [FromHeader(Name = IPermisosUsuario.Encabezado)] string? usuarioId)
         {
+            var acceso = await permisos.Autenticar(usuarioId) ?? permisos.ExigirGestion() ?? permisos.ExigirEmpresa(depositoDTO.EmpresaId);
+            if (acceso is not null)
+            {
+                return acceso;
+            }
+
             var error = await ValidarRelaciones(depositoDTO);
             if (error is not null)
             {
@@ -114,12 +205,24 @@ namespace IBUY.Server.Controllers
         }
 
         [HttpPut("{id:int}")]
-        public async Task<ActionResult<bool>> Put(int id, DepositoDTO depositoDTO)
+        public async Task<ActionResult<bool>> Put(int id, DepositoDTO depositoDTO, [FromHeader(Name = IPermisosUsuario.Encabezado)] string? usuarioId)
         {
+            var acceso = await permisos.Autenticar(usuarioId) ?? permisos.ExigirGestion();
+            if (acceso is not null)
+            {
+                return acceso;
+            }
+
             var deposito = await repositorio.SelectById(id);
             if (deposito is null)
             {
                 return NotFound($"No existe el registro con id: {id}");
+            }
+
+            acceso = permisos.ExigirEmpresa(deposito.EmpresaId) ?? permisos.ExigirEmpresa(depositoDTO.EmpresaId);
+            if (acceso is not null)
+            {
+                return acceso;
             }
 
             var error = await ValidarRelaciones(depositoDTO);
@@ -140,11 +243,24 @@ namespace IBUY.Server.Controllers
         }
 
         [HttpDelete("{id:int}")]
-        public async Task<ActionResult<bool>> Delete(int id)
+        public async Task<ActionResult<bool>> Delete(int id, [FromHeader(Name = IPermisosUsuario.Encabezado)] string? usuarioId)
         {
-            if (!await repositorio.Existe(id))
+            var acceso = await permisos.Autenticar(usuarioId) ?? permisos.ExigirGestion();
+            if (acceso is not null)
+            {
+                return acceso;
+            }
+
+            var deposito = await repositorio.SelectById(id);
+            if (deposito is null)
             {
                 return NotFound($"No existe el depósito con id: {id}");
+            }
+
+            acceso = permisos.ExigirEmpresa(deposito.EmpresaId);
+            if (acceso is not null)
+            {
+                return acceso;
             }
 
             await repositorio.Delete(id);

@@ -1,5 +1,6 @@
 using IBUY.BD.Datos.Entity;
 using IBUY.Repository.Repositorios;
+using IBUY.Server.Seguridad;
 using IBUY.Shared.DTO;
 using Microsoft.AspNetCore.Mvc;
 
@@ -15,6 +16,7 @@ namespace IBUY.Server.Controllers
         private readonly IRepositorio<Cotizacion> cotizacionRepositorio;
         private readonly IRepositorio<Deposito> depositoRepositorio;
         private readonly IRepositorio<Producto> productoRepositorio;
+        private readonly IPermisosUsuario permisos;
 
         public RemitoController(
             IRemitoRepositorio repositorio,
@@ -22,8 +24,10 @@ namespace IBUY.Server.Controllers
             IRepositorio<Usuario> usuarioRepositorio,
             IRepositorio<Cotizacion> cotizacionRepositorio,
             IRepositorio<Deposito> depositoRepositorio,
-            IRepositorio<Producto> productoRepositorio)
+            IRepositorio<Producto> productoRepositorio,
+            IPermisosUsuario permisos)
         {
+            this.permisos = permisos;
             this.repositorio = repositorio;
             this.empresaRepositorio = empresaRepositorio;
             this.usuarioRepositorio = usuarioRepositorio;
@@ -33,9 +37,26 @@ namespace IBUY.Server.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<List<RemitoListadoDTO>>> Get()
+        public async Task<ActionResult<List<RemitoListadoDTO>>> Get(
+            [FromQuery] int? depositoId,
+            [FromHeader(Name = IPermisosUsuario.Encabezado)] string? usuarioId)
         {
-            var remitos = await repositorio.ObtenerListado();
+            var acceso = await permisos.Autenticar(usuarioId);
+            if (acceso is null && depositoId.HasValue)
+            {
+                acceso = permisos.ExigirDeposito(depositoId.Value);
+            }
+
+            if (acceso is not null)
+            {
+                return acceso;
+            }
+
+            // Solo los remitos donde el usuario ve el depósito origen o el destino.
+            var remitos = (await repositorio.ObtenerListado())
+                .Where(r => PuedeVer(r.DepositoOrigenId, r.DepositoDestinoId))
+                .Where(r => !depositoId.HasValue || r.DepositoOrigenId == depositoId || r.DepositoDestinoId == depositoId)
+                .ToList();
 
             var dtos = remitos.Select(r => new RemitoListadoDTO
             {
@@ -55,12 +76,23 @@ namespace IBUY.Server.Controllers
         }
 
         [HttpGet("{id:int}")]
-        public async Task<ActionResult<RemitoDTO>> GetById(int id)
+        public async Task<ActionResult<RemitoDTO>> GetById(int id, [FromHeader(Name = IPermisosUsuario.Encabezado)] string? usuarioId)
         {
+            var acceso = await permisos.Autenticar(usuarioId);
+            if (acceso is not null)
+            {
+                return acceso;
+            }
+
             var (remito, items) = await repositorio.ObtenerDetalle(id);
             if (remito is null)
             {
                 return NotFound($"No se encontró el remito de id: {id}");
+            }
+
+            if (!PuedeVer(remito.DepositoOrigenId, remito.DepositoDestinoId))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, "No tenés acceso a ese remito.");
             }
 
             RemitoDTO dto = new RemitoDTO
@@ -173,6 +205,16 @@ namespace IBUY.Server.Controllers
 
         // No hay PUT ni DELETE: un remito ya registrado no se modifica, porque eso
         // dejaria el stock impactado sin corresponder con lo que dice el remito.
+
+        /// <summary>
+        /// Se ve el remito si el usuario ve el depósito origen o el destino
+        /// (el origen es null en un remito Externo).
+        /// </summary>
+        private bool PuedeVer(int? depositoOrigenId, int? depositoDestinoId)
+        {
+            return (depositoOrigenId.HasValue && permisos.PuedeVerDeposito(depositoOrigenId.Value))
+                || (depositoDestinoId.HasValue && permisos.PuedeVerDeposito(depositoDestinoId.Value));
+        }
 
         /// <summary>
         /// Valida el Tipo (sin distinguir mayusculas/minusculas) y que traiga lo que ese

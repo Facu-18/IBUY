@@ -20,6 +20,9 @@ builder.Services.AddScoped<ICotizacionRepositorio, CotizacionRepositorio>();
 builder.Services.AddScoped<IRemitoRepositorio, RemitoRepositorio>();
 builder.Services.AddScoped<IUsuarioRepositorio, UsuarioRepositorio>();
 
+// Permisos del usuario que llama (encabezado X-Usuario-Id): una instancia por request.
+builder.Services.AddScoped<IPermisosUsuario, PermisosUsuario>();
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

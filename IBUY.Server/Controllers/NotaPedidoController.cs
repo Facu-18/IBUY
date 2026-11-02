@@ -1,5 +1,6 @@
 using IBUY.BD.Datos.Entity;
 using IBUY.Repository.Repositorios;
+using IBUY.Server.Seguridad;
 using IBUY.Shared.DTO;
 using Microsoft.AspNetCore.Mvc;
 
@@ -14,14 +15,17 @@ namespace IBUY.Server.Controllers
         private readonly IRepositorio<Usuario> usuarioRepositorio;
         private readonly IRepositorio<Producto> productoRepositorio;
         private readonly INecesidadRepositorio necesidadRepositorio;
+        private readonly IPermisosUsuario permisos;
 
         public NotaPedidoController(
             INotaPedidoRepositorio repositorio,
             IRepositorio<Empresa> empresaRepositorio,
             IRepositorio<Usuario> usuarioRepositorio,
             IRepositorio<Producto> productoRepositorio,
-            INecesidadRepositorio necesidadRepositorio)
+            INecesidadRepositorio necesidadRepositorio,
+            IPermisosUsuario permisos)
         {
+            this.permisos = permisos;
             this.repositorio = repositorio;
             this.empresaRepositorio = empresaRepositorio;
             this.usuarioRepositorio = usuarioRepositorio;
@@ -30,19 +34,57 @@ namespace IBUY.Server.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<List<NotaPedido>>> Get()
+        public async Task<ActionResult<List<NotaPedido>>> Get(
+            [FromQuery] int? depositoId,
+            [FromHeader(Name = IPermisosUsuario.Encabezado)] string? usuarioId)
         {
-            var notas = await repositorio.Select();
+            var acceso = await permisos.Autenticar(usuarioId);
+            if (acceso is null && depositoId.HasValue)
+            {
+                acceso = permisos.ExigirDeposito(depositoId.Value);
+            }
+
+            if (acceso is not null)
+            {
+                return acceso;
+            }
+
+            var necesidades = await NecesidadesPorId();
+            var notas = (await repositorio.Select())
+                .Where(n => PuedeVer(n, necesidades))
+                .ToList();
+
+            // depositoId: solo las notas cuya necesidad de origen toca ese depósito.
+            if (depositoId.HasValue)
+            {
+                notas = notas
+                    .Where(n => n.NecesidadId.HasValue
+                        && necesidades.TryGetValue(n.NecesidadId.Value, out var necesidad)
+                        && (necesidad.DepositoSolicitanteId == depositoId.Value || necesidad.DepositoDestinoId == depositoId.Value))
+                    .ToList();
+            }
+
             return Ok(notas);
         }
 
         [HttpGet("{id:int}")]
-        public async Task<ActionResult<NotaPedidoDTO>> GetById(int id)
+        public async Task<ActionResult<NotaPedidoDTO>> GetById(int id, [FromHeader(Name = IPermisosUsuario.Encabezado)] string? usuarioId)
         {
+            var acceso = await permisos.Autenticar(usuarioId);
+            if (acceso is not null)
+            {
+                return acceso;
+            }
+
             var (notaPedido, items) = await repositorio.ObtenerDetalle(id);
             if (notaPedido is null)
             {
                 return NotFound($"No se encontró la nota de pedido de id: {id}");
+            }
+
+            if (!PuedeVer(notaPedido, await NecesidadesPorId()))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, "No tenés acceso a esa nota de pedido.");
             }
 
             NotaPedidoDTO dto = new NotaPedidoDTO
@@ -71,6 +113,12 @@ namespace IBUY.Server.Controllers
             if (notaPedidoDTO.Items is null || notaPedidoDTO.Items.Count == 0)
             {
                 return BadRequest("La nota de pedido debe tener al menos un ítem.");
+            }
+
+            // Una nota solo pasa a Publicada por POST api/nota-pedido/{id}/publicar.
+            if (EsPublicada(notaPedidoDTO.Estado))
+            {
+                return BadRequest("Una nota de pedido no se puede crear como Publicada: usá la acción publicar.");
             }
 
             var error = await ValidarRelaciones(notaPedidoDTO);
@@ -119,6 +167,12 @@ namespace IBUY.Server.Controllers
                 return NotFound($"No existe el registro con id: {id}");
             }
 
+            // El PUT no puede publicar una nota; guardar una ya Publicada con el mismo estado sí se permite.
+            if (EsPublicada(notaPedidoDTO.Estado) && !EsPublicada(notaPedido.Estado))
+            {
+                return BadRequest("El estado no se puede cambiar a Publicada con PUT: usá la acción publicar.");
+            }
+
             if (!await empresaRepositorio.Existe(notaPedidoDTO.EmpresaId))
             {
                 return BadRequest($"No existe la empresa de id: {notaPedidoDTO.EmpresaId}");
@@ -147,6 +201,41 @@ namespace IBUY.Server.Controllers
             return Ok(resultado);
         }
 
+        /// <summary>
+        /// Pasa la nota de Borrador a Publicada. Solo Ventas o SuperAdmin de la empresa de la nota.
+        /// </summary>
+        [HttpPost("{id:int}/publicar")]
+        public async Task<ActionResult<bool>> Publicar(int id, [FromHeader(Name = IPermisosUsuario.Encabezado)] string? usuarioId)
+        {
+            var acceso = await permisos.Autenticar(usuarioId) ?? permisos.ExigirGestion();
+            if (acceso is not null)
+            {
+                return acceso;
+            }
+
+            var notaPedido = await repositorio.SelectById(id);
+            if (notaPedido is null)
+            {
+                return NotFound($"No se encontró la nota de pedido de id: {id}");
+            }
+
+            acceso = permisos.ExigirEmpresa(notaPedido.EmpresaId);
+            if (acceso is not null)
+            {
+                return acceso;
+            }
+
+            if (!string.Equals(notaPedido.Estado, EstadosNotaPedido.Borrador, StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest($"Solo se puede publicar una nota en estado {EstadosNotaPedido.Borrador}; esta está en {notaPedido.Estado}.");
+            }
+
+            notaPedido.Estado = EstadosNotaPedido.Publicada;
+            await repositorio.Update(notaPedido);
+
+            return Ok(true);
+        }
+
         [HttpDelete("{id:int}")]
         public async Task<ActionResult<bool>> Delete(int id)
         {
@@ -158,6 +247,32 @@ namespace IBUY.Server.Controllers
             await repositorio.Delete(id);
 
             return Ok(true);
+        }
+
+        private static bool EsPublicada(string? estado)
+        {
+            return string.Equals(estado, EstadosNotaPedido.Publicada, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private async Task<Dictionary<int, Necesidad>> NecesidadesPorId()
+        {
+            return (await necesidadRepositorio.Select()).ToDictionary(n => n.Id);
+        }
+
+        /// <summary>
+        /// Ventas y SuperAdmin ven las notas de su empresa. El encargado ve las notas cuya necesidad
+        /// de origen tiene como solicitante o destino un depósito que puede ver; sin necesidad, no.
+        /// </summary>
+        private bool PuedeVer(NotaPedido nota, Dictionary<int, Necesidad> necesidades)
+        {
+            if (permisos.PuedeGestionar)
+            {
+                return permisos.PuedeVerEmpresa(nota.EmpresaId);
+            }
+
+            return nota.NecesidadId.HasValue
+                && necesidades.TryGetValue(nota.NecesidadId.Value, out var necesidad)
+                && (permisos.PuedeVerDeposito(necesidad.DepositoSolicitanteId) || permisos.PuedeVerDeposito(necesidad.DepositoDestinoId));
         }
 
         /// <summary>

@@ -57,7 +57,7 @@ namespace IBUY.Server.Controllers
         }
 
         /// <summary>
-        /// Registro público: crea la empresa y su primer usuario (rol Administrador) en una sola
+        /// Registro público: crea la empresa y su primer usuario (rol Ventas) en una sola
         /// transacción, sin exigir depósitos, y devuelve la sesión iniciada.
         /// </summary>
         [HttpPost("registro")]
@@ -79,7 +79,7 @@ namespace IBUY.Server.Controllers
             usuario.Nombre = registroDTO.Nombre;
             usuario.Email = registroDTO.Email;
             usuario.Contrasena = HashContrasenas.Hashear(registroDTO.Contrasena);
-            usuario.Rol = Roles.Administrador;
+            usuario.Rol = Roles.Ventas;
             usuario.Estado = true;
 
             await usuarioRepositorio.RegistrarConEmpresa(empresa, usuario);

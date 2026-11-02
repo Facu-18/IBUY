@@ -1,5 +1,6 @@
 using IBUY.BD.Datos.Entity;
 using IBUY.Repository.Repositorios;
+using IBUY.Server.Seguridad;
 using IBUY.Shared.DTO;
 using Microsoft.AspNetCore.Mvc;
 
@@ -17,14 +18,17 @@ namespace IBUY.Server.Controllers
         private readonly IRepositorio<Producto> productoRepositorio;
         private readonly IRepositorio<Empresa> empresaRepositorio;
         private readonly IRepositorio<Usuario> usuarioRepositorio;
+        private readonly IPermisosUsuario permisos;
 
         public NecesidadController(
             INecesidadRepositorio repositorio,
             IRepositorio<Deposito> depositoRepositorio,
             IRepositorio<Producto> productoRepositorio,
             IRepositorio<Empresa> empresaRepositorio,
-            IRepositorio<Usuario> usuarioRepositorio)
+            IRepositorio<Usuario> usuarioRepositorio,
+            IPermisosUsuario permisos)
         {
+            this.permisos = permisos;
             this.repositorio = repositorio;
             this.depositoRepositorio = depositoRepositorio;
             this.productoRepositorio = productoRepositorio;
@@ -40,8 +44,25 @@ namespace IBUY.Server.Controllers
         public async Task<ActionResult<List<NecesidadDTO>>> Get(
             [FromQuery] int? empresaId,
             [FromQuery] string? estado,
-            [FromQuery] int? depositoId)
+            [FromQuery] int? depositoId,
+            [FromHeader(Name = IPermisosUsuario.Encabezado)] string? usuarioId)
         {
+            var acceso = await permisos.Autenticar(usuarioId);
+            if (acceso is null && empresaId.HasValue)
+            {
+                acceso = permisos.ExigirEmpresa(empresaId.Value);
+            }
+
+            if (acceso is null && depositoId.HasValue)
+            {
+                acceso = permisos.ExigirDeposito(depositoId.Value);
+            }
+
+            if (acceso is not null)
+            {
+                return acceso;
+            }
+
             var necesidades = empresaId.HasValue
                 ? await repositorio.ObtenerDeEmpresa(empresaId.Value, estado, depositoId)
                 : await repositorio.Select();
@@ -61,16 +82,30 @@ namespace IBUY.Server.Controllers
                 }
             }
 
+            // Solo las necesidades donde el usuario ve el depósito solicitante o el destino.
+            necesidades = necesidades.Where(PuedeVer).ToList();
+
             return Ok(await CompletarNecesidades(necesidades));
         }
 
         [HttpGet("{id:int}")]
-        public async Task<ActionResult<NecesidadDTO>> GetById(int id)
+        public async Task<ActionResult<NecesidadDTO>> GetById(int id, [FromHeader(Name = IPermisosUsuario.Encabezado)] string? usuarioId)
         {
+            var acceso = await permisos.Autenticar(usuarioId);
+            if (acceso is not null)
+            {
+                return acceso;
+            }
+
             var necesidad = await repositorio.SelectById(id);
             if (necesidad is null)
             {
                 return NotFound($"No se encontró la necesidad de id: {id}");
+            }
+
+            if (!PuedeVer(necesidad))
+            {
+                return Prohibido();
             }
 
             var dtos = await CompletarNecesidades([necesidad]);
@@ -81,12 +116,23 @@ namespace IBUY.Server.Controllers
         /// Solo informa el stock disponible en el depósito destino: no crea ni modifica nada.
         /// </summary>
         [HttpGet("{id:int}/revision")]
-        public async Task<ActionResult<RevisionNecesidadDTO>> GetRevision(int id)
+        public async Task<ActionResult<RevisionNecesidadDTO>> GetRevision(int id, [FromHeader(Name = IPermisosUsuario.Encabezado)] string? usuarioId)
         {
+            var acceso = await permisos.Autenticar(usuarioId);
+            if (acceso is not null)
+            {
+                return acceso;
+            }
+
             var necesidad = await repositorio.SelectById(id);
             if (necesidad is null)
             {
                 return NotFound($"No se encontró la necesidad de id: {id}");
+            }
+
+            if (!PuedeVer(necesidad))
+            {
+                return Prohibido();
             }
 
             decimal stockDisponible = await repositorio.ObtenerStockDisponible(necesidad.DepositoDestinoId, necesidad.ProductoId);
@@ -111,12 +157,26 @@ namespace IBUY.Server.Controllers
         /// desde el que conviene pedirlos. Es solo una propuesta: no crea necesidades.
         /// </summary>
         [HttpGet("sugerencias")]
-        public async Task<ActionResult<List<SugerenciaNecesidadDTO>>> GetSugerencias([FromQuery] int depositoId)
+        public async Task<ActionResult<List<SugerenciaNecesidadDTO>>> GetSugerencias(
+            [FromQuery] int depositoId,
+            [FromHeader(Name = IPermisosUsuario.Encabezado)] string? usuarioId)
         {
+            var acceso = await permisos.Autenticar(usuarioId);
+            if (acceso is not null)
+            {
+                return acceso;
+            }
+
             var deposito = await depositoRepositorio.SelectById(depositoId);
             if (deposito is null)
             {
                 return NotFound($"No existe el depósito de id: {depositoId}");
+            }
+
+            acceso = permisos.ExigirDeposito(depositoId);
+            if (acceso is not null)
+            {
+                return acceso;
             }
 
             var depositosDeEmpresa = await repositorio.ObtenerDepositosDeEmpresa(deposito.EmpresaId);
@@ -280,6 +340,18 @@ namespace IBUY.Server.Controllers
             await repositorio.Delete(id);
 
             return Ok(true);
+        }
+
+        /// <summary>Se ve la necesidad si el usuario ve el depósito solicitante o el destino.</summary>
+        private bool PuedeVer(Necesidad necesidad)
+        {
+            return permisos.PuedeVerDeposito(necesidad.DepositoSolicitanteId)
+                || permisos.PuedeVerDeposito(necesidad.DepositoDestinoId);
+        }
+
+        private ObjectResult Prohibido()
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, "No tenés acceso a esa necesidad.");
         }
 
         /// <summary>
