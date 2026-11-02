@@ -21,7 +21,7 @@ else
     <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-4">
         <div>
             <h1 class="h3 mb-1">@empresa.RazonSocial</h1>
-            <p class="text-body-secondary mb-0">@empresa.Tipo</p>
+            <p class="text-body-secondary mb-0">@empresa.Rubro</p>
         </div>
         <div class="d-flex flex-wrap gap-2">
             <a class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" href="empresas">
@@ -64,10 +64,6 @@ else
                 <div class="col">
                     <dt class="small text-uppercase text-body-secondary">Rubro</dt>
                     <dd class="mb-0">@empresa.Rubro</dd>
-                </div>
-                <div class="col">
-                    <dt class="small text-uppercase text-body-secondary">Tipo</dt>
-                    <dd class="mb-0">@empresa.Tipo</dd>
                 </div>
                 <div class="col">
                     <dt class="small text-uppercase text-body-secondary">Email</dt>
@@ -148,7 +144,6 @@ else
             Rubro = empresa.Rubro,
             Cuit = empresa.Cuit,
             Email = empresa.Email,
-            Tipo = empresa.Tipo,
             Activo = !empresa.Activo
         };
 

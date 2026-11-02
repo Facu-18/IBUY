@@ -43,7 +43,6 @@ namespace IBUY.Server.Seguridad
                 empresa.Rubro = "Plataforma";
                 empresa.Cuit = "00-00000000-0";
                 empresa.Email = email;
-                empresa.Tipo = "Plataforma";
                 empresa.Activo = true;
 
                 Usuario usuario = new Usuario();

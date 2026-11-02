@@ -38,7 +38,6 @@ namespace IBUY.Server.Controllers
             dto.Rubro = empresa.Rubro;
             dto.Cuit = empresa.Cuit;
             dto.Email = empresa.Email;
-            dto.Tipo = empresa.Tipo;
             dto.Activo = empresa.Activo;
 
             return Ok(dto);
@@ -52,7 +51,6 @@ namespace IBUY.Server.Controllers
             empresa.Rubro = empresaDTO.Rubro;
             empresa.Cuit = empresaDTO.Cuit;
             empresa.Email = empresaDTO.Email;
-            empresa.Tipo = empresaDTO.Tipo;
             empresa.Activo = empresaDTO.Activo;
 
             await repositorio.Insert(empresa);
@@ -74,7 +72,6 @@ namespace IBUY.Server.Controllers
             empresa.Rubro = empresaDTO.Rubro;
             empresa.Cuit = empresaDTO.Cuit;
             empresa.Email = empresaDTO.Email;
-            empresa.Tipo = empresaDTO.Tipo;
             empresa.Activo = empresaDTO.Activo;
 
             var resultado = await repositorio.Update(empresa);

@@ -73,7 +73,6 @@ namespace IBUY.Server.Controllers
             empresa.Rubro = registroDTO.Rubro;
             empresa.Cuit = registroDTO.Cuit;
             empresa.Email = registroDTO.EmailEmpresa;
-            empresa.Tipo = registroDTO.Tipo;
             empresa.Activo = true;
 
             Usuario usuario = new Usuario();
