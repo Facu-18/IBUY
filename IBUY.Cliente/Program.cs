@@ -9,10 +9,15 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
-builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
-
 // Estado de sesion: usuario logueado, persistido en localStorage.
 builder.Services.AddSingleton<EstadoSesion>();
+
+// El HttpClient agrega X-Usuario-Id en cada request para que la API aplique permisos.
+builder.Services.AddScoped<UsuarioHeaderHandler>();
+builder.Services.AddScoped(sp => new HttpClient(sp.GetRequiredService<UsuarioHeaderHandler>())
+{
+    BaseAddress = new Uri(builder.HostEnvironment.BaseAddress)
+});
 
 builder.Services.AddScoped<IHttpService, HttpService>();
 

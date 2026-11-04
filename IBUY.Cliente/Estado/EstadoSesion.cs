@@ -27,6 +27,9 @@ namespace IBUY.Cliente.Estado
         /// <summary>Solo el SuperAdmin ve y gestiona las empresas de la plataforma.</summary>
         public bool EsSuperAdmin => Roles.EsSuperAdmin(Usuario?.Rol);
 
+        /// <summary>Solo Ventas y SuperAdmin ven y gestionan usuarios.</summary>
+        public bool PuedeGestionarUsuarios => EsSuperAdmin || Roles.EsVentas(Usuario?.Rol);
+
         /// <summary>Razon social de la empresa del usuario; vacia sin sesion.</summary>
         public string Empresa => Usuario?.EmpresaRazonSocial ?? string.Empty;
 

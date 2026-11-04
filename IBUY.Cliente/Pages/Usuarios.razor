@@ -1,5 +1,6 @@
 @page "/usuarios"
 @page "/empresas/{EmpresaId:int}/usuarios"
+@layout UsuariosLayout
 @inject IUsuarioServicio UsuarioServicio
 @inject IEmpresaServicio EmpresaServicio
 @inject IDepositoServicio DepositoServicio
@@ -48,7 +49,7 @@ else
                 <option value="">Todos</option>
                 @foreach (var rol in roles)
                 {
-                    <option value="@rol">@rol</option>
+                    <option value="@rol">@NombreRol(rol)</option>
                 }
             </select>
         </div>
@@ -98,7 +99,7 @@ else
                             <tr @key="usuario.Id">
                                 <td class="fw-semibold">@usuario.Nombre</td>
                                 <td>@usuario.Email</td>
-                                <td><span class="badge rounded-pill bg-primary-subtle text-primary-emphasis">@usuario.Rol</span></td>
+                                <td><span class="badge rounded-pill bg-primary-subtle text-primary-emphasis">@NombreRol(usuario.Rol)</span></td>
                                 @if (!enEmpresa)
                                 {
                                     <td>@NombreDeEmpresa(usuario.EmpresaId)</td>
@@ -241,6 +242,14 @@ else
     {
         return empresas.FirstOrDefault(e => e.Id == empresaId)?.RazonSocial ?? string.Empty;
     }
+
+    private static string NombreRol(string rol) => rol switch
+    {
+        Roles.EncargadoDeposito => "Encargado de depósito",
+        Roles.Ventas => "Ventas",
+        Roles.SuperAdmin => "SuperAdmin",
+        _ => rol
+    };
 
     private string NombreDeDepositos(int usuarioId)
     {
