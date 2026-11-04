@@ -23,5 +23,7 @@ builder.Services.AddScoped<INecesidadServicio, NecesidadServicioHttp>();
 builder.Services.AddScoped<ICatalogoServicio, CatalogoServicioHttp>();
 builder.Services.AddScoped<IEmpresaServicio, EmpresaServicioHttp>();
 builder.Services.AddScoped<IUsuarioServicio, UsuarioServicioHttp>();
+builder.Services.AddScoped<INotaPedidoServicio, NotaPedidoServicioHttp>();
+builder.Services.AddScoped<ICotizacionServicio, CotizacionServicioHttp>();
 
 await builder.Build().RunAsync();

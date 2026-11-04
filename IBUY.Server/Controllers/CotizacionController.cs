@@ -85,7 +85,10 @@ namespace IBUY.Server.Controllers
                 ItemNotaId = i.ItemNotaId,
                 CantidadOfertada = i.CantidadOfertada,
                 PrecioUnitario = i.PrecioUnitario,
-                PrecioTotal = i.PrecioTotal
+                PrecioTotal = Math.Round(
+                    i.CantidadOfertada * i.PrecioUnitario,
+                    2,
+                    MidpointRounding.AwayFromZero)
             }).ToList();
 
             await repositorio.InsertarConItems(cotizacion, items);
@@ -156,14 +159,31 @@ namespace IBUY.Server.Controllers
         }
 
         /// <summary>
-        /// Las FK exigen que la nota de pedido, la empresa proveedora y los items de
-        /// nota referenciados existan. Devuelve null cuando esta todo bien.
+        /// La nota debe existir, estar publicada, no estar vencida y pertenecer a otra
+        /// empresa. Además las FK exigen que la empresa proveedora y los items de nota
+        /// referenciados existan. Devuelve null cuando esta todo bien.
         /// </summary>
         private async Task<string?> ValidarRelaciones(CotizacionDTO dto)
         {
-            if (!await notaPedidoRepositorio.Existe(dto.NotaPedidoId))
+            var notaPedido = await notaPedidoRepositorio.SelectById(dto.NotaPedidoId);
+            if (notaPedido is null)
             {
                 return $"No existe la nota de pedido de id: {dto.NotaPedidoId}";
+            }
+
+            if (notaPedido.Estado != EstadosNotaPedido.Publicada)
+            {
+                return "La nota de pedido no está publicada y no admite cotizaciones.";
+            }
+
+            if (notaPedido.FechaVencimiento.Date < DateTime.Today)
+            {
+                return "La nota de pedido está vencida y no admite cotizaciones.";
+            }
+
+            if (notaPedido.EmpresaId == dto.EmpresaProveedoraId)
+            {
+                return "La empresa proveedora no puede cotizar su propia nota de pedido.";
             }
 
             if (!await empresaRepositorio.Existe(dto.EmpresaProveedoraId))

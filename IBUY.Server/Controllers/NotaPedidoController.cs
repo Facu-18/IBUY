@@ -45,6 +45,11 @@ namespace IBUY.Server.Controllers
                 return NotFound($"No se encontró la nota de pedido de id: {id}");
             }
 
+            // Los nombres de producto se resuelven en una sola consulta para no
+            // depender de navegaciones que el repositorio no carga.
+            var nombresProductos = (await productoRepositorio.Select())
+                .ToDictionary(p => p.Id, p => p.Nombre);
+
             NotaPedidoDTO dto = new NotaPedidoDTO
             {
                 Estado = notaPedido.Estado,
@@ -57,7 +62,9 @@ namespace IBUY.Server.Controllers
                 NecesidadId = notaPedido.NecesidadId ?? 0,
                 Items = items.Select(i => new ItemNotaDTO
                 {
+                    Id = i.Id,
                     ProductoId = i.ProductoId,
+                    ProductoNombre = nombresProductos.GetValueOrDefault(i.ProductoId, string.Empty),
                     CantidadSolicitada = i.CantidadSolicitada
                 }).ToList()
             };
