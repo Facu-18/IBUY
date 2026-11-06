@@ -12,9 +12,9 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 // Estado de sesion: usuario logueado, persistido en localStorage.
 builder.Services.AddSingleton<EstadoSesion>();
 
-// Cada pedido lleva X-Usuario-Id del usuario logueado (la API aplica los permisos con el).
-builder.Services.AddScoped(sp => new HttpClient(
-    new EncabezadoUsuarioHandler(sp.GetRequiredService<EstadoSesion>()) { InnerHandler = new HttpClientHandler() })
+// El HttpClient agrega X-Usuario-Id en cada request para que la API aplique permisos.
+builder.Services.AddScoped<UsuarioHeaderHandler>();
+builder.Services.AddScoped(sp => new HttpClient(sp.GetRequiredService<UsuarioHeaderHandler>())
 {
     BaseAddress = new Uri(builder.HostEnvironment.BaseAddress)
 });

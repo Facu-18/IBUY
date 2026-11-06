@@ -8,16 +8,19 @@
             <button type="button" class="btn-close btn-close-white" aria-label="Cerrar menu" @onclick="AlCerrar"></button>
         </div>
         <div class="offcanvas-body d-flex flex-column p-3">
-            @foreach (var grupo in grupos)
+            @foreach (var grupo in SeccionesNavegacion.Grupos)
             {
-                <p class="ibuy-grupo text-uppercase px-3 mt-2 mb-2">@grupo.Titulo</p>
+                if (!string.IsNullOrEmpty(grupo.Titulo))
+                {
+                    <p class="ibuy-grupo text-uppercase px-3 mt-2 mb-2">@grupo.Titulo</p>
+                }
                 <ul class="nav nav-pills flex-column gap-1">
-                    @foreach (var opcion in grupo.Opciones.Where(o => !o.SoloSuperAdmin || Sesion.EsSuperAdmin))
+                    @foreach (var seccion in grupo.Secciones.Where(s => SeccionesNavegacion.EsVisible(s, Sesion)))
                     {
                         <li class="nav-item">
-                            <NavLink class="nav-link d-flex align-items-center gap-2" href="@opcion.Ruta" Match="@opcion.Coincidencia">
-                                <Icono Nombre="@opcion.Icono" />
-                                <span>@opcion.Etiqueta</span>
+                            <NavLink class="nav-link d-flex align-items-center gap-2" href="@seccion.Ruta" Match="@seccion.Coincidencia">
+                                <Icono Nombre="@seccion.Icono" />
+                                <span>@seccion.Titulo</span>
                             </NavLink>
                         </li>
                     }
@@ -40,24 +43,4 @@
 
     [Parameter]
     public EventCallback AlCerrar { get; set; }
-
-    // SoloSuperAdmin: la opcion se oculta a los demas roles (Empresas es de la plataforma, no de cada empresa).
-    private record Opcion(string Etiqueta, string Ruta, string Icono, NavLinkMatch Coincidencia = NavLinkMatch.Prefix, bool SoloSuperAdmin = false);
-
-    private record Grupo(string Titulo, Opcion[] Opciones);
-
-    private static readonly Grupo[] grupos =
-    [
-        new Grupo("Administracion",
-        [
-            new Opcion("Empresas", "empresas", "empresas", SoloSuperAdmin: true),
-            new Opcion("Usuarios", "usuarios", "usuarios"),
-            new Opcion("Depositos", "depositos", "depositos"),
-            new Opcion("Productos", "productos", "productos")
-        ]),
-        new Grupo("Inventario",
-        [
-            new Opcion("Necesidades", "necesidades", "necesidades")
-        ])
-    ];
 }
