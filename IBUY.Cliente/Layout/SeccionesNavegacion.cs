@@ -23,6 +23,12 @@ namespace IBUY.Cliente.Layout
 
         public static readonly Grupo[] Grupos =
         [
+            new Grupo("",
+            [
+                new Seccion("Dashboard", "", "dashboard",
+                    "Resumen de la operacion de la empresa.",
+                    Coincidencia: NavLinkMatch.All, EnInicio: false)
+            ]),
             new Grupo("Administracion",
             [
                 new Seccion("Empresas", "empresas", "empresas",

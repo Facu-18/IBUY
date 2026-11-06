@@ -10,7 +10,10 @@
         <div class="offcanvas-body d-flex flex-column p-3">
             @foreach (var grupo in SeccionesNavegacion.Grupos)
             {
-                <p class="ibuy-grupo text-uppercase px-3 mt-2 mb-2">@grupo.Titulo</p>
+                if (!string.IsNullOrEmpty(grupo.Titulo))
+                {
+                    <p class="ibuy-grupo text-uppercase px-3 mt-2 mb-2">@grupo.Titulo</p>
+                }
                 <ul class="nav nav-pills flex-column gap-1">
                     @foreach (var seccion in grupo.Secciones.Where(s => SeccionesNavegacion.EsVisible(s, Sesion)))
                     {
