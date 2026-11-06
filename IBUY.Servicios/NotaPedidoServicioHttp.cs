@@ -23,5 +23,10 @@ namespace IBUY.Servicios
         {
             return http.GetAsync<NotaPedidoDTO>($"{Base}/{id}");
         }
+
+        public Task<HttpResp<List<OportunidadMarketplaceDTO>?>> ObtenerMarketplaceAsync()
+        {
+            return http.GetAsync<List<OportunidadMarketplaceDTO>>($"{Base}/marketplace");
+        }
     }
 }

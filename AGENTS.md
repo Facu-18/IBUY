@@ -28,8 +28,8 @@
 
 - Protected endpoints read the `X-Usuario-Id` header (`[FromHeader]`) and use `IBUY.Server/Seguridad/PermisosUsuario` (`IPermisosUsuario`, scoped) to load the user, role and deposits in charge: no/invalid header, unknown or inactive user is 401; no permission is 403; unknown id stays 404.
 - `SuperAdmin` sees everything; `Ventas` sees its whole empresa (foreign `empresaId`: 403); `EncargadoDeposito` only the deposits it has in charge. Listings of deposito, stock, necesidad, remito and nota-pedido are filtered this way and accept an optional `depositoId` (not allowed: 403). `GET api/deposito/opciones` returns only `Id`/`Nombre`.
-- Only `Ventas`/`SuperAdmin` write usuarios, depósitos and productos and call `POST api/nota-pedido/{id}/publicar`. Usuario POST/PUT rules: `EncargadoDeposito` needs at least one deposit, `Ventas` none, any other role is 400.
-- The header is sent by the client and can be spoofed: this is not real security (JWT/cookies are out of scope). Endpoints not listed above (GET productos/empresas/usuarios, writes on stock, necesidad, remito, cotización, empresa) are still unguarded. Details in `CLAUDE.md`.
+- Only `Ventas`/`SuperAdmin` write usuarios, depósitos and productos and call `POST api/nota-pedido/{id}/publicar`. `GET api/nota-pedido/marketplace` (Ventas/SuperAdmin) lists other empresas' Publicada, non-expired notas; `POST api/cotizacion` requires Ventas/SuperAdmin and, except SuperAdmin, the user's own empresa as proveedora (403). Usuario POST/PUT rules: `EncargadoDeposito` needs at least one deposit, `Ventas` none, any other role is 400.
+- The header is sent by the client and can be spoofed: this is not real security (JWT/cookies are out of scope). Endpoints not listed above (GET productos/empresas/usuarios, writes on stock, necesidad, remito, empresa, and cotización reads/PUT/DELETE) are still unguarded. Details in `CLAUDE.md`.
 
 ## Remitos
 
@@ -37,7 +37,7 @@
 
 ## Client UI
 
-- The client only contains features backed by the real API (Depósitos, Productos, Necesidades, Empresas, Usuarios, and login). No mock services or fake data: new pages depend on service interfaces, with `*ServicioHttp` implementations registered in `IBUY.Cliente/Program.cs`.
+- The client only contains features backed by the real API (Depósitos, Productos, Necesidades, Empresas, Usuarios, Marketplace, and login). No mock services or fake data: new pages depend on service interfaces, with `*ServicioHttp` implementations registered in `IBUY.Cliente/Program.cs`.
 - Use Bootstrap 5 classes (`wwwroot/lib/bootstrap`) for layout and components. The visual identity (palette, typography, sidebar/header look) follows the prototype `docs/IBUY Prototipo.html` (open it in a browser; it is a self-contained bundle, the markup lives inside its `__bundler` script blocks) and lives in a single theme file, `wwwroot/css/tema.css`, loaded after Bootstrap.
 - `tema.css` overrides Bootstrap CSS variables (`--bs-*`, including component-level ones like `--bs-btn-bg`) rather than redefining Bootstrap rules. Add a rule there only when no Bootstrap class or variable covers the need.
 - No other custom CSS: no extra `.css` files, `<style>` blocks, `.razor.css` scoped styles, or `style=""` attributes. Preserve `style="display:none"` on `#blazor-error-ui` in `index.html`: Blazor toggles it inline; Bootstrap's `d-none` would prevent it from appearing.

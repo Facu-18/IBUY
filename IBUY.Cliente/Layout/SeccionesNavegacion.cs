@@ -17,6 +17,7 @@ namespace IBUY.Cliente.Layout
             NavLinkMatch Coincidencia = NavLinkMatch.Prefix,
             bool SoloSuperAdmin = false,
             bool SoloGestionUsuarios = false,
+            bool SoloVentas = false,
             bool EnInicio = true);
 
         public record Grupo(string Titulo, Seccion[] Secciones);
@@ -56,7 +57,8 @@ namespace IBUY.Cliente.Layout
                 new Seccion("Notas de pedido", "notas-pedido", "notas",
                     "Notas generadas a partir de una necesidad."),
                 new Seccion("Marketplace", "marketplace", "marketplace",
-                    "Notas de pedido publicadas por otras empresas, listas para cotizar."),
+                    "Notas de pedido publicadas por otras empresas, listas para cotizar.",
+                    SoloVentas: true),
                 new Seccion("Cotizaciones", "cotizaciones", "cotizaciones",
                     "Cotizaciones recibidas de proveedores sobre tus notas de pedido.")
             ])
@@ -66,7 +68,9 @@ namespace IBUY.Cliente.Layout
         public static bool EsVisible(Seccion seccion, EstadoSesion sesion)
         {
             return (!seccion.SoloSuperAdmin || sesion.EsSuperAdmin)
-                && (!seccion.SoloGestionUsuarios || sesion.PuedeGestionarUsuarios);
+                && (!seccion.SoloGestionUsuarios || sesion.PuedeGestionarUsuarios)
+                // Cotizar es de Ventas o SuperAdmin, los mismos roles que gestionan usuarios.
+                && (!seccion.SoloVentas || sesion.PuedeGestionarUsuarios);
         }
 
         /// <summary>Secciones que se muestran como tarjetas en el inicio.</summary>

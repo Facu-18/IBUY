@@ -2,7 +2,6 @@
 @implements IDisposable
 @inject INotaPedidoServicio NotaPedidoServicio
 @inject ICotizacionServicio CotizacionServicio
-@inject ICatalogoServicio Catalogo
 @inject EstadoSesion Sesion
 
 <PageTitle>Marketplace · IBUY</PageTitle>
@@ -45,9 +44,7 @@ else
     {
         <div class="card shadow-sm">
             <p class="text-center text-body-secondary py-5 px-3 mb-0">
-                @(Sesion.EmpresaId == 0
-                    ? "Seleccione una empresa en el encabezado para ver las oportunidades."
-                    : "No hay notas de pedido publicadas y vigentes de otras empresas para cotizar.")
+                No hay notas de pedido publicadas y vigentes de otras empresas para cotizar.
             </p>
         </div>
     }
@@ -272,85 +269,33 @@ else
             return;
         }
 
-        var empresasResp = await Catalogo.ObtenerEmpresasAsync();
-        var notasResp = await NotaPedidoServicio.ObtenerTodasAsync();
+        // El servidor ya filtra: Publicadas, no vencidas, de otras empresas y si ya se cotizaron.
+        var respuesta = await NotaPedidoServicio.ObtenerMarketplaceAsync();
 
-        // Una respuesta anterior no debe sobrescribir la empresa seleccionada ahora.
+        // Una respuesta anterior no debe sobrescribir la sesion actual.
         if (version != versionCarga || empresaId != Sesion.EmpresaId)
         {
             return;
         }
 
-        if (notasResp.Error)
+        if (respuesta.Error)
         {
-            errorCarga = $"No se pudieron cargar las oportunidades. {notasResp.Mensaje}".Trim();
+            errorCarga = $"No se pudieron cargar las oportunidades. {respuesta.Mensaje}".Trim();
             cargando = false;
             StateHasChanged();
             return;
         }
 
-        List<EmpresaDTO> empresas = empresasResp.Error ? [] : empresasResp.Respuesta ?? [];
-        var candidatas = (notasResp.Respuesta ?? [])
-            .Where(n => n.Estado == EstadosNotaPedido.Publicada
-                && n.EmpresaId != empresaId
-                && n.FechaVencimiento.Date >= DateTime.Today)
-            .OrderBy(n => n.FechaVencimiento)
-            .ThenBy(n => n.Id)
-            .ToList();
-
-        if (candidatas.Count == 0)
+        oportunidades = (respuesta.Respuesta ?? []).Select(nota => new Oportunidad
         {
-            cargando = false;
-            StateHasChanged();
-            return;
-        }
-
-        var detalles = await Task.WhenAll(candidatas.Select(n => NotaPedidoServicio.ObtenerPorIdAsync(n.Id)));
-
-        if (version != versionCarga || empresaId != Sesion.EmpresaId)
-        {
-            return;
-        }
-
-        var detalleFallido = detalles.FirstOrDefault(d => d.Error || d.Respuesta is null);
-        if (detalleFallido is not null)
-        {
-            errorCarga = $"No se pudieron cargar las oportunidades. {detalleFallido.Mensaje}".Trim();
-            cargando = false;
-            StateHasChanged();
-            return;
-        }
-
-        var cotizacionesResp = await CotizacionServicio.ObtenerTodasAsync();
-
-        if (version != versionCarga || empresaId != Sesion.EmpresaId)
-        {
-            return;
-        }
-
-        HashSet<int> cotizadas = [];
-        if (!cotizacionesResp.Error)
-        {
-            cotizadas = [.. (cotizacionesResp.Respuesta ?? [])
-                .Where(c => c.EmpresaProveedoraId == empresaId)
-                .Select(c => c.NotaPedidoId)];
-        }
-
-        var empresaPorId = empresas.ToDictionary(e => e.Id, e => e.RazonSocial);
-
-        oportunidades = candidatas.Select((nota, indice) =>
-        {
-            var detalle = detalles[indice].Respuesta!;
-
-            return new Oportunidad
-            {
-                Id = nota.Id,
-                EmpresaNombre = empresaPorId.GetValueOrDefault(nota.EmpresaId, $"Empresa N.º {nota.EmpresaId}"),
-                Observaciones = detalle.Observaciones,
-                FechaVencimiento = nota.FechaVencimiento,
-                Items = detalle.Items ?? [],
-                Cotizada = cotizadas.Contains(nota.Id)
-            };
+            Id = nota.Id,
+            EmpresaNombre = string.IsNullOrWhiteSpace(nota.EmpresaRazonSocial)
+                ? $"Empresa N.º {nota.EmpresaId}"
+                : nota.EmpresaRazonSocial,
+            Observaciones = nota.Observaciones,
+            FechaVencimiento = nota.FechaVencimiento,
+            Items = nota.Items ?? [],
+            Cotizada = nota.Cotizada
         }).ToList();
 
         cargando = false;

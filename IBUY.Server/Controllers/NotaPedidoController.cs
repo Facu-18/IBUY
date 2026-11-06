@@ -15,6 +15,8 @@ namespace IBUY.Server.Controllers
         private readonly IRepositorio<Usuario> usuarioRepositorio;
         private readonly IRepositorio<Producto> productoRepositorio;
         private readonly INecesidadRepositorio necesidadRepositorio;
+        private readonly IRepositorio<ItemNota> itemNotaRepositorio;
+        private readonly IRepositorio<Cotizacion> cotizacionRepositorio;
         private readonly IPermisosUsuario permisos;
 
         public NotaPedidoController(
@@ -23,6 +25,8 @@ namespace IBUY.Server.Controllers
             IRepositorio<Usuario> usuarioRepositorio,
             IRepositorio<Producto> productoRepositorio,
             INecesidadRepositorio necesidadRepositorio,
+            IRepositorio<ItemNota> itemNotaRepositorio,
+            IRepositorio<Cotizacion> cotizacionRepositorio,
             IPermisosUsuario permisos)
         {
             this.permisos = permisos;
@@ -31,6 +35,71 @@ namespace IBUY.Server.Controllers
             this.usuarioRepositorio = usuarioRepositorio;
             this.productoRepositorio = productoRepositorio;
             this.necesidadRepositorio = necesidadRepositorio;
+            this.itemNotaRepositorio = itemNotaRepositorio;
+            this.cotizacionRepositorio = cotizacionRepositorio;
+        }
+
+        /// <summary>
+        /// Marketplace: notas Publicadas, no vencidas y de otras empresas, con sus ítems,
+        /// la empresa compradora y si la empresa del usuario ya las cotizó. Solo Ventas o
+        /// SuperAdmin; es la única vista de notas ajenas y no cambia los demás permisos.
+        /// </summary>
+        [HttpGet("marketplace")]
+        public async Task<ActionResult<List<OportunidadMarketplaceDTO>>> GetMarketplace(
+            [FromHeader(Name = IPermisosUsuario.Encabezado)] string? usuarioId)
+        {
+            var acceso = await permisos.Autenticar(usuarioId) ?? permisos.ExigirGestion();
+            if (acceso is not null)
+            {
+                return acceso;
+            }
+
+            var hoy = DateTime.Today;
+            var notas = (await repositorio.Select())
+                .Where(n => EsPublicada(n.Estado)
+                    && n.FechaVencimiento.Date >= hoy
+                    && n.EmpresaId != permisos.EmpresaId)
+                .OrderBy(n => n.FechaVencimiento)
+                .ThenBy(n => n.Id)
+                .ToList();
+
+            if (notas.Count == 0)
+            {
+                return Ok(new List<OportunidadMarketplaceDTO>());
+            }
+
+            var idsNotas = notas.Select(n => n.Id).ToHashSet();
+            var itemsPorNota = (await itemNotaRepositorio.Select())
+                .Where(i => idsNotas.Contains(i.NotaPedidoId))
+                .GroupBy(i => i.NotaPedidoId)
+                .ToDictionary(g => g.Key, g => g.OrderBy(i => i.Id).ToList());
+            var nombresProductos = (await productoRepositorio.Select())
+                .ToDictionary(p => p.Id, p => p.Nombre);
+            var empresas = (await empresaRepositorio.Select())
+                .ToDictionary(e => e.Id, e => e.RazonSocial);
+            var cotizadas = (await cotizacionRepositorio.Select())
+                .Where(c => c.EmpresaProveedoraId == permisos.EmpresaId)
+                .Select(c => c.NotaPedidoId)
+                .ToHashSet();
+
+            var oportunidades = notas.Select(n => new OportunidadMarketplaceDTO
+            {
+                Id = n.Id,
+                EmpresaId = n.EmpresaId,
+                EmpresaRazonSocial = empresas.GetValueOrDefault(n.EmpresaId, string.Empty),
+                Observaciones = n.Observaciones,
+                FechaVencimiento = n.FechaVencimiento,
+                Items = itemsPorNota.GetValueOrDefault(n.Id, []).Select(i => new ItemNotaDTO
+                {
+                    Id = i.Id,
+                    ProductoId = i.ProductoId,
+                    ProductoNombre = nombresProductos.GetValueOrDefault(i.ProductoId, string.Empty),
+                    CantidadSolicitada = i.CantidadSolicitada
+                }).ToList(),
+                Cotizada = cotizadas.Contains(n.Id)
+            }).ToList();
+
+            return Ok(oportunidades);
         }
 
         [HttpGet]

@@ -1,5 +1,6 @@
 using IBUY.BD.Datos.Entity;
 using IBUY.Repository.Repositorios;
+using IBUY.Server.Seguridad;
 using IBUY.Shared.DTO;
 using Microsoft.AspNetCore.Mvc;
 
@@ -13,13 +14,16 @@ namespace IBUY.Server.Controllers
         private readonly IRepositorio<NotaPedido> notaPedidoRepositorio;
         private readonly IRepositorio<Empresa> empresaRepositorio;
         private readonly IRepositorio<ItemNota> itemNotaRepositorio;
+        private readonly IPermisosUsuario permisos;
 
         public CotizacionController(
             ICotizacionRepositorio repositorio,
             IRepositorio<NotaPedido> notaPedidoRepositorio,
             IRepositorio<Empresa> empresaRepositorio,
-            IRepositorio<ItemNota> itemNotaRepositorio)
+            IRepositorio<ItemNota> itemNotaRepositorio,
+            IPermisosUsuario permisos)
         {
+            this.permisos = permisos;
             this.repositorio = repositorio;
             this.notaPedidoRepositorio = notaPedidoRepositorio;
             this.empresaRepositorio = empresaRepositorio;
@@ -58,8 +62,23 @@ namespace IBUY.Server.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult<int>> Post(CotizacionDTO cotizacionDTO)
+        public async Task<ActionResult<int>> Post(
+            CotizacionDTO cotizacionDTO,
+            [FromHeader(Name = IPermisosUsuario.Encabezado)] string? usuarioId)
         {
+            // Solo Ventas o SuperAdmin cotizan, y fuera del SuperAdmin solo en nombre de su empresa:
+            // si no, la regla "no cotizar la propia nota" se esquiva mandando otra empresa proveedora.
+            var acceso = await permisos.Autenticar(usuarioId) ?? permisos.ExigirGestion();
+            if (acceso is not null)
+            {
+                return acceso;
+            }
+
+            if (!permisos.EsSuperAdmin && cotizacionDTO.EmpresaProveedoraId != permisos.EmpresaId)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, "Solo podés cotizar en nombre de tu empresa.");
+            }
+
             if (cotizacionDTO.Items is null || cotizacionDTO.Items.Count == 0)
             {
                 return BadRequest("La cotización debe tener al menos un ítem.");

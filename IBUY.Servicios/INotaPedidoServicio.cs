@@ -10,5 +10,8 @@ namespace IBUY.Servicios
 
         /// <summary>Detalle de la nota con los ítems y el nombre de cada producto.</summary>
         Task<HttpResp<NotaPedidoDTO?>> ObtenerPorIdAsync(int id);
+
+        /// <summary>Notas publicadas y vigentes de otras empresas, con sus ítems (Marketplace).</summary>
+        Task<HttpResp<List<OportunidadMarketplaceDTO>?>> ObtenerMarketplaceAsync();
     }
 }
