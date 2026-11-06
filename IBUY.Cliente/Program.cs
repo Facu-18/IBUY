@@ -28,6 +28,8 @@ builder.Services.AddScoped<INecesidadServicio, NecesidadServicioHttp>();
 builder.Services.AddScoped<ICatalogoServicio, CatalogoServicioHttp>();
 builder.Services.AddScoped<IEmpresaServicio, EmpresaServicioHttp>();
 builder.Services.AddScoped<IUsuarioServicio, UsuarioServicioHttp>();
+builder.Services.AddScoped<INotaPedidoServicio, NotaPedidoServicioHttp>();
+builder.Services.AddScoped<ICotizacionServicio, CotizacionServicioHttp>();
 builder.Services.AddScoped<IAuthServicio, AuthServicioHttp>();
 
 // La sesion se restaura antes de arrancar para que el guard no redirija a /login tras un F5.

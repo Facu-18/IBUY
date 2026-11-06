@@ -11,8 +11,8 @@ namespace IBUY.Shared.DTO
             ErrorMessage = "La cantidad ofertada debe ser mayor a cero.")]
         public decimal CantidadOfertada { get; set; }
 
-        [Range(typeof(decimal), "0", "9999999999999999.99", ParseLimitsInInvariantCulture = true,
-            ErrorMessage = "El precio unitario no puede ser negativo.")]
+        [Range(typeof(decimal), "0.01", "9999999999999999.99", ParseLimitsInInvariantCulture = true,
+            ErrorMessage = "El precio unitario debe ser mayor a cero.")]
         public decimal PrecioUnitario { get; set; }
 
         [Range(typeof(decimal), "0", "9999999999999999.99", ParseLimitsInInvariantCulture = true,

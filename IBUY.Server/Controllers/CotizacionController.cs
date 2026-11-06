@@ -1,5 +1,6 @@
 using IBUY.BD.Datos.Entity;
 using IBUY.Repository.Repositorios;
+using IBUY.Server.Seguridad;
 using IBUY.Shared.DTO;
 using Microsoft.AspNetCore.Mvc;
 
@@ -13,13 +14,16 @@ namespace IBUY.Server.Controllers
         private readonly IRepositorio<NotaPedido> notaPedidoRepositorio;
         private readonly IRepositorio<Empresa> empresaRepositorio;
         private readonly IRepositorio<ItemNota> itemNotaRepositorio;
+        private readonly IPermisosUsuario permisos;
 
         public CotizacionController(
             ICotizacionRepositorio repositorio,
             IRepositorio<NotaPedido> notaPedidoRepositorio,
             IRepositorio<Empresa> empresaRepositorio,
-            IRepositorio<ItemNota> itemNotaRepositorio)
+            IRepositorio<ItemNota> itemNotaRepositorio,
+            IPermisosUsuario permisos)
         {
+            this.permisos = permisos;
             this.repositorio = repositorio;
             this.notaPedidoRepositorio = notaPedidoRepositorio;
             this.empresaRepositorio = empresaRepositorio;
@@ -58,8 +62,23 @@ namespace IBUY.Server.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult<int>> Post(CotizacionDTO cotizacionDTO)
+        public async Task<ActionResult<int>> Post(
+            CotizacionDTO cotizacionDTO,
+            [FromHeader(Name = IPermisosUsuario.Encabezado)] string? usuarioId)
         {
+            // Solo Ventas o SuperAdmin cotizan, y fuera del SuperAdmin solo en nombre de su empresa:
+            // si no, la regla "no cotizar la propia nota" se esquiva mandando otra empresa proveedora.
+            var acceso = await permisos.Autenticar(usuarioId) ?? permisos.ExigirGestion();
+            if (acceso is not null)
+            {
+                return acceso;
+            }
+
+            if (!permisos.EsSuperAdmin && cotizacionDTO.EmpresaProveedoraId != permisos.EmpresaId)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, "Solo podés cotizar en nombre de tu empresa.");
+            }
+
             if (cotizacionDTO.Items is null || cotizacionDTO.Items.Count == 0)
             {
                 return BadRequest("La cotización debe tener al menos un ítem.");
@@ -85,7 +104,10 @@ namespace IBUY.Server.Controllers
                 ItemNotaId = i.ItemNotaId,
                 CantidadOfertada = i.CantidadOfertada,
                 PrecioUnitario = i.PrecioUnitario,
-                PrecioTotal = i.PrecioTotal
+                PrecioTotal = Math.Round(
+                    i.CantidadOfertada * i.PrecioUnitario,
+                    2,
+                    MidpointRounding.AwayFromZero)
             }).ToList();
 
             await repositorio.InsertarConItems(cotizacion, items);
@@ -156,14 +178,31 @@ namespace IBUY.Server.Controllers
         }
 
         /// <summary>
-        /// Las FK exigen que la nota de pedido, la empresa proveedora y los items de
-        /// nota referenciados existan. Devuelve null cuando esta todo bien.
+        /// La nota debe existir, estar publicada, no estar vencida y pertenecer a otra
+        /// empresa. Además las FK exigen que la empresa proveedora y los items de nota
+        /// referenciados existan. Devuelve null cuando esta todo bien.
         /// </summary>
         private async Task<string?> ValidarRelaciones(CotizacionDTO dto)
         {
-            if (!await notaPedidoRepositorio.Existe(dto.NotaPedidoId))
+            var notaPedido = await notaPedidoRepositorio.SelectById(dto.NotaPedidoId);
+            if (notaPedido is null)
             {
                 return $"No existe la nota de pedido de id: {dto.NotaPedidoId}";
+            }
+
+            if (!string.Equals(notaPedido.Estado, EstadosNotaPedido.Publicada, StringComparison.OrdinalIgnoreCase))
+            {
+                return "La nota de pedido no está publicada y no admite cotizaciones.";
+            }
+
+            if (notaPedido.FechaVencimiento.Date < DateTime.Today)
+            {
+                return "La nota de pedido está vencida y no admite cotizaciones.";
+            }
+
+            if (notaPedido.EmpresaId == dto.EmpresaProveedoraId)
+            {
+                return "La empresa proveedora no puede cotizar su propia nota de pedido.";
             }
 
             if (!await empresaRepositorio.Existe(dto.EmpresaProveedoraId))
