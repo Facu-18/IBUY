@@ -15,7 +15,9 @@ namespace IBUY.Repository.Repositorios
 
         public async Task<List<E>> Select()
         {
-            return await context.Set<E>().ToListAsync();
+            // Sin seguimiento: si no, EF completa las navegaciones con lo que el DbContext ya cargó
+            // (por ejemplo el usuario autenticado) y los listados que devuelven entidades lo exponen.
+            return await context.Set<E>().AsNoTracking().ToListAsync();
         }
 
         public async Task<E?> SelectById(int id)

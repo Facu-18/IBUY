@@ -22,11 +22,22 @@
 - `IBUY.BD`: EF entities, `AppDbContext`, and migrations. Despite the project name, `AppDbContext`, `EntityBase`, and `IEntityBase` currently use namespace `Proyecto2026.BD.Datos`.
 - `IBUY.Repository`: generic EF CRUD abstraction. `Program.cs` registers the open generic `IRepositorio<>` to `Repositorio<>` for plain CRUD; domain-specific repositories (`INecesidadRepositorio`, `IRemitoRepositorio`, etc.) derive from `Repositorio<E>` and are registered individually.
 - `IBUY.Servicios`: client-side services that call the API through `ServiciosHTTP/IHttpService` (responses wrapped in `HttpResp<T>`). It does not contain server business services.
-- `IBUY.Cliente/Estado/EstadoSesion` holds only the header's selected empresa, not an authenticated user. The client does not yet call the backend login endpoint.
+- `IBUY.Cliente/Estado/EstadoSesion` holds the logged user (`LoginRespuestaDTO` from `POST api/auth/login`, persisted in `localStorage`); `Empresa`/`EmpresaId` derive from it. `/login` plus the `MainLayout` guard are UI-only: the client guard is UI-only. Companies sign up at `/registro` (`POST api/auth/registro`: empresa + first `Ventas` user in one transaction, logs in directly). A `SuperAdmin` user is seeded at server startup from the `SuperAdmin` config section (`appsettings.Development.json`); only `SuperAdmin` sees Empresas (menu filter + `Layout/SuperAdminLayout`). Roles (`IBUY.Shared/DTO/Roles`): `SuperAdmin`, `Ventas`, `EncargadoDeposito`.
+
+## Permisos en la API
+
+- Protected endpoints read the `X-Usuario-Id` header (`[FromHeader]`) and use `IBUY.Server/Seguridad/PermisosUsuario` (`IPermisosUsuario`, scoped) to load the user, role and deposits in charge: no/invalid header, unknown or inactive user is 401; no permission is 403; unknown id stays 404.
+- `SuperAdmin` sees everything; `Ventas` sees its whole empresa (foreign `empresaId`: 403); `EncargadoDeposito` only the deposits it has in charge. Listings of deposito, stock, necesidad, remito and nota-pedido are filtered this way and accept an optional `depositoId` (not allowed: 403). `GET api/deposito/opciones` returns only `Id`/`Nombre`.
+- Only `Ventas`/`SuperAdmin` write usuarios, depósitos and productos and call `POST api/nota-pedido/{id}/publicar`. Usuario POST/PUT rules: `EncargadoDeposito` needs at least one deposit, `Ventas` none, any other role is 400.
+- The header is sent by the client and can be spoofed: this is not real security (JWT/cookies are out of scope). Endpoints not listed above (GET productos/empresas/usuarios, writes on stock, necesidad, remito, cotización, empresa) are still unguarded. Details in `CLAUDE.md`.
+
+## Remitos
+
+- `Remito.Tipo` is `Interno` (between depósitos of the same empresa) or `Externo` (received from a company typed by hand in `OrigenExterno`). Every remito is born `Emitido`; the server generates `Numero` (`R-0001`) and ignores `Estado`, `FechaEmision` and `FechaRecepcion` from the client. `Interno` decrements origin stock on creation, `Externo` moves none, and the destination is credited only by `POST api/remito/{id}/recepcion` (total reception, once; a second one is 400). Items carry a required `Unidad`. There is no PUT/DELETE. Details in `CLAUDE.md`.
 
 ## Client UI
 
-- The client only contains features backed by the real API (Depósitos, Productos, and the header empresa selector). No mock services or fake data: new pages depend on service interfaces, with `*ServicioHttp` implementations registered in `IBUY.Cliente/Program.cs`.
+- The client only contains features backed by the real API (Depósitos, Productos, Necesidades, Empresas, Usuarios, and login). No mock services or fake data: new pages depend on service interfaces, with `*ServicioHttp` implementations registered in `IBUY.Cliente/Program.cs`.
 - Use Bootstrap 5 classes (`wwwroot/lib/bootstrap`) for layout and components. The visual identity (palette, typography, sidebar/header look) follows the prototype `docs/IBUY Prototipo.html` (open it in a browser; it is a self-contained bundle, the markup lives inside its `__bundler` script blocks) and lives in a single theme file, `wwwroot/css/tema.css`, loaded after Bootstrap.
 - `tema.css` overrides Bootstrap CSS variables (`--bs-*`, including component-level ones like `--bs-btn-bg`) rather than redefining Bootstrap rules. Add a rule there only when no Bootstrap class or variable covers the need.
 - No other custom CSS: no extra `.css` files, `<style>` blocks, `.razor.css` scoped styles, or `style=""` attributes. Preserve `style="display:none"` on `#blazor-error-ui` in `index.html`: Blazor toggles it inline; Bootstrap's `d-none` would prevent it from appearing.

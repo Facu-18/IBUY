@@ -16,15 +16,18 @@ namespace IBUY.Server.Controllers
         private readonly IUsuarioRepositorio repositorio;
         private readonly IRepositorio<Empresa> empresaRepositorio;
         private readonly IRepositorio<Deposito> depositoRepositorio;
+        private readonly IPermisosUsuario permisos;
 
         public UsuarioController(
             IUsuarioRepositorio repositorio,
             IRepositorio<Empresa> empresaRepositorio,
-            IRepositorio<Deposito> depositoRepositorio)
+            IRepositorio<Deposito> depositoRepositorio,
+            IPermisosUsuario permisos)
         {
             this.repositorio = repositorio;
             this.empresaRepositorio = empresaRepositorio;
             this.depositoRepositorio = depositoRepositorio;
+            this.permisos = permisos;
         }
 
         /// <summary>
@@ -95,11 +98,18 @@ namespace IBUY.Server.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult<int>> Post(CrearUsuarioDTO usuarioDTO)
+        public async Task<ActionResult<int>> Post(CrearUsuarioDTO usuarioDTO, [FromHeader(Name = IPermisosUsuario.Encabezado)] string? usuarioId)
         {
+            var acceso = await permisos.Autenticar(usuarioId) ?? permisos.ExigirGestion() ?? permisos.ExigirEmpresa(usuarioDTO.EmpresaId);
+            if (acceso is not null)
+            {
+                return acceso;
+            }
+
             var depositoIds = usuarioDTO.DepositoIds.Distinct().ToList();
 
-            var error = await ValidarRelaciones(usuarioDTO.EmpresaId, depositoIds);
+            var error = ValidarRol(usuarioDTO.Rol, depositoIds, out string rol)
+                ?? await ValidarRelaciones(usuarioDTO.EmpresaId, depositoIds);
             if (error is not null)
             {
                 return BadRequest(error);
@@ -109,7 +119,7 @@ namespace IBUY.Server.Controllers
             usuario.Nombre = usuarioDTO.Nombre;
             usuario.Email = usuarioDTO.Email;
             usuario.Contrasena = HashContrasenas.Hashear(usuarioDTO.Contrasena);
-            usuario.Rol = usuarioDTO.Rol;
+            usuario.Rol = rol;
             usuario.Estado = usuarioDTO.Estado;
             usuario.EmpresaId = usuarioDTO.EmpresaId;
 
@@ -120,17 +130,33 @@ namespace IBUY.Server.Controllers
         }
 
         [HttpPut("{id:int}")]
-        public async Task<ActionResult<bool>> Put(int id, CrearUsuarioDTO usuarioDTO)
+        public async Task<ActionResult<bool>> Put(int id, CrearUsuarioDTO usuarioDTO, [FromHeader(Name = IPermisosUsuario.Encabezado)] string? usuarioId)
         {
+            var acceso = await permisos.Autenticar(usuarioId) ?? permisos.ExigirGestion();
+            if (acceso is not null)
+            {
+                return acceso;
+            }
+
             var usuario = await repositorio.SelectById(id);
             if (usuario is null)
             {
                 return NotFound($"No existe el registro con id: {id}");
             }
 
+            // Tanto el usuario que se edita como la empresa a la que queda deben ser accesibles.
+            acceso = permisos.ExigirEmpresa(usuario.EmpresaId) ?? permisos.ExigirEmpresa(usuarioDTO.EmpresaId);
+            if (acceso is not null)
+            {
+                return acceso;
+            }
+
             var depositoIds = usuarioDTO.DepositoIds.Distinct().ToList();
 
-            var error = await ValidarRelaciones(usuarioDTO.EmpresaId, depositoIds);
+            // Si pasa a Ventas, la lista llega vacía y ActualizarConDepositos deja sin responsable
+            // a los depósitos que tenía a cargo.
+            var error = ValidarRol(usuarioDTO.Rol, depositoIds, out string rol)
+                ?? await ValidarRelaciones(usuarioDTO.EmpresaId, depositoIds);
             if (error is not null)
             {
                 return BadRequest(error);
@@ -139,7 +165,7 @@ namespace IBUY.Server.Controllers
             usuario.Nombre = usuarioDTO.Nombre;
             usuario.Contrasena = HashContrasenas.Hashear(usuarioDTO.Contrasena);
             usuario.Email = usuarioDTO.Email;
-            usuario.Rol = usuarioDTO.Rol;
+            usuario.Rol = rol;
             usuario.Estado = usuarioDTO.Estado;
             usuario.EmpresaId = usuarioDTO.EmpresaId;
 
@@ -148,16 +174,56 @@ namespace IBUY.Server.Controllers
         }
 
         [HttpDelete("{id:int}")]
-        public async Task<ActionResult<bool>> Delete(int id)
+        public async Task<ActionResult<bool>> Delete(int id, [FromHeader(Name = IPermisosUsuario.Encabezado)] string? usuarioId)
         {
-            if (!await repositorio.Existe(id))
+            var acceso = await permisos.Autenticar(usuarioId) ?? permisos.ExigirGestion();
+            if (acceso is not null)
+            {
+                return acceso;
+            }
+
+            var usuario = await repositorio.SelectById(id);
+            if (usuario is null)
             {
                 return NotFound($"No existe el usuario con id: {id}");
+            }
+
+            acceso = permisos.ExigirEmpresa(usuario.EmpresaId);
+            if (acceso is not null)
+            {
+                return acceso;
             }
 
             await repositorio.Delete(id);
 
             return Ok(true);
+        }
+
+        /// <summary>
+        /// Solo se asignan los roles de Roles.Asignables (SuperAdmin y los roles viejos dan 400).
+        /// EncargadoDeposito necesita al menos un depósito; Ventas no puede tener ninguno.
+        /// Devuelve el rol con su escritura canónica por out param.
+        /// </summary>
+        private static string? ValidarRol(string? rolPedido, List<int> depositoIds, out string rol)
+        {
+            rol = Roles.Asignables.FirstOrDefault(r => string.Equals(r, rolPedido, StringComparison.OrdinalIgnoreCase)) ?? string.Empty;
+
+            if (rol.Length == 0)
+            {
+                return $"El rol debe ser uno de: {string.Join(", ", Roles.Asignables)}.";
+            }
+
+            if (Roles.EsEncargado(rol) && depositoIds.Count == 0)
+            {
+                return "El encargado de depósito debe tener al menos un depósito a cargo.";
+            }
+
+            if (Roles.EsVentas(rol) && depositoIds.Count > 0)
+            {
+                return "Un usuario de Ventas no puede tener depósitos a cargo.";
+            }
+
+            return null;
         }
 
         /// <summary>

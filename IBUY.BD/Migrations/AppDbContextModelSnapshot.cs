@@ -17,7 +17,7 @@ namespace IBUY.BD.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.9")
+                .HasAnnotation("ProductVersion", "10.0.13")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -130,11 +130,6 @@ namespace IBUY.BD.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
-                    b.Property<string>("Tipo")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
                     b.HasKey("Id");
 
                     b.ToTable("Empresas");
@@ -214,6 +209,11 @@ namespace IBUY.BD.Migrations
 
                     b.Property<int>("RemitoId")
                         .HasColumnType("int");
+
+                    b.Property<string>("Unidad")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.HasKey("Id");
 
@@ -380,6 +380,10 @@ namespace IBUY.BD.Migrations
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("OrigenExterno")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("Tipo")
                         .IsRequired()

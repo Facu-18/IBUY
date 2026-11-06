@@ -57,7 +57,7 @@ else
         @if (productos.Count == 0 || filtrados.Count == 0)
         {
             <p class="text-center text-body-secondary py-5 px-3 mb-0">
-                @(Sesion.EmpresaId == 0 ? "Seleccione una empresa en el encabezado para ver sus productos."
+                @(Sesion.EmpresaId == 0 ? "No hay una empresa asociada a la sesión. Vuelva a iniciar sesión."
                     : productos.Count == 0 ? "La empresa seleccionada todavia no tiene productos cargados."
                     : "No hay productos que coincidan con la busqueda y la categoria seleccionada.")
             </p>

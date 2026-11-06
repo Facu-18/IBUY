@@ -77,5 +77,37 @@ namespace IBUY.Repository.Repositorios
                 .Select(d => d.Id)
                 .ToListAsync();
         }
+
+        public async Task<Usuario?> SelectPorEmail(string email)
+        {
+            // SQL Server usa por defecto una collation insensible a mayusculas, asi que la igualdad
+            // traducida por EF ya ignora el caso y se resuelve en la base sin traer todos los usuarios.
+            return await context.Set<Usuario>().FirstOrDefaultAsync(u => u.Email == email);
+        }
+
+        /// <summary>
+        /// Crea la empresa y su primer usuario en una sola transacción: si falla el usuario,
+        /// no queda una empresa sin nadie que pueda ingresar.
+        /// </summary>
+        public async Task<Usuario> RegistrarConEmpresa(Empresa empresa, Usuario usuario)
+        {
+            await using var tx = await context.Database.BeginTransactionAsync();
+
+            await context.Set<Empresa>().AddAsync(empresa);
+            await context.SaveChangesAsync();
+
+            usuario.EmpresaId = empresa.Id;
+            await context.Set<Usuario>().AddAsync(usuario);
+            await context.SaveChangesAsync();
+
+            await tx.CommitAsync();
+
+            return usuario;
+        }
+
+        public async Task<bool> ExisteConRol(string rol)
+        {
+            return await context.Set<Usuario>().AnyAsync(u => u.Rol == rol);
+        }
     }
 }

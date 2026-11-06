@@ -1,5 +1,6 @@
 ﻿using IBUY.BD.Datos.Entity;
 using IBUY.Repository.Repositorios;
+using IBUY.Server.Seguridad;
 using IBUY.Shared.DTO;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,8 +13,11 @@ namespace IBUY.Server.Controllers
         private readonly IRepositorio<Producto> repositorio;
         private readonly IRepositorio<Empresa> empresaRepositorio;
 
-        public ProductoController(IRepositorio<Producto> repositorio, IRepositorio<Empresa> empresaRepositorio)
+        private readonly IPermisosUsuario permisos;
+
+        public ProductoController(IRepositorio<Producto> repositorio, IRepositorio<Empresa> empresaRepositorio, IPermisosUsuario permisos)
         {
+            this.permisos = permisos;
             this.repositorio = repositorio;
             this.empresaRepositorio = empresaRepositorio;
         }
@@ -62,8 +66,14 @@ namespace IBUY.Server.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult<int>> Post(ProductoDTO productoDTO)
+        public async Task<ActionResult<int>> Post(ProductoDTO productoDTO, [FromHeader(Name = IPermisosUsuario.Encabezado)] string? usuarioId)
         {
+            var acceso = await permisos.Autenticar(usuarioId) ?? permisos.ExigirGestion() ?? permisos.ExigirEmpresa(productoDTO.EmpresaId);
+            if (acceso is not null)
+            {
+                return acceso;
+            }
+
             if (!await empresaRepositorio.Existe(productoDTO.EmpresaId))
             {
                 return BadRequest($"No existe la empresa de id: {productoDTO.EmpresaId}");
@@ -81,12 +91,24 @@ namespace IBUY.Server.Controllers
         }
 
         [HttpPut("{id:int}")]
-        public async Task<ActionResult<bool>> Put(int id, ProductoDTO productoDTO)
+        public async Task<ActionResult<bool>> Put(int id, ProductoDTO productoDTO, [FromHeader(Name = IPermisosUsuario.Encabezado)] string? usuarioId)
         {
+            var acceso = await permisos.Autenticar(usuarioId) ?? permisos.ExigirGestion();
+            if (acceso is not null)
+            {
+                return acceso;
+            }
+
             var producto = await repositorio.SelectById(id);
             if (producto is null)
             {
                 return NotFound($"No existe el registro con id: {id}");
+            }
+
+            acceso = permisos.ExigirEmpresa(producto.EmpresaId);
+            if (acceso is not null)
+            {
+                return acceso;
             }
 
             if (producto.EmpresaId != productoDTO.EmpresaId)
@@ -109,11 +131,24 @@ namespace IBUY.Server.Controllers
         }
 
         [HttpDelete("{id:int}")]
-        public async Task<ActionResult<bool>> Delete(int id)
+        public async Task<ActionResult<bool>> Delete(int id, [FromHeader(Name = IPermisosUsuario.Encabezado)] string? usuarioId)
         {
-            if (!await repositorio.Existe(id))
+            var acceso = await permisos.Autenticar(usuarioId) ?? permisos.ExigirGestion();
+            if (acceso is not null)
+            {
+                return acceso;
+            }
+
+            var producto = await repositorio.SelectById(id);
+            if (producto is null)
             {
                 return NotFound($"No existe el registro con id: {id}");
+            }
+
+            acceso = permisos.ExigirEmpresa(producto.EmpresaId);
+            if (acceso is not null)
+            {
+                return acceso;
             }
 
             await repositorio.Delete(id);

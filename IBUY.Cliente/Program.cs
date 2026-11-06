@@ -9,10 +9,15 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
-builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
-
-// Estado de sesion: empresa seleccionada en el encabezado (todavia no hay login).
+// Estado de sesion: usuario logueado, persistido en localStorage.
 builder.Services.AddSingleton<EstadoSesion>();
+
+// El HttpClient agrega X-Usuario-Id en cada request para que la API aplique permisos.
+builder.Services.AddScoped<UsuarioHeaderHandler>();
+builder.Services.AddScoped(sp => new HttpClient(sp.GetRequiredService<UsuarioHeaderHandler>())
+{
+    BaseAddress = new Uri(builder.HostEnvironment.BaseAddress)
+});
 
 builder.Services.AddScoped<IHttpService, HttpService>();
 
@@ -25,5 +30,9 @@ builder.Services.AddScoped<IEmpresaServicio, EmpresaServicioHttp>();
 builder.Services.AddScoped<IUsuarioServicio, UsuarioServicioHttp>();
 builder.Services.AddScoped<INotaPedidoServicio, NotaPedidoServicioHttp>();
 builder.Services.AddScoped<ICotizacionServicio, CotizacionServicioHttp>();
+builder.Services.AddScoped<IAuthServicio, AuthServicioHttp>();
 
-await builder.Build().RunAsync();
+// La sesion se restaura antes de arrancar para que el guard no redirija a /login tras un F5.
+var host = builder.Build();
+await host.Services.GetRequiredService<EstadoSesion>().RestaurarAsync();
+await host.RunAsync();

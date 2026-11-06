@@ -16,6 +16,10 @@ namespace IBUY.BD.Datos.Entity
             ErrorMessage = "La cantidad debe ser mayor a cero.")]
         public decimal Cantidad { get; set; }
 
+        [Required(ErrorMessage = "La unidad es obligatoria.")]
+        [MaxLength(20, ErrorMessage = "La unidad no puede superar los {1} caracteres.")]
+        public string Unidad { get; set; } = string.Empty;
+
         [Range(1, int.MaxValue, ErrorMessage = "Debe seleccionar un remito.")]
         public int RemitoId { get; set; }
 

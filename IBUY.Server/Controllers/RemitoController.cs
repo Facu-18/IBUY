@@ -1,5 +1,6 @@
 using IBUY.BD.Datos.Entity;
 using IBUY.Repository.Repositorios;
+using IBUY.Server.Seguridad;
 using IBUY.Shared.DTO;
 using Microsoft.AspNetCore.Mvc;
 
@@ -15,6 +16,7 @@ namespace IBUY.Server.Controllers
         private readonly IRepositorio<Cotizacion> cotizacionRepositorio;
         private readonly IRepositorio<Deposito> depositoRepositorio;
         private readonly IRepositorio<Producto> productoRepositorio;
+        private readonly IPermisosUsuario permisos;
 
         public RemitoController(
             IRemitoRepositorio repositorio,
@@ -22,8 +24,10 @@ namespace IBUY.Server.Controllers
             IRepositorio<Usuario> usuarioRepositorio,
             IRepositorio<Cotizacion> cotizacionRepositorio,
             IRepositorio<Deposito> depositoRepositorio,
-            IRepositorio<Producto> productoRepositorio)
+            IRepositorio<Producto> productoRepositorio,
+            IPermisosUsuario permisos)
         {
+            this.permisos = permisos;
             this.repositorio = repositorio;
             this.empresaRepositorio = empresaRepositorio;
             this.usuarioRepositorio = usuarioRepositorio;
@@ -33,19 +37,62 @@ namespace IBUY.Server.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<List<Remito>>> Get()
+        public async Task<ActionResult<List<RemitoListadoDTO>>> Get(
+            [FromQuery] int? depositoId,
+            [FromHeader(Name = IPermisosUsuario.Encabezado)] string? usuarioId)
         {
-            var remitos = await repositorio.Select();
-            return Ok(remitos);
+            var acceso = await permisos.Autenticar(usuarioId);
+            if (acceso is null && depositoId.HasValue)
+            {
+                acceso = permisos.ExigirDeposito(depositoId.Value);
+            }
+
+            if (acceso is not null)
+            {
+                return acceso;
+            }
+
+            // Solo los remitos donde el usuario ve el depósito origen o el destino.
+            var remitos = (await repositorio.ObtenerListado())
+                .Where(r => PuedeVer(r.DepositoOrigenId, r.DepositoDestinoId))
+                .Where(r => !depositoId.HasValue || r.DepositoOrigenId == depositoId || r.DepositoDestinoId == depositoId)
+                .ToList();
+
+            var dtos = remitos.Select(r => new RemitoListadoDTO
+            {
+                Id = r.Id,
+                Numero = r.Numero,
+                // Interno: nombre del deposito origen; Externo: la empresa escrita a mano.
+                Origen = r.Tipo == "Interno" ? r.DepositoOrigen?.Nombre ?? string.Empty : r.OrigenExterno ?? string.Empty,
+                Destino = r.DepositoDestino?.Nombre ?? string.Empty,
+                Tipo = r.Tipo,
+                Fecha = r.FechaEmision,
+                Estado = r.Estado,
+                DepositoOrigenId = r.DepositoOrigenId,
+                DepositoDestinoId = r.DepositoDestinoId
+            }).ToList();
+
+            return Ok(dtos);
         }
 
         [HttpGet("{id:int}")]
-        public async Task<ActionResult<RemitoDTO>> GetById(int id)
+        public async Task<ActionResult<RemitoDTO>> GetById(int id, [FromHeader(Name = IPermisosUsuario.Encabezado)] string? usuarioId)
         {
+            var acceso = await permisos.Autenticar(usuarioId);
+            if (acceso is not null)
+            {
+                return acceso;
+            }
+
             var (remito, items) = await repositorio.ObtenerDetalle(id);
             if (remito is null)
             {
                 return NotFound($"No se encontró el remito de id: {id}");
+            }
+
+            if (!PuedeVer(remito.DepositoOrigenId, remito.DepositoDestinoId))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, "No tenés acceso a ese remito.");
             }
 
             RemitoDTO dto = new RemitoDTO
@@ -55,15 +102,20 @@ namespace IBUY.Server.Controllers
                 FechaEmision = remito.FechaEmision,
                 FechaRecepcion = remito.FechaRecepcion,
                 Estado = remito.Estado,
+                OrigenExterno = remito.OrigenExterno,
                 EmpresaId = remito.EmpresaId,
                 UsuarioId = remito.UsuarioId,
                 CotizacionId = remito.CotizacionId,
                 DepositoOrigenId = remito.DepositoOrigenId,
+                DepositoOrigenNombre = remito.DepositoOrigen?.Nombre,
                 DepositoDestinoId = remito.DepositoDestinoId,
+                DepositoDestinoNombre = remito.DepositoDestino?.Nombre,
                 Items = items.Select(i => new ItemRemitoDTO
                 {
                     ProductoId = i.ProductoId,
-                    Cantidad = i.Cantidad
+                    ProductoNombre = i.Producto?.Nombre,
+                    Cantidad = i.Cantidad,
+                    Unidad = i.Unidad
                 }).ToList()
             };
 
@@ -90,18 +142,16 @@ namespace IBUY.Server.Controllers
                 return BadRequest(errorRelaciones);
             }
 
-            // El Estado y la FechaRecepcion los decide el servidor segun el Tipo, no el DTO:
-            // Entrada llega ya Recibida (proveedor externo); Salida y Transferencia quedan
-            // Emitidas (la Transferencia se recepciona despues con POST {id}/recepcion).
-            bool esEntrada = tipoCanonico == "Entrada";
-
+            // Numero, Estado, FechaEmision y FechaRecepcion los decide el servidor, no el DTO:
+            // todo remito nace Emitido, con la fecha de hoy y el numero R-0001 generado en
+            // el repositorio. El stock del destino se suma recien al recibirlo.
             Remito remito = new Remito
             {
                 Tipo = tipoCanonico,
-                Numero = remitoDTO.Numero,
-                FechaEmision = remitoDTO.FechaEmision,
-                FechaRecepcion = esEntrada ? remitoDTO.FechaRecepcion : null,
-                Estado = esEntrada ? "Recibido" : "Emitido",
+                FechaEmision = DateTime.Today,
+                FechaRecepcion = null,
+                Estado = "Emitido",
+                OrigenExterno = tipoCanonico == "Externo" ? remitoDTO.OrigenExterno!.Trim() : null,
                 EmpresaId = remitoDTO.EmpresaId,
                 UsuarioId = remitoDTO.UsuarioId,
                 CotizacionId = remitoDTO.CotizacionId,
@@ -112,7 +162,8 @@ namespace IBUY.Server.Controllers
             var items = remitoDTO.Items.Select(i => new ItemRemito
             {
                 ProductoId = i.ProductoId,
-                Cantidad = i.Cantidad
+                Cantidad = i.Cantidad,
+                Unidad = i.Unidad.Trim()
             }).ToList();
 
             try
@@ -128,31 +179,26 @@ namespace IBUY.Server.Controllers
         }
 
         /// <summary>
-        /// Recepciona una transferencia emitida: acredita el stock del deposito destino y
-        /// pasa el remito a Estado Recibido. La recepcion es total (no hay recepcion
-        /// parcial de cantidades); si llega mercaderia dañada o de menos, el destino abre
-        /// una Necesidad de vuelta al remitente en vez de ajustar este remito.
+        /// Recibe un remito emitido (Interno o Externo): acredita el stock del deposito
+        /// destino y pasa el remito a Estado Recibido. La recepcion es total (no hay
+        /// recepcion parcial de cantidades); si llega mercaderia dañada o de menos, el
+        /// destino abre una Necesidad de vuelta al remitente en vez de ajustar este remito.
         /// </summary>
         [HttpPost("{id:int}/recepcion")]
         public async Task<ActionResult<bool>> Recepcion(int id, RecepcionRemitoDTO recepcionDTO)
         {
-            var remito = await repositorio.SelectById(id);
-            if (remito is null)
+            try
             {
-                return NotFound($"No se encontró el remito de id: {id}");
+                var remito = await repositorio.RegistrarRecepcion(id, recepcionDTO.FechaRecepcion);
+                if (remito is null)
+                {
+                    return NotFound($"No se encontró el remito de id: {id}");
+                }
             }
-
-            if (remito.Tipo != "Transferencia")
-            {
-                return BadRequest("Solo los remitos de tipo Transferencia tienen recepción.");
-            }
-
-            if (remito.Estado != "Emitido")
+            catch (RemitoYaRecibidoException)
             {
                 return BadRequest("El remito ya fue recibido.");
             }
-
-            await repositorio.RegistrarRecepcion(id, recepcionDTO.FechaRecepcion);
 
             return Ok(true);
         }
@@ -161,49 +207,61 @@ namespace IBUY.Server.Controllers
         // dejaria el stock impactado sin corresponder con lo que dice el remito.
 
         /// <summary>
-        /// Valida el Tipo (sin distinguir mayusculas/minusculas) y que traiga los depositos
-        /// que ese tipo necesita. Devuelve el Tipo canonico por out param.
+        /// Se ve el remito si el usuario ve el depósito origen o el destino
+        /// (el origen es null en un remito Externo).
+        /// </summary>
+        private bool PuedeVer(int? depositoOrigenId, int? depositoDestinoId)
+        {
+            return (depositoOrigenId.HasValue && permisos.PuedeVerDeposito(depositoOrigenId.Value))
+                || (depositoDestinoId.HasValue && permisos.PuedeVerDeposito(depositoDestinoId.Value));
+        }
+
+        /// <summary>
+        /// Valida el Tipo (sin distinguir mayusculas/minusculas) y que traiga lo que ese
+        /// tipo necesita. Devuelve el Tipo canonico por out param.
         /// </summary>
         private static string? ValidarTipoYDepositos(RemitoDTO dto, out string tipoCanonico)
         {
-            if (string.Equals(dto.Tipo, "Entrada", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(dto.Tipo, "Interno", StringComparison.OrdinalIgnoreCase))
             {
-                tipoCanonico = "Entrada";
-                if (!dto.DepositoDestinoId.HasValue)
-                {
-                    return "El remito de tipo Entrada requiere un depósito destino.";
-                }
-
-                if (!dto.FechaRecepcion.HasValue)
-                {
-                    return "El remito de tipo Entrada requiere la fecha de recepción.";
-                }
-            }
-            else if (string.Equals(dto.Tipo, "Salida", StringComparison.OrdinalIgnoreCase))
-            {
-                tipoCanonico = "Salida";
-                if (!dto.DepositoOrigenId.HasValue)
-                {
-                    return "El remito de tipo Salida requiere un depósito origen.";
-                }
-            }
-            else if (string.Equals(dto.Tipo, "Transferencia", StringComparison.OrdinalIgnoreCase))
-            {
-                tipoCanonico = "Transferencia";
+                tipoCanonico = "Interno";
                 if (!dto.DepositoOrigenId.HasValue || !dto.DepositoDestinoId.HasValue)
                 {
-                    return "El remito de tipo Transferencia requiere depósito origen y depósito destino.";
+                    return "El remito de tipo Interno requiere depósito origen y depósito destino.";
                 }
 
                 if (dto.DepositoOrigenId == dto.DepositoDestinoId)
                 {
                     return "El depósito origen y el depósito destino deben ser distintos.";
                 }
+
+                if (!string.IsNullOrWhiteSpace(dto.OrigenExterno))
+                {
+                    return "El remito de tipo Interno no admite origen externo.";
+                }
+            }
+            else if (string.Equals(dto.Tipo, "Externo", StringComparison.OrdinalIgnoreCase))
+            {
+                tipoCanonico = "Externo";
+                if (string.IsNullOrWhiteSpace(dto.OrigenExterno))
+                {
+                    return "El remito de tipo Externo requiere el origen externo.";
+                }
+
+                if (!dto.DepositoDestinoId.HasValue)
+                {
+                    return "El remito de tipo Externo requiere un depósito destino.";
+                }
+
+                if (dto.DepositoOrigenId.HasValue)
+                {
+                    return "El remito de tipo Externo no admite depósito origen.";
+                }
             }
             else
             {
                 tipoCanonico = string.Empty;
-                return $"Tipo de remito inválido: {dto.Tipo}. Debe ser Entrada, Salida o Transferencia.";
+                return $"Tipo de remito inválido: {dto.Tipo}. Debe ser Interno o Externo.";
             }
 
             return null;
@@ -211,7 +269,8 @@ namespace IBUY.Server.Controllers
 
         /// <summary>
         /// Las FK exigen que empresa, usuario, cotizacion (si hay), depositos y productos
-        /// de los items existan. Devuelve null cuando esta todo bien.
+        /// de los items existan; ademas los depositos deben ser de la empresa del remito.
+        /// Devuelve null cuando esta todo bien.
         /// </summary>
         private async Task<string?> ValidarRelaciones(RemitoDTO dto)
         {
@@ -230,14 +289,32 @@ namespace IBUY.Server.Controllers
                 return $"No existe la cotización de id: {dto.CotizacionId}";
             }
 
-            if (dto.DepositoOrigenId.HasValue && !await depositoRepositorio.Existe(dto.DepositoOrigenId.Value))
+            if (dto.DepositoOrigenId.HasValue)
             {
-                return $"No existe el depósito origen de id: {dto.DepositoOrigenId}";
+                var origen = await depositoRepositorio.SelectById(dto.DepositoOrigenId.Value);
+                if (origen is null)
+                {
+                    return $"No existe el depósito origen de id: {dto.DepositoOrigenId}";
+                }
+
+                if (origen.EmpresaId != dto.EmpresaId)
+                {
+                    return "El depósito origen no pertenece a la empresa del remito.";
+                }
             }
 
-            if (dto.DepositoDestinoId.HasValue && !await depositoRepositorio.Existe(dto.DepositoDestinoId.Value))
+            if (dto.DepositoDestinoId.HasValue)
             {
-                return $"No existe el depósito destino de id: {dto.DepositoDestinoId}";
+                var destino = await depositoRepositorio.SelectById(dto.DepositoDestinoId.Value);
+                if (destino is null)
+                {
+                    return $"No existe el depósito destino de id: {dto.DepositoDestinoId}";
+                }
+
+                if (destino.EmpresaId != dto.EmpresaId)
+                {
+                    return "El depósito destino no pertenece a la empresa del remito.";
+                }
             }
 
             foreach (var item in dto.Items)

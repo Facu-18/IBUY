@@ -10,12 +10,12 @@ namespace IBUY.Server.Controllers
     [Route("api/auth")]
     public class AuthController : Controller
     {
-        private readonly IRepositorio<Usuario> usuarioRepositorio;
+        private readonly IUsuarioRepositorio usuarioRepositorio;
         private readonly IRepositorio<Empresa> empresaRepositorio;
         private readonly IRepositorio<Deposito> depositoRepositorio;
 
         public AuthController(
-            IRepositorio<Usuario> usuarioRepositorio,
+            IUsuarioRepositorio usuarioRepositorio,
             IRepositorio<Empresa> empresaRepositorio,
             IRepositorio<Deposito> depositoRepositorio)
         {
@@ -27,8 +27,7 @@ namespace IBUY.Server.Controllers
         [HttpPost("login")]
         public async Task<ActionResult<LoginRespuestaDTO>> Login(LoginDTO loginDTO)
         {
-            var usuarios = await usuarioRepositorio.Select();
-            var usuario = usuarios.FirstOrDefault(u => u.Email.Equals(loginDTO.Email, StringComparison.OrdinalIgnoreCase));
+            var usuario = await usuarioRepositorio.SelectPorEmail(loginDTO.Email);
 
             if (usuario is null || !usuario.Estado || !HashContrasenas.Verificar(loginDTO.Contrasena, usuario.Contrasena))
             {
@@ -52,6 +51,48 @@ namespace IBUY.Server.Controllers
                 EmpresaId = usuario.EmpresaId,
                 EmpresaRazonSocial = empresa?.RazonSocial ?? string.Empty,
                 Depositos = depositosACargo
+            };
+
+            return Ok(respuesta);
+        }
+
+        /// <summary>
+        /// Registro público: crea la empresa y su primer usuario (rol Ventas) en una sola
+        /// transacción, sin exigir depósitos, y devuelve la sesión iniciada.
+        /// </summary>
+        [HttpPost("registro")]
+        public async Task<ActionResult<LoginRespuestaDTO>> Registro(RegistroDTO registroDTO)
+        {
+            if (await usuarioRepositorio.SelectPorEmail(registroDTO.Email) is not null)
+            {
+                return BadRequest("Ya existe un usuario registrado con ese email.");
+            }
+
+            Empresa empresa = new Empresa();
+            empresa.RazonSocial = registroDTO.RazonSocial;
+            empresa.Rubro = registroDTO.Rubro;
+            empresa.Cuit = registroDTO.Cuit;
+            empresa.Email = registroDTO.EmailEmpresa;
+            empresa.Activo = true;
+
+            Usuario usuario = new Usuario();
+            usuario.Nombre = registroDTO.Nombre;
+            usuario.Email = registroDTO.Email;
+            usuario.Contrasena = HashContrasenas.Hashear(registroDTO.Contrasena);
+            usuario.Rol = Roles.Ventas;
+            usuario.Estado = true;
+
+            await usuarioRepositorio.RegistrarConEmpresa(empresa, usuario);
+
+            LoginRespuestaDTO respuesta = new LoginRespuestaDTO
+            {
+                UsuarioId = usuario.Id,
+                Nombre = usuario.Nombre,
+                Email = usuario.Email,
+                Rol = usuario.Rol,
+                EmpresaId = empresa.Id,
+                EmpresaRazonSocial = empresa.RazonSocial,
+                Depositos = []
             };
 
             return Ok(respuesta);

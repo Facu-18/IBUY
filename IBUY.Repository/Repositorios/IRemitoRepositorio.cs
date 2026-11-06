@@ -6,20 +6,25 @@ namespace IBUY.Repository.Repositorios
     {
         /// <summary>
         /// Registra el remito, sus items y el impacto en stock segun el Tipo, todo en una
-        /// transaccion. Entrada y Salida quedan completos en este paso; Transferencia solo
-        /// descuenta el origen (el destino se acredita en RegistrarRecepcion). Lanza
-        /// StockInsuficienteException si una salida/transferencia no tiene stock suficiente
-        /// en el origen.
+        /// transaccion. Todo remito queda Emitido y el destino no suma stock aca: Interno
+        /// descuenta el origen, Externo no mueve stock. Genera el Numero (R-0001) a partir
+        /// del Id insertado. Lanza StockInsuficienteException si un Interno no tiene stock
+        /// suficiente en el origen (no se guarda nada).
         /// </summary>
         Task<Remito> RegistrarMovimiento(Remito remito, List<ItemRemito> items);
 
         /// <summary>
-        /// Recepciona una transferencia emitida: acredita el stock del deposito destino por
-        /// cada item y pasa el remito a Estado Recibido, todo en una transaccion. Devuelve
-        /// null si no existe el remito. El Tipo/Estado ya se validan en el controller.
+        /// Recepciona un remito Emitido (Interno o Externo): acredita el stock del deposito
+        /// destino por cada item (crea la fila si no existia) y pasa el remito a Recibido,
+        /// todo en una transaccion. Devuelve null si no existe el remito. Lanza
+        /// RemitoYaRecibidoException si ya estaba Recibido.
         /// </summary>
         Task<Remito?> RegistrarRecepcion(int id, DateTime fechaRecepcion);
 
+        /// <summary>Devuelve el remito (con los nombres de sus depositos) y sus items (con el producto).</summary>
         Task<(Remito? Remito, List<ItemRemito> Items)> ObtenerDetalle(int id);
+
+        /// <summary>Todos los remitos con los depositos origen y destino cargados, del mas nuevo al mas viejo.</summary>
+        Task<List<Remito>> ObtenerListado();
     }
 }

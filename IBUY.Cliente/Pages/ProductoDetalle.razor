@@ -80,7 +80,7 @@ else
         StateHasChanged();
         if (!cargando)
         {
-            error = "Seleccione una empresa en el encabezado para ver sus productos.";
+            error = "No hay una empresa asociada a la sesión. Vuelva a iniciar sesión.";
             return;
         }
         var respuesta = await ProductoServicio.ObtenerPorIdAsync(Id, empresaId);
