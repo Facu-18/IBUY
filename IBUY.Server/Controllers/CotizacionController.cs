@@ -190,7 +190,7 @@ namespace IBUY.Server.Controllers
                 return $"No existe la nota de pedido de id: {dto.NotaPedidoId}";
             }
 
-            if (notaPedido.Estado != EstadosNotaPedido.Publicada)
+            if (!string.Equals(notaPedido.Estado, EstadosNotaPedido.Publicada, StringComparison.OrdinalIgnoreCase))
             {
                 return "La nota de pedido no está publicada y no admite cotizaciones.";
             }
