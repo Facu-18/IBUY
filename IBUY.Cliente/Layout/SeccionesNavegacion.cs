@@ -55,7 +55,7 @@ namespace IBUY.Cliente.Layout
             new Grupo("Compras",
             [
                 new Seccion("Notas de pedido", "notas-pedido", "notas",
-                    "Notas generadas a partir de una necesidad."),
+                    "Solicitudes de compra: borrador, aprobacion y publicacion en el marketplace."),
                 new Seccion("Marketplace", "marketplace", "marketplace",
                     "Notas de pedido publicadas por otras empresas, listas para cotizar.",
                     SoloVentas: true),

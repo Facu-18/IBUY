@@ -13,5 +13,15 @@ namespace IBUY.Servicios
 
         /// <summary>Notas publicadas y vigentes de otras empresas, con sus ítems (Marketplace).</summary>
         Task<HttpResp<List<OportunidadMarketplaceDTO>?>> ObtenerMarketplaceAsync();
+
+        Task<HttpResp<int>> CrearAsync(NotaPedidoDTO nota);
+
+        Task<HttpResp<bool>> EditarAsync(int id, NotaPedidoDTO nota);
+
+        Task<HttpResp<bool>> AprobarAsync(int id);
+
+        Task<HttpResp<bool>> PublicarAsync(int id);
+
+        Task<HttpResp<bool>> CancelarAsync(int id);
     }
 }

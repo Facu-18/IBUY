@@ -28,5 +28,30 @@ namespace IBUY.Servicios
         {
             return http.GetAsync<List<OportunidadMarketplaceDTO>>($"{Base}/marketplace");
         }
+
+        public Task<HttpResp<int>> CrearAsync(NotaPedidoDTO nota)
+        {
+            return http.PostAsync<NotaPedidoDTO, int>(Base, nota);
+        }
+
+        public Task<HttpResp<bool>> EditarAsync(int id, NotaPedidoDTO nota)
+        {
+            return http.PutAsync<NotaPedidoDTO, bool>($"{Base}/{id}", nota);
+        }
+
+        public Task<HttpResp<bool>> AprobarAsync(int id)
+        {
+            return http.PostAsync<object, bool>($"{Base}/{id}/aprobar", new { });
+        }
+
+        public Task<HttpResp<bool>> PublicarAsync(int id)
+        {
+            return http.PostAsync<object, bool>($"{Base}/{id}/publicar", new { });
+        }
+
+        public Task<HttpResp<bool>> CancelarAsync(int id)
+        {
+            return http.PostAsync<object, bool>($"{Base}/{id}/cancelar", new { });
+        }
     }
 }
