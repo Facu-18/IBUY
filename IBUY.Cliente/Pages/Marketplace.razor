@@ -236,14 +236,25 @@ else
 
     private decimal TotalEstimado => ofertas.Sum(o => o.PrecioTotal);
 
+    private int usuarioCargado;
+
     protected override async Task OnInitializedAsync()
     {
         Sesion.OnCambio += AlCambiarSesion;
+        usuarioCargado = Sesion.Usuario?.UsuarioId ?? 0;
         await Cargar();
     }
 
     private void AlCambiarSesion()
     {
+        // Elegir otro deposito en el selector global no cambia el marketplace.
+        var usuarioId = Sesion.Usuario?.UsuarioId ?? 0;
+        if (usuarioId == usuarioCargado)
+        {
+            return;
+        }
+
+        usuarioCargado = usuarioId;
         _ = InvokeAsync(Cargar);
     }
 

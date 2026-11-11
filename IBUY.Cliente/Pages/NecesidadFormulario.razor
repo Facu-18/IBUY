@@ -122,13 +122,13 @@ else
                             <InputSelect id="necesidad-destino" class="form-select" Value="necesidad.DepositoDestinoId"
                                          ValueChanged="@((int valor) => AlCambiarDestino(valor))" ValueExpression="() => necesidad.DepositoDestinoId">
                                 <option value="0">Seleccione el deposito donde falta</option>
-                                @foreach (var deposito in depositos)
+                                @foreach (var deposito in destinos)
                                 {
                                     <option value="@deposito.Id">@deposito.Nombre</option>
                                 }
                             </InputSelect>
                             <ValidationMessage class="text-danger small" For="() => necesidad.DepositoDestinoId" />
-                            @if (depositos.Count < 2)
+                            @if (destinos.Count < 2)
                             {
                                 <div class="form-text">Hacen falta al menos dos depositos en la empresa.</div>
                             }
@@ -210,6 +210,7 @@ else
 
     private NecesidadDTO? necesidad;
     private List<DepositoDTO> depositos = [];
+    private List<DepositoOpcionDTO> destinos = [];
     private List<ProductoDTO> productos = [];
     private List<SugerenciaNecesidadDTO> sugerencias = [];
     private string depositoSugerenciasNombre = string.Empty;
@@ -221,15 +222,25 @@ else
     private string? mensajeValidacion;
 
     private bool esEdicion => Id.HasValue && Id.Value > 0;
+    private int usuarioCargado;
 
     protected override async Task OnInitializedAsync()
     {
         Sesion.OnCambio += AlCambiarSesion;
+        usuarioCargado = Sesion.Usuario?.UsuarioId ?? 0;
         await Cargar();
     }
 
     private void AlCambiarSesion()
     {
+        // Elegir otro deposito en el selector global no debe reiniciar el formulario.
+        var usuarioId = Sesion.Usuario?.UsuarioId ?? 0;
+        if (usuarioId == usuarioCargado)
+        {
+            return;
+        }
+
+        usuarioCargado = usuarioId;
         _ = InvokeAsync(Cargar);
     }
 
@@ -245,6 +256,7 @@ else
         {
             necesidad = null;
             depositos = [];
+            destinos = [];
             productos = [];
             cargando = false;
             StateHasChanged();
@@ -253,6 +265,13 @@ else
 
         var depositosResp = await DepositoServicio.ObtenerTodosAsync(Sesion.EmpresaId);
         depositos = depositosResp.Error ? [] : depositosResp.Respuesta ?? [];
+
+        var opcionesResp = await DepositoServicio.ObtenerOpcionesAsync(Sesion.EmpresaId);
+        destinos = opcionesResp.Error ? [] : opcionesResp.Respuesta ?? [];
+        if (opcionesResp.Error)
+        {
+            errorServidor = $"No se pudieron cargar los depositos de destino. {opcionesResp.Mensaje}".Trim();
+        }
 
         var productosResp = await ProductoServicio.ObtenerTodosAsync(Sesion.EmpresaId);
         productos = productosResp.Error ? [] : productosResp.Respuesta ?? [];
@@ -288,12 +307,14 @@ else
     }
 
     /// <summary>
-    /// Propone los faltantes del deposito destino elegido (por defecto el primero de la empresa).
+    /// Propone los faltantes del deposito destino elegido (por defecto el Central de la empresa).
     /// Es solo una ayuda de carga: no crea nada hasta que el usuario guarda.
     /// </summary>
     private async Task CargarSugerencias()
     {
-        var depositoDestino = depositos.FirstOrDefault();
+        var depositoDestino = destinos.FirstOrDefault(d => d.Nombre.Contains("central", StringComparison.OrdinalIgnoreCase))
+            ?? destinos.FirstOrDefault();
+
         if (depositoDestino is null)
         {
             return;
@@ -316,7 +337,9 @@ else
             return;
         }
 
-        depositoSugerenciasNombre = depositos.FirstOrDefault(d => d.Id == necesidad.DepositoDestinoId)?.Nombre ?? string.Empty;
+        depositoSugerenciasNombre = destinos.FirstOrDefault(d => d.Id == necesidad.DepositoDestinoId)?.Nombre
+            ?? depositos.FirstOrDefault(d => d.Id == necesidad.DepositoDestinoId)?.Nombre
+            ?? string.Empty;
 
         var respuesta = await NecesidadServicio.ObtenerSugerenciasAsync(necesidad.DepositoDestinoId);
         sugerencias = respuesta.Error ? [] : respuesta.Respuesta ?? [];

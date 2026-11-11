@@ -10,7 +10,7 @@
         <h1 class="h3 mb-1">Productos</h1>
         <p class="text-body-secondary mb-0">Catalogo de productos de la empresa seleccionada.</p>
     </div>
-    @if (Sesion.EmpresaId > 0)
+    @if (Sesion.EmpresaId > 0 && Sesion.PuedeGestionar)
     {
         <a class="btn btn-primary d-inline-flex align-items-center gap-2" href="productos/nuevo">
             <Icono Nombre="mas" /> Nuevo producto
@@ -83,9 +83,12 @@ else
                                         <a class="btn btn-sm btn-outline-secondary" href="@($"productos/{producto.Id}")" aria-label="@($"Ver {producto.Nombre}")">
                                             <Icono Nombre="ver" /> Ver
                                         </a>
-                                        <a class="btn btn-sm btn-outline-primary" href="@($"productos/editar/{producto.Id}")" aria-label="@($"Editar {producto.Nombre}")">
-                                            <Icono Nombre="editar" /> Editar
-                                        </a>
+                                        @if (Sesion.PuedeGestionar)
+                                        {
+                                            <a class="btn btn-sm btn-outline-primary" href="@($"productos/editar/{producto.Id}")" aria-label="@($"Editar {producto.Nombre}")">
+                                                <Icono Nombre="editar" /> Editar
+                                            </a>
+                                        }
                                     </div>
                                 </td>
                             </tr>
@@ -104,6 +107,7 @@ else
     private bool cargando = true;
     private string? error;
     private int versionCarga;
+    private int empresaCargada;
     private IEnumerable<string> categorias => productos.Select(p => p.Categoria)
         .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(c => c);
     private List<ProductoDTO> filtrados => [.. productos.Where(p =>
@@ -113,11 +117,19 @@ else
     protected override async Task OnInitializedAsync()
     {
         Sesion.OnCambio += AlCambiarEmpresa;
+        empresaCargada = Sesion.EmpresaId;
         await Cargar();
     }
 
     private void AlCambiarEmpresa()
     {
+        // Elegir otro deposito en el selector global no cambia el catalogo de la empresa.
+        if (Sesion.EmpresaId == empresaCargada)
+        {
+            return;
+        }
+
+        empresaCargada = Sesion.EmpresaId;
         busqueda = categoria = string.Empty;
         _ = InvokeAsync(Cargar);
     }
