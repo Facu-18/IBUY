@@ -295,9 +295,9 @@ namespace IBUY.Server.Controllers
                 return BadRequest($"No existe el usuario de id: {dto.UsuarioId}");
             }
 
-            if (dto.FechaVencimiento.Date < DateTime.Today)
+            if (dto.FechaVencimiento.Date <= DateTime.Today)
             {
-                return BadRequest("La fecha de vencimiento no puede ser anterior a hoy.");
+                return BadRequest("La fecha de vencimiento debe ser posterior a la fecha de emisión.");
             }
 
             var notas = await repositorio.ObtenerNotasPorNecesidad();

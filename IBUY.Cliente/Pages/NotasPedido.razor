@@ -1,0 +1,292 @@
+@page "/notas-pedido"
+@implements IDisposable
+@inject INotaPedidoServicio NotaPedidoServicio
+@inject EstadoSesion Sesion
+
+<PageTitle>Notas de pedido · IBUY</PageTitle>
+
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+    <div>
+        <h1 class="h3 mb-1">Notas de pedido</h1>
+        <p class="text-body-secondary mb-0">Solicitudes de compra de la empresa y su estado en el marketplace.</p>
+    </div>
+    @if (Sesion.EmpresaId > 0 && Sesion.PuedeGestionarUsuarios)
+    {
+        <a class="btn btn-primary d-inline-flex align-items-center gap-2" href="notas-pedido/nuevo">
+            <Icono Nombre="mas" /> Nueva nota
+        </a>
+    }
+</div>
+
+@if (cargando)
+{
+    <Cargando Texto="Cargando notas de pedido..." />
+}
+else if (errorCarga is not null)
+{
+    <div class="alert alert-danger" role="alert">
+        @errorCarga
+        <button class="btn btn-sm btn-outline-danger ms-2" @onclick="Cargar">Reintentar</button>
+    </div>
+}
+else
+{
+    @if (errorAccion is not null)
+    {
+        <div class="alert alert-danger" role="alert">@errorAccion</div>
+    }
+
+    <div class="row g-3 align-items-end mb-3">
+        <div class="col-12 col-lg-5">
+            <label class="form-label" for="notas-busqueda">Buscar</label>
+            <div class="input-group">
+                <span class="input-group-text"><Icono Nombre="buscar" /></span>
+                <input id="notas-busqueda" type="search" class="form-control" placeholder="Numero u observaciones"
+                       @bind="busqueda" @bind:event="oninput" />
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-3">
+            <label class="form-label" for="notas-estado">Estado</label>
+            <select id="notas-estado" class="form-select" @bind="estado">
+                <option value="">Todos los estados</option>
+                @foreach (var valor in EstadosNotaPedido.Todos)
+                {
+                    <option value="@valor">@valor</option>
+                }
+            </select>
+        </div>
+        <div class="col-12 col-lg-4 text-body-secondary" role="status">
+            @filtrados.Count @(filtrados.Count == 1 ? "nota de pedido" : "notas de pedido")
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        @if (notas.Count == 0)
+        {
+            <p class="text-center text-body-secondary py-5 px-3 mb-0">
+                @(Sesion.EmpresaId == 0
+                    ? "No hay una empresa asociada a la sesión. Vuelva a iniciar sesión para ver sus notas de pedido."
+                    : "La empresa todavía no tiene notas de pedido. Cree una nueva para solicitar cotizaciones.")
+            </p>
+        }
+        else if (filtrados.Count == 0)
+        {
+            <p class="text-center text-body-secondary py-5 px-3 mb-0">
+                No hay notas que coincidan con la búsqueda y el estado seleccionado.
+            </p>
+        }
+        else
+        {
+            <div class="table-responsive" role="region" aria-label="Listado de notas de pedido" tabindex="0">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th scope="col">N.º</th>
+                            <th scope="col">Descripción</th>
+                            <th scope="col" class="text-end">Ítems</th>
+                            <th scope="col">Vence</th>
+                            <th scope="col">Estado</th>
+                            <th scope="col">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var nota in filtrados)
+                        {
+                            <tr @key="nota.Id">
+                                <td class="fw-semibold">N.º @nota.Id</td>
+                                <td>
+                                    @Descripcion(nota)
+                                    @if (nota.NecesidadId.HasValue)
+                                    {
+                                        <span class="badge rounded-pill bg-primary-subtle text-primary-emphasis ms-1">
+                                            Necesidad N.º @nota.NecesidadId
+                                        </span>
+                                    }
+                                </td>
+                                <td class="text-end">@nota.CantidadItems</td>
+                                <td>@nota.FechaVencimiento.ToString("dd/MM/yyyy")</td>
+                                <td>
+                                    <span class="badge rounded-pill @ClaseEstado(nota.Estado)">@nota.Estado</span>
+                                </td>
+                                <td>
+                                    <div class="d-flex flex-wrap gap-1">
+                                        <a class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1"
+                                           href="@($"notas-pedido/{nota.Id}")">
+                                            <Icono Nombre="ver" /> Ver
+                                        </a>
+                                        @if (PuedeEditar(nota))
+                                        {
+                                            <a class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1"
+                                               href="@($"notas-pedido/editar/{nota.Id}")">
+                                                <Icono Nombre="editar" /> Editar
+                                            </a>
+                                        }
+                                        @if (PuedeAprobar(nota))
+                                        {
+                                            <button type="button" class="btn btn-sm btn-success d-inline-flex align-items-center gap-1"
+                                                    disabled="@(procesandoId == nota.Id)" @onclick="() => Aprobar(nota)">
+                                                <Icono Nombre="check" />
+                                                @(procesandoId == nota.Id ? "Aprobando..." : "Aprobar")
+                                            </button>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+}
+
+@if (aviso is not null)
+{
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div class="toast show text-bg-dark border-0" role="status">
+            <div class="toast-body">@aviso</div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<NotaPedidoResumenDTO> notas = [];
+    private string busqueda = string.Empty;
+    private string estado = string.Empty;
+    private bool cargando = true;
+    private string? errorCarga;
+    private string? errorAccion;
+    private string? aviso;
+    private int procesandoId;
+
+    private List<NotaPedidoResumenDTO> filtrados => notas
+        .Where(n => string.IsNullOrWhiteSpace(estado) || n.Estado == estado)
+        .Where(n => string.IsNullOrWhiteSpace(busqueda) || Coincide(n, busqueda))
+        .ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        Sesion.OnCambio += AlCambiarSesion;
+        await Cargar();
+    }
+
+    private void AlCambiarSesion()
+    {
+        _ = InvokeAsync(Cargar);
+    }
+
+    private async Task Cargar()
+    {
+        cargando = true;
+        errorCarga = null;
+        errorAccion = null;
+        aviso = null;
+        busqueda = string.Empty;
+        estado = string.Empty;
+        StateHasChanged();
+
+        if (Sesion.EmpresaId == 0)
+        {
+            notas = [];
+            cargando = false;
+            StateHasChanged();
+            return;
+        }
+
+        var respuesta = await NotaPedidoServicio.ObtenerTodasAsync();
+
+        if (respuesta.Error)
+        {
+            notas = [];
+            errorCarga = $"No se pudieron cargar las notas de pedido. {respuesta.Mensaje}".Trim();
+        }
+        else
+        {
+            notas = respuesta.Respuesta ?? [];
+        }
+
+        cargando = false;
+        StateHasChanged();
+    }
+
+    private static bool Coincide(NotaPedidoResumenDTO nota, string texto)
+    {
+        var filtro = texto.Trim().ToLowerInvariant();
+        return nota.Id.ToString().Contains(filtro)
+            || nota.Observaciones.ToLowerInvariant().Contains(filtro);
+    }
+
+    private static string Descripcion(NotaPedidoResumenDTO nota)
+    {
+        return string.IsNullOrWhiteSpace(nota.Observaciones)
+            ? "Sin observaciones"
+            : nota.Observaciones;
+    }
+
+    private bool PuedeEditar(NotaPedidoResumenDTO nota)
+    {
+        return Sesion.PuedeGestionarUsuarios
+            && nota.CantidadCotizaciones == 0
+            && (nota.Estado == EstadosNotaPedido.Borrador
+                || nota.Estado == EstadosNotaPedido.Aprobada
+                || nota.Estado == EstadosNotaPedido.Publicada);
+    }
+
+    private bool PuedeAprobar(NotaPedidoResumenDTO nota)
+    {
+        return Sesion.PuedeGestionarUsuarios && nota.Estado == EstadosNotaPedido.Borrador;
+    }
+
+    private async Task Aprobar(NotaPedidoResumenDTO nota)
+    {
+        if (procesandoId != 0)
+        {
+            return;
+        }
+
+        procesandoId = nota.Id;
+        errorAccion = null;
+        StateHasChanged();
+
+        var respuesta = await NotaPedidoServicio.AprobarAsync(nota.Id);
+        procesandoId = 0;
+
+        if (respuesta.Error || !respuesta.Respuesta)
+        {
+            errorAccion = $"No se pudo aprobar la nota N.º {nota.Id}. {respuesta.Mensaje}".Trim();
+            StateHasChanged();
+            return;
+        }
+
+        await Cargar();
+        await MostrarAviso($"Nota de pedido N.º {nota.Id} aprobada. Ya puede publicarse en el marketplace.");
+    }
+
+    private async Task MostrarAviso(string texto)
+    {
+        aviso = texto;
+        StateHasChanged();
+
+        await Task.Delay(3500);
+
+        if (aviso == texto)
+        {
+            aviso = null;
+            StateHasChanged();
+        }
+    }
+
+    private static string ClaseEstado(string estado) => estado switch
+    {
+        EstadosNotaPedido.Borrador => "bg-warning-subtle text-warning-emphasis",
+        EstadosNotaPedido.Aprobada => "bg-success-subtle text-success-emphasis",
+        EstadosNotaPedido.Publicada => "bg-primary-subtle text-primary-emphasis",
+        EstadosNotaPedido.Cancelada => "bg-danger-subtle text-danger-emphasis",
+        _ => "bg-secondary-subtle text-secondary-emphasis"
+    };
+
+    public void Dispose()
+    {
+        Sesion.OnCambio -= AlCambiarSesion;
+    }
+}

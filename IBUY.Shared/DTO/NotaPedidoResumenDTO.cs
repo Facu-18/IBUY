@@ -17,5 +17,14 @@ namespace IBUY.Shared.DTO
         public string Observaciones { get; set; } = string.Empty;
 
         public int EmpresaId { get; set; }
+
+        /// <summary>Necesidad de origen, si la nota se generó desde una.</summary>
+        public int? NecesidadId { get; set; }
+
+        public int? AprobadoPorId { get; set; }
+
+        public int CantidadItems { get; set; }
+
+        public int CantidadCotizaciones { get; set; }
     }
 }

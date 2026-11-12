@@ -347,9 +347,9 @@ else
             return;
         }
 
-        if (fechaVencimiento.Date < DateTime.Today)
+        if (fechaVencimiento.Date <= DateTime.Today)
         {
-            errorNota = "La fecha de vencimiento no puede ser anterior a hoy.";
+            errorNota = "La fecha de vencimiento debe ser posterior a hoy.";
             return;
         }
 
