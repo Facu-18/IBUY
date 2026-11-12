@@ -1,0 +1,110 @@
+@page "/stock/{Id:int}/minimo"
+@inject IStockServicio StockServicio
+@inject NavigationManager Navegacion
+
+<PageTitle>Cantidad minima · IBUY</PageTitle>
+
+<div class="mb-4">
+    <h1 class="h3 mb-1">Cantidad minima</h1>
+    <p class="text-body-secondary mb-0">
+        @(stock is null ? "Cuando la cantidad actual no la supera, el stock se marca como bajo." : $"{stock.ProductoNombre} en {stock.DepositoNombre}.")
+    </p>
+</div>
+
+@if (cargando)
+{
+    <Cargando Texto="Cargando stock..." />
+}
+else if (stock is null)
+{
+    <div class="alert alert-danger" role="alert">
+        No se pudo cargar el stock. @error
+        <a class="alert-link" href="stock">Volver al stock</a>
+    </div>
+}
+else
+{
+    @if (error is not null)
+    {
+        <div class="alert alert-danger" role="alert">@error</div>
+    }
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <fieldset disabled="@guardando">
+                <div class="row g-3">
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="stock-minimo">Cantidad minima *</label>
+                        <input id="stock-minimo" type="number" class="form-control" min="0" step="1" inputmode="numeric"
+                               value="@textoMinimo" @onchange="e => textoMinimo = e.Value?.ToString() ?? string.Empty" />
+                        <div class="form-text">Numero entero, 0 o mayor. Con 0 el producto no tiene minimo.</div>
+                        @if (mensajeValidacion is not null)
+                        {
+                            <div class="text-danger small">@mensajeValidacion</div>
+                        }
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <span class="form-label d-block">Cantidad actual</span>
+                        <p class="form-control-plaintext mb-0">@stock.CantidadActual.ToString("0.##")</p>
+                    </div>
+                </div>
+            </fieldset>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-end gap-2 mt-3">
+        <a class="btn btn-outline-secondary" href="@($"stock/{Id}")">Cancelar</a>
+        <button type="button" class="btn btn-primary" disabled="@guardando" @onclick="Guardar">
+            @(guardando ? "Guardando..." : "Guardar")
+        </button>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private StockListadoDTO? stock;
+    private string textoMinimo = "0";
+    private bool cargando = true;
+    private bool guardando;
+    private string? error;
+    private string? mensajeValidacion;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        cargando = true;
+        var respuesta = await StockServicio.ObtenerPorIdAsync(Id);
+        stock = respuesta.Error ? null : respuesta.Respuesta;
+        error = respuesta.Error ? respuesta.Mensaje : null;
+        textoMinimo = stock is null ? "0" : decimal.ToInt64(stock.CantidadMinima).ToString();
+        cargando = false;
+    }
+
+    private async Task Guardar()
+    {
+        error = null;
+        mensajeValidacion = null;
+
+        // Se lee sin cultura: el input number usa digitos simples. Un negativo, un decimal o
+        // un texto invalido no pasan.
+        if (!long.TryParse(textoMinimo, System.Globalization.NumberStyles.None,
+                System.Globalization.CultureInfo.InvariantCulture, out var minimo))
+        {
+            mensajeValidacion = "La cantidad minima debe ser un numero entero, 0 o mayor.";
+            return;
+        }
+
+        guardando = true;
+        var respuesta = await StockServicio.ActualizarMinimoAsync(Id, minimo);
+        guardando = false;
+
+        if (respuesta.Error)
+        {
+            error = $"No se pudo guardar la cantidad minima. {respuesta.Mensaje}".Trim();
+            return;
+        }
+
+        Navegacion.NavigateTo($"stock/{Id}");
+    }
+}

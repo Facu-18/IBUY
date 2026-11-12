@@ -1,0 +1,22 @@
+@* Aviso de que hay ajustes simulados aplicados en pantalla, con la opcion de descartarlos. *@
+@implements IDisposable
+@inject SimulacionStock Simulacion
+
+@if (Simulacion.Cantidad > 0)
+{
+    <div class="alert alert-info d-flex flex-wrap align-items-center justify-content-between gap-2" role="status">
+        <span>
+            @(Simulacion.Cantidad == 1 ? "Hay 1 ajuste simulado aplicado" : $"Hay {Simulacion.Cantidad} ajustes simulados aplicados") en pantalla.
+            No se guardaron: el stock real solo cambia con remitos.
+        </span>
+        <button type="button" class="btn btn-sm btn-outline-info" @onclick="Simulacion.DescartarTodo">Descartar simulaciones</button>
+    </div>
+}
+
+@code {
+    protected override void OnInitialized() => Simulacion.OnCambio += Refrescar;
+
+    private void Refrescar() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Simulacion.OnCambio -= Refrescar;
+}

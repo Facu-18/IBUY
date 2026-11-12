@@ -1,0 +1,35 @@
+@* Contadores de stock normal, bajo y agotado. Se recalculan con los ajustes simulados. *@
+
+<div class="row g-3 mb-4" role="status" aria-label="Indicadores de stock">
+    <div class="col-12 col-md-4">
+        <div class="card shadow-sm h-100 border-success-subtle">
+            <div class="card-body">
+                <p class="small text-uppercase text-body-secondary mb-1">Stock normal</p>
+                <p class="h3 mb-0 text-success-emphasis">@Contar(EstadosStock.Normal)</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-4">
+        <div class="card shadow-sm h-100 border-warning-subtle">
+            <div class="card-body">
+                <p class="small text-uppercase text-body-secondary mb-1">Stock bajo</p>
+                <p class="h3 mb-0 text-warning-emphasis">@Contar(EstadosStock.Bajo)</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-4">
+        <div class="card shadow-sm h-100 border-danger-subtle">
+            <div class="card-body">
+                <p class="small text-uppercase text-body-secondary mb-1">Agotado</p>
+                <p class="h3 mb-0 text-danger-emphasis">@Contar(EstadosStock.Agotado)</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<StockListadoDTO> Items { get; set; } = [];
+
+    private int Contar(string estado) => Items.Count(s => s.Estado == estado);
+}

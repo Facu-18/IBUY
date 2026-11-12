@@ -1,0 +1,109 @@
+@page "/stock/deposito/{DepositoId:int}"
+@implements IDisposable
+@inject IStockServicio StockServicio
+@inject IDepositoServicio DepositoServicio
+@inject SimulacionStock Simulacion
+
+<PageTitle>Stock de @(nombreDeposito ?? "deposito") · IBUY</PageTitle>
+
+<div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-4">
+    <div>
+        <h1 class="h3 mb-1">Stock de @(nombreDeposito ?? $"Deposito #{DepositoId}")</h1>
+        <p class="text-body-secondary mb-0">Existencias del deposito con su cantidad minima y estado.</p>
+    </div>
+    <a class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" href="stock">
+        <Icono Nombre="volver" /> Todo el stock
+    </a>
+</div>
+
+<AvisoSimulacionStock />
+
+<div class="form-check form-switch mb-3">
+    <input id="deposito-criticos" class="form-check-input" type="checkbox" role="switch"
+           @bind="soloCriticos" @bind:after="Cargar" />
+    <label class="form-check-label" for="deposito-criticos">Solo productos criticos</label>
+</div>
+
+@if (cargando)
+{
+    <Cargando Texto="Cargando stock del deposito..." />
+}
+else if (errorCarga is not null)
+{
+    <div class="alert alert-danger" role="alert">
+        @errorCarga
+        <a class="alert-link" href="stock">Volver al stock</a>
+    </div>
+}
+else
+{
+    <IndicadoresStock Items="Vista" />
+
+    <div class="card shadow-sm">
+        @if (Vista.Count == 0)
+        {
+            <p class="text-center text-body-secondary py-5 px-3 mb-0">
+                @(soloCriticos ? "El deposito no tiene productos criticos." : "El deposito todavia no tiene stock registrado.")
+            </p>
+        }
+        else
+        {
+            <TablaStock Items="Vista" MostrarDeposito="false" />
+        }
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int DepositoId { get; set; }
+
+    private List<StockListadoDTO> stocks = [];
+    private string? nombreDeposito;
+    private bool soloCriticos;
+    private bool cargando = true;
+    private string? errorCarga;
+
+    private List<StockListadoDTO> Vista
+    {
+        get
+        {
+            var vista = Simulacion.Simular(stocks);
+            return soloCriticos ? [.. vista.Where(s => EstadosStock.EsCritico(s.Estado))] : vista;
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var respuestaDeposito = await DepositoServicio.ObtenerPorIdAsync(DepositoId);
+        nombreDeposito = respuestaDeposito.Respuesta?.Nombre;
+        await Cargar();
+    }
+
+    protected override void OnInitialized() => Simulacion.OnCambio += AlCambiarSimulacion;
+
+    private void AlCambiarSimulacion() => _ = InvokeAsync(Cargar);
+
+    private async Task Cargar()
+    {
+        cargando = true;
+        errorCarga = null;
+        StateHasChanged();
+
+        // El servidor responde 403 si el deposito no es de los que el usuario puede ver.
+        var respuesta = await StockServicio.ObtenerTodosAsync(DepositoId, null, soloCriticos && Simulacion.Cantidad == 0);
+        if (respuesta.Error)
+        {
+            stocks = [];
+            errorCarga = $"No se pudo cargar el stock del deposito. {respuesta.Mensaje}".Trim();
+        }
+        else
+        {
+            stocks = respuesta.Respuesta ?? [];
+        }
+
+        cargando = false;
+        StateHasChanged();
+    }
+
+    public void Dispose() => Simulacion.OnCambio -= AlCambiarSimulacion;
+}

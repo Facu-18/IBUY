@@ -1,0 +1,163 @@
+@page "/stock"
+@implements IDisposable
+@inject IStockServicio StockServicio
+@inject IDepositoServicio DepositoServicio
+@inject IProductoServicio ProductoServicio
+@inject EstadoSesion Sesion
+@inject SimulacionStock Simulacion
+
+<PageTitle>Stock · IBUY</PageTitle>
+
+<div class="mb-4">
+    <h1 class="h3 mb-1">Stock</h1>
+    <p class="text-body-secondary mb-0">Existencias por producto y deposito, con su cantidad minima y estado.</p>
+</div>
+
+<AvisoSimulacionStock />
+
+<div class="row g-3 align-items-end mb-3">
+    <div class="col-12 col-md-4">
+        <label class="form-label" for="stock-deposito">Deposito</label>
+        <select id="stock-deposito" class="form-select" @bind="depositoId" @bind:after="Cargar">
+            <option value="0">Todos los depositos</option>
+            @foreach (var deposito in depositos)
+            {
+                <option value="@deposito.Id">@deposito.Nombre</option>
+            }
+        </select>
+    </div>
+    <div class="col-12 col-md-4">
+        <label class="form-label" for="stock-producto">Producto</label>
+        <select id="stock-producto" class="form-select" @bind="productoId" @bind:after="Cargar">
+            <option value="0">Todos los productos</option>
+            @foreach (var producto in productos)
+            {
+                <option value="@producto.Id">@producto.Nombre</option>
+            }
+        </select>
+    </div>
+    <div class="col-12 col-md-4 d-flex flex-wrap align-items-center gap-3 pb-2">
+        <div class="form-check form-switch mb-0">
+            <input id="stock-criticos" class="form-check-input" type="checkbox" role="switch"
+                   @bind="soloCriticos" @bind:after="Cargar" />
+            <label class="form-check-label" for="stock-criticos">Solo productos criticos</label>
+        </div>
+        @if (depositoId > 0)
+        {
+            <a class="link-primary" href="@($"stock/deposito/{depositoId}")">Ver por deposito</a>
+        }
+    </div>
+</div>
+
+@if (cargando)
+{
+    <Cargando Texto="Cargando stock..." />
+}
+else if (errorCarga is not null)
+{
+    <div class="alert alert-danger" role="alert">
+        @errorCarga
+        <button class="btn btn-sm btn-outline-danger ms-2" @onclick="Cargar">Reintentar</button>
+    </div>
+}
+else
+{
+    <IndicadoresStock Items="Vista" />
+
+    <div class="card shadow-sm">
+        @if (Vista.Count == 0)
+        {
+            <p class="text-center text-body-secondary py-5 px-3 mb-0">
+                @(HayFiltros ? "No hay stock que coincida con los filtros." : "Todavia no hay stock registrado en los depositos que puede ver.")
+            </p>
+        }
+        else
+        {
+            <TablaStock Items="Vista" />
+        }
+    </div>
+}
+
+@code {
+    private List<StockListadoDTO> stocks = [];
+    private List<DepositoDTO> depositos = [];
+    private List<ProductoDTO> productos = [];
+    private int depositoId;
+    private int productoId;
+    private bool soloCriticos;
+    private bool cargando = true;
+    private string? errorCarga;
+    private int versionCarga;
+
+    private bool HayFiltros => depositoId > 0 || productoId > 0 || soloCriticos;
+
+    /// <summary>
+    /// Stock del servidor con los ajustes simulados aplicados. Con "solo criticos" se vuelve
+    /// a filtrar, porque una simulacion puede sacar o meter un producto entre los criticos.
+    /// </summary>
+    private List<StockListadoDTO> Vista
+    {
+        get
+        {
+            var vista = Simulacion.Simular(stocks);
+            return soloCriticos ? [.. vista.Where(s => EstadosStock.EsCritico(s.Estado))] : vista;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Sesion.OnCambio += AlCambiar;
+        Simulacion.OnCambio += AlCambiarSimulacion;
+
+        var respuestaDepositos = await DepositoServicio.ObtenerTodosAsync(null);
+        depositos = respuestaDepositos.Respuesta ?? [];
+
+        var respuestaProductos = await ProductoServicio.ObtenerTodosAsync(Sesion.EmpresaId);
+        productos = respuestaProductos.Respuesta ?? [];
+
+        await Cargar();
+    }
+
+    private void AlCambiar() => _ = InvokeAsync(Cargar);
+
+    private void AlCambiarSimulacion() => _ = InvokeAsync(Cargar);
+
+    private async Task Cargar()
+    {
+        var version = ++versionCarga;
+        cargando = true;
+        errorCarga = null;
+        StateHasChanged();
+
+        // "Solo criticos" lo filtra el servidor. Si hay ajustes simulados se piden todos y se
+        // filtra en pantalla, porque una simulacion puede volver critico a un producto normal.
+        var respuesta = await StockServicio.ObtenerTodosAsync(
+            depositoId > 0 ? depositoId : null,
+            productoId > 0 ? productoId : null,
+            soloCriticos && Simulacion.Cantidad == 0);
+
+        if (version != versionCarga)
+        {
+            return;
+        }
+
+        if (respuesta.Error)
+        {
+            stocks = [];
+            errorCarga = $"No se pudo cargar el stock. {respuesta.Mensaje}".Trim();
+        }
+        else
+        {
+            stocks = respuesta.Respuesta ?? [];
+        }
+
+        cargando = false;
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        Sesion.OnCambio -= AlCambiar;
+        Simulacion.OnCambio -= AlCambiarSimulacion;
+    }
+}

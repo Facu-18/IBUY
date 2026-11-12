@@ -1,0 +1,13 @@
+<span class="badge rounded-pill @Clase">@Estado</span>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Estado { get; set; } = string.Empty;
+
+    private string Clase => Estado switch
+    {
+        EstadosStock.Agotado => "bg-danger-subtle text-danger-emphasis",
+        EstadosStock.Bajo => "bg-warning-subtle text-warning-emphasis",
+        _ => "bg-success-subtle text-success-emphasis"
+    };
+}
