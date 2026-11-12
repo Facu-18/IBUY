@@ -15,6 +15,12 @@ namespace IBUY.BD.Datos.Entity
             ErrorMessage = "La cantidad actual no puede ser negativa.")]
         public decimal CantidadActual { get; set; }
 
+        /// <summary>Por debajo (o igual) de esta cantidad el stock se considera bajo. 0 = sin mínimo.</summary>
+        [Column(TypeName = "decimal(18,2)")]
+        [Range(typeof(decimal), "0", "9999999999999999.99", ParseLimitsInInvariantCulture = true,
+            ErrorMessage = "La cantidad mínima no puede ser negativa.")]
+        public decimal CantidadMinima { get; set; }
+
         [Range(1, int.MaxValue, ErrorMessage = "Debe seleccionar un depósito.")]
         public int DepositoId { get; set; }
 
