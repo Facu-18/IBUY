@@ -31,6 +31,7 @@ builder.Services.AddScoped<IUsuarioServicio, UsuarioServicioHttp>();
 builder.Services.AddScoped<INotaPedidoServicio, NotaPedidoServicioHttp>();
 builder.Services.AddScoped<ICotizacionServicio, CotizacionServicioHttp>();
 builder.Services.AddScoped<IAuthServicio, AuthServicioHttp>();
+builder.Services.AddScoped<IRemitoServicio, RemitoServicioHttp>();
 
 // La sesion se restaura antes de arrancar para que el guard no redirija a /login tras un F5.
 var host = builder.Build();

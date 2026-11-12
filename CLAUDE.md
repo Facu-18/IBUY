@@ -50,7 +50,7 @@ Stock only moves through `Remito` (`api/remito`, no PUT/DELETE). `Tipo` is `Inte
 
 ### Client: real API only, Bootstrap + theme
 
-The client only ships features backed by the API (Depósitos, Productos, Necesidades, Notas de pedido, Empresas, Usuarios, Marketplace). There are no mocks; a new page comes with its `*ServicioHttp` implementation registered in `IBUY.Cliente/Program.cs`, and pages depend only on the interface.
+The client only ships features backed by the API (Depósitos, Productos, Necesidades, Notas de pedido, Remitos, Empresas, Usuarios, Marketplace). There are no mocks; a new page comes with its `*ServicioHttp` implementation registered in `IBUY.Cliente/Program.cs`, and pages depend only on the interface.
 
 
 
