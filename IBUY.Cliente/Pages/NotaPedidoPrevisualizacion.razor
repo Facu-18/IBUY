@@ -1,0 +1,307 @@
+@page "/notas-pedido/{Id:int}/previsualizar"
+@implements IDisposable
+@inject INotaPedidoServicio NotaPedidoServicio
+@inject EstadoSesion Sesion
+
+<PageTitle>Vista previa de la nota N.º @Id · IBUY</PageTitle>
+
+@if (cargando)
+{
+    <Cargando Texto="Cargando vista previa..." />
+}
+else if (nota is null)
+{
+    <div class="alert alert-danger" role="alert">
+        No se encontró la nota de pedido N.º @Id.
+        <a class="alert-link" href="notas-pedido">Volver al listado</a>
+    </div>
+}
+else
+{
+    <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-4">
+        <div>
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                <h1 class="h3 mb-0">Vista previa de la nota N.º @nota.Id</h1>
+                <span class="badge rounded-pill @ClaseEstado(nota.Estado)">@nota.Estado</span>
+            </div>
+            <p class="text-body-secondary mb-0">Así verán los proveedores esta solicitud en el marketplace.</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <a class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" href="@($"notas-pedido/{nota.Id}")">
+                <Icono Nombre="volver" /> Volver al detalle
+            </a>
+            @if (PuedeEditar)
+            {
+                <a class="btn btn-outline-primary d-inline-flex align-items-center gap-2"
+                   href="@($"notas-pedido/editar/{nota.Id}")">
+                    <Icono Nombre="editar" /> Editar
+                </a>
+            }
+            @if (PuedePublicar)
+            {
+                <button type="button" class="btn btn-primary d-inline-flex align-items-center gap-2"
+                        disabled="@procesando" @onclick="Publicar">
+                    <Icono Nombre="marketplace" /> @(procesando ? "Publicando..." : "Publicar en marketplace")
+                </button>
+            }
+        </div>
+    </div>
+
+    @if (errorAccion is not null)
+    {
+        <div class="alert alert-danger" role="alert">@errorAccion</div>
+    }
+
+    @if (nota.Estado == EstadosNotaPedido.Borrador)
+    {
+        <div class="alert alert-warning" role="alert">
+            La nota está en Borrador: primero debe aprobarse desde el detalle antes de publicarse.
+            <a class="alert-link" href="@($"notas-pedido/{nota.Id}")">Ir al detalle</a>
+        </div>
+    }
+    else if (nota.Estado == EstadosNotaPedido.Aprobada && Vencida)
+    {
+        <div class="alert alert-warning" role="alert">
+            La nota está vencida y no puede publicarse. Actualizá la fecha de vencimiento desde Editar.
+        </div>
+    }
+    else if (nota.Estado == EstadosNotaPedido.Aprobada)
+    {
+        <div class="alert alert-info" role="alert">
+            Revisá la información. Al publicar, la nota aparecerá de inmediato en el marketplace de las demás empresas.
+        </div>
+    }
+    else if (nota.Estado == EstadosNotaPedido.Publicada)
+    {
+        <div class="alert alert-success" role="alert">
+            La nota está publicada: los proveedores ya pueden enviar cotizaciones.
+        </div>
+    }
+    else if (nota.Estado == EstadosNotaPedido.Cancelada)
+    {
+        <div class="alert alert-danger" role="alert">La nota fue cancelada y no puede publicarse.</div>
+    }
+    else if (nota.Estado == EstadosNotaPedido.Cerrada)
+    {
+        <div class="alert alert-secondary" role="alert">La nota está cerrada con una cotización elegida.</div>
+    }
+
+    <div class="row g-3">
+        <div class="col-12 col-lg-8 col-xxl-6">
+            <div class="card shadow-sm">
+                <div class="card-body d-flex flex-column gap-3">
+                    <div class="d-flex justify-content-between align-items-start gap-2">
+                        <div>
+                            <h2 class="h5 mb-1">@TextoEmpresa(nota)</h2>
+                            <span class="small text-body-secondary">Nota N.º @nota.Id</span>
+                        </div>
+                        <span class="badge rounded-pill flex-shrink-0 @ClaseVencimiento">@TextoVencimiento</span>
+                    </div>
+
+                    @if (string.IsNullOrWhiteSpace(nota.Observaciones))
+                    {
+                        <p class="text-body-secondary fst-italic mb-0">Sin observaciones.</p>
+                    }
+                    else
+                    {
+                        <p class="text-body-secondary mb-0">@nota.Observaciones</p>
+                    }
+
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Producto</th>
+                                    <th scope="col" class="text-end">Cantidad</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in nota.Items)
+                                {
+                                    <tr @key="item.Id">
+                                        <td class="fw-semibold">@item.ProductoNombre</td>
+                                        <td class="text-end">@item.CantidadSolicitada.ToString("0.##")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-auto">
+                        <span class="small text-body-secondary">Vence el @nota.FechaVencimiento.ToString("dd/MM/yyyy")</span>
+                        @if (nota.Estado == EstadosNotaPedido.Publicada)
+                        {
+                            <span class="badge rounded-pill bg-success-subtle text-success-emphasis">Publicada</span>
+                        }
+                        else
+                        {
+                            <button type="button" class="btn btn-primary" disabled>
+                                @(nota.Estado == EstadosNotaPedido.Aprobada ? "Botón de cotizar (vista previa)" : "Cotizar")
+                            </button>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (aviso is not null)
+{
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div class="toast show text-bg-dark border-0" role="status">
+            <div class="toast-body">@aviso</div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private NotaPedidoDTO? nota;
+    private bool cargando = true;
+    private bool procesando;
+    private string? errorAccion;
+    private string? aviso;
+
+    private bool Vencida => nota is not null && nota.FechaVencimiento.Date < DateTime.Today;
+
+    private bool PuedeEditar =>
+        nota is not null
+        && Sesion.PuedeGestionarUsuarios
+        && nota.CantidadCotizaciones == 0
+        && (nota.Estado == EstadosNotaPedido.Borrador
+            || nota.Estado == EstadosNotaPedido.Aprobada
+            || nota.Estado == EstadosNotaPedido.Publicada);
+
+    private bool PuedePublicar =>
+        nota is not null
+        && Sesion.PuedeGestionarUsuarios
+        && nota.Estado == EstadosNotaPedido.Aprobada
+        && !Vencida
+        && nota.Items.Count > 0;
+
+    private int DiasRestantes => nota is null ? 0 : (nota.FechaVencimiento.Date - DateTime.Today).Days;
+
+    private string ClaseVencimiento
+    {
+        get
+        {
+            if (Vencida)
+            {
+                return "bg-danger-subtle text-danger-emphasis";
+            }
+
+            return DiasRestantes <= 3
+                ? "bg-warning-subtle text-warning-emphasis"
+                : "bg-success-subtle text-success-emphasis";
+        }
+    }
+
+    private string TextoVencimiento
+    {
+        get
+        {
+            if (Vencida)
+            {
+                return "Vencida";
+            }
+
+            return DiasRestantes switch
+            {
+                0 => "Vence hoy",
+                1 => "Vence en 1 día",
+                _ => $"Vence en {DiasRestantes} días"
+            };
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Sesion.OnCambio += AlCambiarSesion;
+        await Cargar();
+    }
+
+    private void AlCambiarSesion()
+    {
+        _ = InvokeAsync(Cargar);
+    }
+
+    private async Task Cargar()
+    {
+        cargando = true;
+        errorAccion = null;
+        StateHasChanged();
+
+        var respuesta = await NotaPedidoServicio.ObtenerPorIdAsync(Id);
+        nota = respuesta.Error ? null : respuesta.Respuesta;
+
+        if (nota is not null)
+        {
+            nota.Observaciones ??= string.Empty;
+            nota.Items ??= [];
+        }
+
+        cargando = false;
+        StateHasChanged();
+    }
+
+    private async Task Publicar()
+    {
+        if (nota is null || procesando || !PuedePublicar)
+        {
+            return;
+        }
+
+        procesando = true;
+        errorAccion = null;
+        StateHasChanged();
+
+        var respuesta = await NotaPedidoServicio.PublicarAsync(nota.Id);
+        procesando = false;
+
+        if (respuesta.Error || !respuesta.Respuesta)
+        {
+            errorAccion = $"No se pudo publicar la nota de pedido. {respuesta.Mensaje}".Trim();
+            StateHasChanged();
+            return;
+        }
+
+        await Cargar();
+        await MostrarAviso($"Nota de pedido N.º {Id} publicada en el marketplace.");
+    }
+
+    private async Task MostrarAviso(string texto)
+    {
+        aviso = texto;
+        StateHasChanged();
+
+        await Task.Delay(3500);
+
+        if (aviso == texto)
+        {
+            aviso = null;
+            StateHasChanged();
+        }
+    }
+
+    private string TextoEmpresa(NotaPedidoDTO nota) =>
+        string.IsNullOrWhiteSpace(nota.EmpresaRazonSocial)
+            ? (string.IsNullOrWhiteSpace(Sesion.Empresa) ? $"Empresa N.º {nota.EmpresaId}" : Sesion.Empresa)
+            : nota.EmpresaRazonSocial;
+
+    private static string ClaseEstado(string estado) => estado switch
+    {
+        EstadosNotaPedido.Borrador => "bg-warning-subtle text-warning-emphasis",
+        EstadosNotaPedido.Aprobada => "bg-success-subtle text-success-emphasis",
+        EstadosNotaPedido.Publicada => "bg-primary-subtle text-primary-emphasis",
+        EstadosNotaPedido.Cancelada => "bg-danger-subtle text-danger-emphasis",
+        _ => "bg-secondary-subtle text-secondary-emphasis"
+    };
+
+    public void Dispose()
+    {
+        Sesion.OnCambio -= AlCambiarSesion;
+    }
+}

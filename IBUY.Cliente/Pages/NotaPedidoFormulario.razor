@@ -1,0 +1,489 @@
+@page "/notas-pedido/nuevo"
+@page "/notas-pedido/editar/{Id:int}"
+@implements IDisposable
+@inject INotaPedidoServicio NotaPedidoServicio
+@inject IProductoServicio ProductoServicio
+@inject EstadoSesion Sesion
+@inject NavigationManager Navegacion
+
+<PageTitle>@(esEdicion ? "Editar nota de pedido" : "Nueva nota de pedido") · IBUY</PageTitle>
+
+<div class="mb-4">
+    <h1 class="h3 mb-1">@(esEdicion ? "Editar nota de pedido" : "Nueva nota de pedido")</h1>
+    <p class="text-body-secondary mb-0">
+        @(esEdicion
+            ? "Actualiza los productos y el vencimiento de la solicitud de compra."
+            : "Arma una solicitud de compra con varios productos para publicarla en el marketplace.")
+    </p>
+</div>
+
+@if (cargando)
+{
+    <Cargando Texto="Cargando formulario..." />
+}
+else if (!Sesion.PuedeGestionarUsuarios)
+{
+    <div class="alert alert-warning" role="alert">
+        Solo los usuarios de Ventas o el SuperAdmin pueden crear y editar notas de pedido.
+        <a class="alert-link" href="notas-pedido">Volver al listado</a>
+    </div>
+}
+else if (errorCarga is not null)
+{
+    <div class="alert alert-danger" role="alert">
+        @errorCarga
+        <a class="alert-link" href="notas-pedido">Volver al listado</a>
+    </div>
+}
+else if (nota is null)
+{
+    <div class="alert alert-warning" role="alert">
+        No hay una empresa asociada a la sesión para cargar notas de pedido.
+        <a class="alert-link" href="notas-pedido">Volver al listado</a>
+    </div>
+}
+else if (!PuedeEditar)
+{
+    <div class="alert alert-warning" role="alert">
+        @MotivoNoEditable
+        <a class="alert-link" href="@($"notas-pedido/{nota.Id}")">Ver el detalle de la nota</a>
+    </div>
+}
+else
+{
+    @if (errorServidor is not null)
+    {
+        <div class="alert alert-danger" role="alert">@errorServidor</div>
+    }
+
+    <form @onsubmit="Guardar" @onsubmit:preventDefault>
+        <div class="card shadow-sm mb-4">
+            <div class="card-body p-3 p-md-4">
+                <div class="row g-3">
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="nota-empresa">Empresa</label>
+                        <input id="nota-empresa" class="form-control" value="@Sesion.Empresa" disabled />
+                        <div class="form-text">La nota se crea para la empresa de su sesión.</div>
+                    </div>
+
+                    <div class="col-12 col-md-3">
+                        <label class="form-label" for="nota-emision">Fecha de emisión</label>
+                        <input id="nota-emision" type="date" class="form-control"
+                               value="@nota.FechaEmision.ToString("yyyy-MM-dd")" disabled />
+                    </div>
+
+                    <div class="col-12 col-md-3">
+                        <label class="form-label" for="nota-vencimiento">Fecha de vencimiento *</label>
+                        <input id="nota-vencimiento" type="date" class="form-control"
+                               min="@FechaMinima" @bind="nota.FechaVencimiento" disabled="@guardando" />
+                        <div class="form-text">Debe ser posterior a la emisión.</div>
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label" for="nota-observaciones">Observaciones (opcional)</label>
+                        <textarea id="nota-observaciones" class="form-control" rows="3" maxlength="500"
+                                  placeholder="Ej.: entrega parcial aceptada, requiere flete incluido"
+                                  @bind="nota.Observaciones" disabled="@guardando"></textarea>
+                    </div>
+
+                    @if (esEdicion)
+                    {
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="nota-creador">Creador</label>
+                            <input id="nota-creador" class="form-control" value="@TextoUsuario(nota.UsuarioNombre)" disabled />
+                        </div>
+
+                        @if (nota.AprobadoPorId.HasValue)
+                        {
+                            <div class="col-12 col-md-6">
+                                <label class="form-label" for="nota-aprobador">Aprobador</label>
+                                <input id="nota-aprobador" class="form-control" value="@TextoUsuario(nota.AprobadoPorNombre)" disabled />
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-body p-3 p-md-4">
+                <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2 mb-3">
+                    <div>
+                        <h2 class="h5 mb-1">Productos de la nota</h2>
+                        <p class="text-body-secondary mb-0">Agregue al menos un producto con una cantidad mayor a cero.</p>
+                    </div>
+                    <button type="button" class="btn btn-outline-primary d-inline-flex align-items-center gap-2"
+                            disabled="@guardando" @onclick="AgregarItem">
+                        <Icono Nombre="mas" /> Agregar producto
+                    </button>
+                </div>
+
+                @if (productos.Count == 0)
+                {
+                    <div class="alert alert-warning mb-0" role="alert">
+                        La empresa todavía no tiene productos cargados. Cargue productos antes de armar una nota de pedido.
+                        <a class="alert-link" href="productos/nuevo">Nuevo producto</a>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Producto</th>
+                                    <th scope="col" class="text-end">Cantidad</th>
+                                    <th scope="col" class="text-end">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (var i = 0; i < nota.Items.Count; i++)
+                                {
+                                    var indice = i;
+                                    var item = nota.Items[i];
+                                    <tr @key="item">
+                                        <td>
+                                            <select class="form-select" aria-label="Producto del ítem @(indice + 1)"
+                                                    @bind="item.ProductoId" disabled="@guardando">
+                                                <option value="0">Seleccione el producto</option>
+                                                @foreach (var producto in productos)
+                                                {
+                                                    <option value="@producto.Id">@producto.Nombre</option>
+                                                }
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <input type="number" class="form-control text-end" step="0.01" min="0.01"
+                                                   aria-label="Cantidad del ítem @(indice + 1)"
+                                                   @bind="item.CantidadSolicitada" disabled="@guardando" />
+                                        </td>
+                                        <td class="text-end">
+                                            <button type="button" class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1"
+                                                    disabled="@(guardando || nota.Items.Count == 1)"
+                                                    title="@(nota.Items.Count == 1 ? "La nota debe tener al menos un producto" : "Quitar producto")"
+                                                    @onclick="() => QuitarItem(indice)">
+                                                <Icono Nombre="cerrar" /> Quitar
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+
+        @if (mensajeValidacion is not null)
+        {
+            <div class="alert alert-danger" role="alert">@mensajeValidacion</div>
+        }
+
+        @if (esEdicion)
+        {
+            <div class="alert alert-info" role="alert">
+                @if (nota.Estado == EstadosNotaPedido.Aprobada)
+                {
+                    <span>Al guardar cambios, la nota vuelve a Borrador y debe aprobarse otra vez.</span>
+                }
+                else if (nota.Estado == EstadosNotaPedido.Publicada)
+                {
+                    <span>La nota seguirá publicada siempre que no reciba cotizaciones.</span>
+                }
+                else
+                {
+                    <span>Los cambios se guardan sin modificar el estado de la nota.</span>
+                }
+            </div>
+        }
+
+        <div class="d-flex flex-wrap justify-content-end gap-2">
+            <a class="btn btn-outline-secondary" href="@UrlVolver">Cancelar</a>
+            <button type="submit" class="btn btn-primary" disabled="@(guardando || productos.Count == 0)">
+                @(guardando ? "Guardando..." : esEdicion ? "Guardar cambios" : "Guardar borrador")
+            </button>
+        </div>
+    </form>
+}
+
+@code {
+    [Parameter]
+    public int? Id { get; set; }
+
+    private NotaPedidoDTO? nota;
+    private List<ProductoDTO> productos = [];
+    private bool cargando = true;
+    private bool guardando;
+    private string? errorCarga;
+    private string? errorServidor;
+    private string? mensajeValidacion;
+
+    private bool esEdicion => Id.HasValue && Id.Value > 0;
+
+    private bool PuedeEditar
+    {
+        get
+        {
+            if (nota is null)
+            {
+                return false;
+            }
+
+            if (!esEdicion)
+            {
+                return true;
+            }
+
+            return nota.CantidadCotizaciones == 0
+                && (nota.Estado == EstadosNotaPedido.Borrador
+                    || nota.Estado == EstadosNotaPedido.Aprobada
+                    || nota.Estado == EstadosNotaPedido.Publicada);
+        }
+    }
+
+    private string MotivoNoEditable =>
+        nota is null
+            ? "No se pudo cargar la nota."
+            : nota.CantidadCotizaciones > 0
+                ? $"La nota N.º {nota.Id} ya recibió {nota.CantidadCotizaciones} cotización(es) y no puede editarse."
+                : $"La nota N.º {nota.Id} está en estado {nota.Estado} y no puede editarse.";
+
+    private string FechaMinima
+    {
+        get
+        {
+            var emision = nota?.FechaEmision.Date ?? DateTime.Today;
+            var minima = emision.AddDays(1);
+            if (nota is not null && nota.Estado == EstadosNotaPedido.Publicada && minima < DateTime.Today)
+            {
+                minima = DateTime.Today;
+            }
+
+            return minima.ToString("yyyy-MM-dd");
+        }
+    }
+
+    private string UrlVolver => nota is not null && nota.Id > 0 && esEdicion
+        ? $"notas-pedido/{nota.Id}"
+        : "notas-pedido";
+
+    protected override async Task OnInitializedAsync()
+    {
+        Sesion.OnCambio += AlCambiarSesion;
+        await Cargar();
+    }
+
+    private void AlCambiarSesion()
+    {
+        _ = InvokeAsync(Cargar);
+    }
+
+    private async Task Cargar()
+    {
+        cargando = true;
+        errorCarga = null;
+        errorServidor = null;
+        mensajeValidacion = null;
+        StateHasChanged();
+
+        if (Sesion.EmpresaId == 0)
+        {
+            nota = null;
+            cargando = false;
+            StateHasChanged();
+            return;
+        }
+
+        var productosResp = await ProductoServicio.ObtenerTodosAsync(Sesion.EmpresaId);
+        productos = productosResp.Error ? [] : productosResp.Respuesta ?? [];
+
+        if (!esEdicion)
+        {
+            nota = new NotaPedidoDTO
+            {
+                Estado = EstadosNotaPedido.Borrador,
+                FechaEmision = DateTime.Today,
+                FechaVencimiento = DateTime.Today.AddDays(15),
+                EmpresaId = Sesion.EmpresaId,
+                EmpresaRazonSocial = Sesion.Empresa,
+                UsuarioId = Sesion.Usuario?.UsuarioId ?? 0,
+                Observaciones = string.Empty,
+                Items = [NuevoItem()]
+            };
+
+            cargando = false;
+            StateHasChanged();
+            return;
+        }
+
+        var respuesta = await NotaPedidoServicio.ObtenerPorIdAsync(Id!.Value);
+        if (respuesta.Error || respuesta.Respuesta is null)
+        {
+            nota = null;
+            errorCarga = $"No se encontró la nota de pedido N.º {Id}. {respuesta.Mensaje}".Trim();
+            cargando = false;
+            StateHasChanged();
+            return;
+        }
+
+        nota = respuesta.Respuesta;
+        nota.FechaEmision = nota.FechaEmision.Date;
+        nota.FechaVencimiento = nota.FechaVencimiento.Date;
+        nota.Observaciones ??= string.Empty;
+        nota.Items ??= [];
+
+        if (nota.Items.Count == 0)
+        {
+            nota.Items.Add(NuevoItem());
+        }
+
+        cargando = false;
+        StateHasChanged();
+    }
+
+    private static ItemNotaDTO NuevoItem() => new() { CantidadSolicitada = 1 };
+
+    private void AgregarItem()
+    {
+        nota?.Items.Add(NuevoItem());
+    }
+
+    private void QuitarItem(int indice)
+    {
+        if (nota is null || indice < 0 || indice >= nota.Items.Count || nota.Items.Count <= 1)
+        {
+            return;
+        }
+
+        nota.Items.RemoveAt(indice);
+    }
+
+    private async Task Guardar()
+    {
+        if (nota is null || guardando || !PuedeEditar)
+        {
+            return;
+        }
+
+        errorServidor = null;
+        mensajeValidacion = null;
+
+        var error = Validar();
+        if (error is not null)
+        {
+            mensajeValidacion = error;
+            return;
+        }
+
+        if (Sesion.Usuario is null)
+        {
+            errorServidor = "La sesión no tiene un usuario válido. Vuelva a iniciar sesión.";
+            return;
+        }
+
+        var payload = new NotaPedidoDTO
+        {
+            Id = nota.Id,
+            Estado = esEdicion ? nota.Estado : EstadosNotaPedido.Borrador,
+            FechaEmision = nota.FechaEmision.Date,
+            FechaVencimiento = nota.FechaVencimiento.Date,
+            Observaciones = (nota.Observaciones ?? string.Empty).Trim(),
+            EmpresaId = Sesion.EmpresaId,
+            UsuarioId = nota.UsuarioId > 0 ? nota.UsuarioId : Sesion.Usuario.UsuarioId,
+            AprobadoPorId = nota.AprobadoPorId,
+            NecesidadId = nota.NecesidadId,
+            Items = nota.Items.Select(i => new ItemNotaDTO
+            {
+                Id = i.Id,
+                ProductoId = i.ProductoId,
+                CantidadSolicitada = i.CantidadSolicitada
+            }).ToList()
+        };
+
+        guardando = true;
+        StateHasChanged();
+
+        if (esEdicion)
+        {
+            var edicion = await NotaPedidoServicio.EditarAsync(nota.Id, payload);
+            if (edicion.Error || !edicion.Respuesta)
+            {
+                errorServidor = $"No se pudo guardar la nota de pedido. {edicion.Mensaje}".Trim();
+                guardando = false;
+                StateHasChanged();
+                return;
+            }
+
+            Navegacion.NavigateTo($"notas-pedido/{nota.Id}?actualizada=true");
+            return;
+        }
+
+        var creacion = await NotaPedidoServicio.CrearAsync(payload);
+        if (creacion.Error || creacion.Respuesta <= 0)
+        {
+            errorServidor = $"No se pudo crear la nota de pedido. {creacion.Mensaje}".Trim();
+            guardando = false;
+            StateHasChanged();
+            return;
+        }
+
+        Navegacion.NavigateTo($"notas-pedido/{creacion.Respuesta}?creada=true");
+    }
+
+    private string? Validar()
+    {
+        if (Sesion.EmpresaId <= 0)
+        {
+            return "No hay una empresa asociada a la sesión.";
+        }
+
+        if (nota is null)
+        {
+            return "No se pudo cargar la nota de pedido.";
+        }
+
+        if (nota.Items.Count == 0)
+        {
+            return "La nota de pedido debe tener al menos un producto.";
+        }
+
+        var productosElegidos = new HashSet<int>();
+        foreach (var item in nota.Items)
+        {
+            if (item.ProductoId <= 0)
+            {
+                return "Seleccione un producto en todos los ítems de la nota.";
+            }
+
+            if (item.CantidadSolicitada <= 0)
+            {
+                return "Las cantidades solicitadas deben ser mayores a cero.";
+            }
+
+            if (!productosElegidos.Add(item.ProductoId))
+            {
+                return "No se puede repetir el mismo producto en dos ítems.";
+            }
+        }
+
+        if (nota.FechaVencimiento.Date <= nota.FechaEmision.Date)
+        {
+            return "La fecha de vencimiento debe ser posterior a la fecha de emisión.";
+        }
+
+        if (nota.Estado == EstadosNotaPedido.Publicada && nota.FechaVencimiento.Date < DateTime.Today)
+        {
+            return "Una nota publicada no puede quedar con fecha de vencimiento pasada.";
+        }
+
+        return null;
+    }
+
+    private static string TextoUsuario(string nombre) =>
+        string.IsNullOrWhiteSpace(nombre) ? "Sin datos" : nombre;
+
+    public void Dispose()
+    {
+        Sesion.OnCambio -= AlCambiarSesion;
+    }
+}

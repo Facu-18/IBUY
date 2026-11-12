@@ -1,7 +1,6 @@
 @page "/remitos"
 @implements IDisposable
 @inject IRemitoServicio RemitoServicio
-@inject IDepositoServicio DepositoServicio
 @inject EstadoSesion Sesion
 
 <PageTitle>Remitos · IBUY</PageTitle>
@@ -11,7 +10,7 @@
     <p class="text-body-secondary mb-0">Movimientos de inventario: remitos externos e internos.</p>
 </div>
 
-@if (!Sesion.EstaAutenticado)
+@if (!Sesion.EstaLogueado)
 {
     <div class="alert alert-warning" role="alert">
         Inicie sesion para ver los remitos de los depositos a su cargo.
@@ -62,16 +61,10 @@ else
     </div>
 
     <div class="card shadow-sm">
-        @if (Sesion.Depositos.Count == 0)
+        @if (remitos.Count == 0)
         {
             <p class="text-center text-body-secondary py-5 mb-0">
-                No tiene depositos a cargo. Un remito se muestra solo si participa alguno de sus depositos.
-            </p>
-        }
-        else if (remitos.Count == 0)
-        {
-            <p class="text-center text-body-secondary py-5 mb-0">
-                La empresa seleccionada todavia no tiene remitos de sus depositos.
+                Todavia no hay remitos de los depositos que puede ver.
             </p>
         }
         else if (filtrados.Count == 0)
@@ -101,12 +94,12 @@ else
                                         @remito.Numero
                                     </a>
                                 </td>
-                                <td>@OrigenTexto(remito)</td>
-                                <td>@DestinoTexto(remito)</td>
+                                <td>@remito.Origen</td>
+                                <td>@remito.Destino</td>
                                 <td>
                                     <span class="badge rounded-pill bg-primary-subtle text-primary-emphasis">@remito.Tipo</span>
                                 </td>
-                                <td>@remito.FechaEmision.ToString("dd/MM/yyyy")</td>
+                                <td>@remito.Fecha.ToString("dd/MM/yyyy")</td>
                                 <td>
                                     <span class="badge rounded-pill @(EsRecibido(remito) ? "bg-success-subtle text-success-emphasis" : "bg-warning-subtle text-warning-emphasis")">
                                         @(EsRecibido(remito) ? "Recibido" : "Emitido")
@@ -125,21 +118,18 @@ else
     private static readonly string[] TiposRemito = ["Externo", "Interno"];
     private static readonly string[] EstadosRemito = ["Emitido", "Recibido"];
 
-    private List<RemitoDTO> remitos = [];
-    private List<DepositoDTO> depositos = [];
+    private List<RemitoListadoDTO> remitos = [];
     private string busqueda = string.Empty;
     private string tipoFiltrado = string.Empty;
     private string estadoFiltrado = string.Empty;
     private bool cargando = true;
     private string? errorCarga;
 
-    private HashSet<int> MisDepositos => Sesion.Depositos.Select(d => d.Id).ToHashSet();
-
-    private List<RemitoDTO> filtrados
+    private List<RemitoListadoDTO> filtrados
     {
         get
         {
-            IEnumerable<RemitoDTO> consulta = remitos;
+            IEnumerable<RemitoListadoDTO> consulta = remitos;
 
             if (!string.IsNullOrEmpty(tipoFiltrado))
             {
@@ -157,13 +147,13 @@ else
                 var texto = busqueda.Trim().ToLowerInvariant();
                 consulta = consulta.Where(r =>
                     r.Numero.ToLowerInvariant().Contains(texto) ||
-                    OrigenTexto(r).ToLowerInvariant().Contains(texto) ||
-                    DestinoTexto(r).ToLowerInvariant().Contains(texto) ||
+                    r.Origen.ToLowerInvariant().Contains(texto) ||
+                    r.Destino.ToLowerInvariant().Contains(texto) ||
                     r.Tipo.ToLowerInvariant().Contains(texto) ||
                     r.Estado.ToLowerInvariant().Contains(texto));
             }
 
-            return [.. consulta.OrderByDescending(r => r.FechaEmision).ThenByDescending(r => r.Id)];
+            return [.. consulta.OrderByDescending(r => r.Fecha).ThenByDescending(r => r.Id)];
         }
     }
 
@@ -184,15 +174,16 @@ else
         errorCarga = null;
         StateHasChanged();
 
-        if (!Sesion.EstaAutenticado)
+        if (!Sesion.EstaLogueado)
         {
             remitos = [];
-            depositos = [];
             cargando = false;
             StateHasChanged();
             return;
         }
 
+        // El servidor ya devuelve solo los remitos de los depositos que el usuario puede ver
+        // (Encargado: los suyos; Ventas: los de su empresa; SuperAdmin: todos).
         var respuesta = await RemitoServicio.ObtenerTodosAsync();
 
         if (respuesta.Error)
@@ -202,49 +193,15 @@ else
         }
         else
         {
-            var misDepositos = MisDepositos;
-            remitos = [.. (respuesta.Respuesta ?? []).Where(r =>
-                (r.DepositoOrigenId.HasValue && misDepositos.Contains(r.DepositoOrigenId.Value)) ||
-                (r.DepositoDestinoId.HasValue && misDepositos.Contains(r.DepositoDestinoId.Value)))];
+            remitos = respuesta.Respuesta ?? [];
         }
-
-        var respuestaDepositos = await DepositoServicio.ObtenerTodosAsync(Sesion.EmpresaId);
-        depositos = respuestaDepositos.Respuesta ?? [];
 
         cargando = false;
         StateHasChanged();
     }
 
-    private static bool EsRecibido(RemitoDTO remito) =>
+    private static bool EsRecibido(RemitoListadoDTO remito) =>
         string.Equals(remito.Estado, "Recibido", StringComparison.OrdinalIgnoreCase);
-
-    /// <summary>
-    /// El origen de un remito externo es la empresa proveedora; el de un interno es un deposito.
-    /// Los remitos viejos de tipo Salida no tienen deposito destino.
-    /// </summary>
-    private string OrigenTexto(RemitoDTO remito)
-    {
-        if (string.Equals(remito.Tipo, "Externo", StringComparison.OrdinalIgnoreCase))
-        {
-            return string.IsNullOrWhiteSpace(remito.EmpresaOrigen) ? "Proveedor externo" : remito.EmpresaOrigen;
-        }
-
-        return NombreDeposito(remito.DepositoOrigenId);
-    }
-
-    private string DestinoTexto(RemitoDTO remito) =>
-        NombreDeposito(remito.DepositoDestinoId);
-
-    private string NombreDeposito(int? depositoId)
-    {
-        if (depositoId is null)
-        {
-            return "Fuera de la empresa";
-        }
-
-        var deposito = depositos.FirstOrDefault(d => d.Id == depositoId.Value);
-        return deposito?.Nombre ?? $"Deposito #{depositoId}";
-    }
 
     public void Dispose()
     {

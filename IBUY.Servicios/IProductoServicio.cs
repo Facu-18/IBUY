@@ -3,10 +3,14 @@ using IBUY.Servicios.ServiciosHTTP;
 
 namespace IBUY.Servicios
 {
-    /// <summary>Productos reales contra la API (api/producto), para combos.</summary>
     public interface IProductoServicio
     {
-        /// <summary>Productos de la empresa indicada; si no se informa, devuelve todos.</summary>
-        Task<HttpResp<List<ProductoOpcionDTO>?>> ObtenerTodosAsync(int? empresaId);
+        Task<HttpResp<List<ProductoDTO>?>> ObtenerTodosAsync(int empresaId);
+
+        Task<HttpResp<ProductoDTO?>> ObtenerPorIdAsync(int id, int empresaId);
+
+        Task<HttpResp<int>> CrearAsync(ProductoDTO producto);
+
+        Task<HttpResp<bool>> EditarAsync(int id, ProductoDTO producto);
     }
 }

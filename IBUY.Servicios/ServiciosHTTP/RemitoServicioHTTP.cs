@@ -14,9 +14,9 @@ namespace IBUY.Servicios.ServiciosHTTP
             this.http = http;
         }
 
-        public Task<HttpResp<List<RemitoDTO>?>> ObtenerTodosAsync()
+        public Task<HttpResp<List<RemitoListadoDTO>?>> ObtenerTodosAsync()
         {
-            return http.GetAsync<List<RemitoDTO>>(Base);
+            return http.GetAsync<List<RemitoListadoDTO>>(Base);
         }
 
         public Task<HttpResp<RemitoDTO?>> ObtenerPorIdAsync(int id)

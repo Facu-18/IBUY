@@ -1,93 +1,126 @@
 @page "/login"
-@inject IAuthServicio AuthServicio
+@layout LoginLayout
 @inject EstadoSesion Sesion
+@inject IAuthServicio AuthServicio
 @inject NavigationManager Navegacion
 
-<PageTitle>Iniciar sesion · IBUY</PageTitle>
+<PageTitle>Iniciar sesión - IBUY</PageTitle>
 
-<div class="row justify-content-center">
-    <div class="col-12 col-md-8 col-lg-5">
-        <div class="card shadow-sm">
-            <div class="card-body p-4">
-                <h1 class="h3 mb-1">Iniciar sesion</h1>
-                <p class="text-body-secondary mb-4">Ingrese con su email y contrasena.</p>
+<div class="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-5">
+    <div class="card ibuy-acceso-tarjeta">
+        <div class="card-body p-4 p-md-5">
+            <h1 class="h4 mb-1">Bienvenido</h1>
+            <p class="text-body-secondary mb-4">Ingrese con su email y contraseña.</p>
 
-                @if (Sesion.EstaAutenticado)
-                {
-                    <div class="alert alert-success" role="alert">
-                        Sesion iniciada como <strong>@Sesion.UsuarioNombre</strong>.
-                        <a class="alert-link" href="remitos">Ir a Remitos</a>
+            @if (!string.IsNullOrEmpty(error))
+            {
+                <div @key="intentosFallidos" class="alert alert-danger d-flex align-items-center gap-2 ibuy-sacudir" role="alert">
+                    <Icono Nombre="necesidades" />
+                    <span>@error</span>
+                </div>
+            }
+
+            <EditForm Model="login" OnValidSubmit="Ingresar">
+                <DataAnnotationsValidator />
+
+                <div class="mb-3">
+                    <div class="input-group">
+                        <span class="input-group-text"><Icono Nombre="email" /></span>
+                        <div class="form-floating">
+                            <InputText id="email" class="form-control" type="email" autocomplete="username" placeholder="usuario@empresa.com" @bind-Value="login.Email" />
+                            <label for="email">Email</label>
+                        </div>
                     </div>
-                    <button type="button" class="btn btn-outline-secondary" @onclick="CerrarSesion">Cerrar sesion</button>
-                }
-                else
-                {
-                    @if (!string.IsNullOrWhiteSpace(error))
-                    {
-                        <div class="alert alert-danger" role="alert">@error</div>
-                    }
+                    <ValidationMessage For="() => login.Email" class="text-danger small" />
+                </div>
 
-                    <EditForm Model="credenciales" OnValidSubmit="Ingresar" OnInvalidSubmit="MarcarInvalido">
-                        <DataAnnotationsValidator />
-
-                        <div class="mb-3">
-                            <label class="form-label" for="login-email">Email</label>
-                            <InputText id="login-email" class="form-control" @bind-Value="credenciales.Email" />
-                            <ValidationMessage class="text-danger small" For="() => credenciales.Email" />
+                <div class="mb-4">
+                    <div class="input-group">
+                        <span class="input-group-text"><Icono Nombre="candado" /></span>
+                        <div class="form-floating">
+                            <InputText id="contrasena" class="form-control" type="@(verContrasena ? "text" : "password")" autocomplete="current-password" placeholder="Contraseña" @bind-Value="login.Contrasena" />
+                            <label for="contrasena">Contraseña</label>
                         </div>
-
-                        <div class="mb-3">
-                            <label class="form-label" for="login-contrasena">Contrasena</label>
-                            <InputText id="login-contrasena" type="password" class="form-control" @bind-Value="credenciales.Contrasena" />
-                            <ValidationMessage class="text-danger small" For="() => credenciales.Contrasena" />
-                        </div>
-
-                        @if (intentado)
-                        {
-                            <div class="alert alert-danger" role="alert">
-                                <ValidationSummary class="mb-0" />
-                            </div>
-                        }
-
-                        <button type="submit" class="btn btn-primary w-100" disabled="@ingresando">
-                            @(ingresando ? "Ingresando..." : "Ingresar")
+                        <button type="button" class="btn btn-outline-secondary" @onclick="() => verContrasena = !verContrasena"
+                                aria-label="@(verContrasena ? "Ocultar contraseña" : "Mostrar contraseña")">
+                            <Icono Nombre="@(verContrasena ? "ocultar" : "ver")" />
                         </button>
-                    </EditForm>
-                }
-            </div>
+                    </div>
+                    <ValidationMessage For="() => login.Contrasena" class="text-danger small" />
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-lg w-100 ibuy-boton-acceso" disabled="@enviando">
+                    @if (enviando)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                        <span>Ingresando...</span>
+                    }
+                    else
+                    {
+                        <span class="d-inline-flex align-items-center gap-2">Ingresar <Icono Nombre="siguiente" /></span>
+                    }
+                </button>
+            </EditForm>
+
+            <hr class="my-4" />
+
+            <p class="text-center text-body-secondary small mb-2">¿Su empresa no tiene cuenta?</p>
+            <a href="registro" class="btn btn-outline-primary w-100">Registrar empresa</a>
         </div>
     </div>
 </div>
 
 @code {
-    private readonly LoginDTO credenciales = new();
-    private bool ingresando;
-    private bool intentado;
+    private readonly LoginDTO login = new();
+    private bool enviando;
+    private bool verContrasena;
+    private int intentosFallidos;
     private string? error;
 
-    private void MarcarInvalido() => intentado = true;
+    [SupplyParameterFromQuery(Name = "returnUrl")]
+    public string? ReturnUrl { get; set; }
+
+    protected override void OnInitialized()
+    {
+        if (Sesion.EstaLogueado)
+        {
+            Navegacion.NavigateTo(DestinoLocal(), replace: true);
+        }
+    }
 
     private async Task Ingresar()
     {
-        intentado = false;
+        enviando = true;
         error = null;
-        ingresando = true;
 
-        var respuesta = await AuthServicio.IniciarSesionAsync(credenciales);
-        if (respuesta.Error || respuesta.Respuesta is null)
+        try
         {
-            error = $"No se pudo iniciar sesion. {respuesta.Mensaje}".Trim();
-            ingresando = false;
-            return;
-        }
+            var respuesta = await AuthServicio.IniciarSesionAsync(login);
+            if (respuesta.Error || respuesta.Respuesta is null)
+            {
+                error = string.IsNullOrWhiteSpace(respuesta.Mensaje) ? "No se pudo iniciar sesión." : respuesta.Mensaje;
+                // Cambia la @key del alerta para que la animacion de error se repita en cada intento.
+                intentosFallidos++;
+                return;
+            }
 
-        Sesion.IniciarSesion(respuesta.Respuesta);
-        Navegacion.NavigateTo("remitos");
+            await Sesion.IniciarSesionAsync(respuesta.Respuesta);
+            Navegacion.NavigateTo(DestinoLocal(), replace: true);
+        }
+        finally
+        {
+            enviando = false;
+        }
     }
 
-    private void CerrarSesion()
+    // Solo se acepta una ruta relativa propia ("/algo"); cualquier otra cosa vuelve al inicio.
+    private string DestinoLocal()
     {
-        Sesion.CerrarSesion();
-        Navegacion.NavigateTo("depositos");
+        if (!string.IsNullOrEmpty(ReturnUrl) && ReturnUrl.StartsWith('/') && !ReturnUrl.StartsWith("//") && !ReturnUrl.StartsWith("/\\"))
+        {
+            return ReturnUrl;
+        }
+
+        return "";
     }
 }

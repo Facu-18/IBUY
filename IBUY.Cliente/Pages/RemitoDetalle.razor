@@ -1,12 +1,11 @@
 @page "/remitos/{Id:int}"
 @inject IRemitoServicio RemitoServicio
 @inject IDepositoServicio DepositoServicio
-@inject IProductoServicio ProductoServicio
 @inject EstadoSesion Sesion
 
 <PageTitle>@(remito is null ? "Remito" : $"Remito {remito.Numero}") · IBUY</PageTitle>
 
-@if (!Sesion.EstaAutenticado)
+@if (!Sesion.EstaLogueado)
 {
     <div class="alert alert-warning" role="alert">
         Inicie sesion para ver el detalle de sus remitos.
@@ -20,14 +19,7 @@ else if (cargando)
 else if (remito is null)
 {
     <div class="alert alert-danger" role="alert">
-        No se encontro el remito solicitado.
-        <a class="alert-link" href="remitos">Volver al historial</a>
-    </div>
-}
-else if (!EsDeMisDepositos)
-{
-    <div class="alert alert-warning" role="alert">
-        Este remito no pertenece a los depositos a su cargo.
+        No se pudo cargar el remito. @errorCarga
         <a class="alert-link" href="remitos">Volver al historial</a>
     </div>
 }
@@ -127,7 +119,7 @@ else
                             @foreach (var item in remito.Items)
                             {
                                 <tr @key="item.ProductoId">
-                                    <td class="fw-semibold">@NombreProducto(item.ProductoId)</td>
+                                    <td class="fw-semibold">@(item.ProductoNombre ?? $"Producto #{item.ProductoId}")</td>
                                     <td class="text-end">@item.Cantidad.ToString("0.##")</td>
                                     <td>@item.Unidad</td>
                                 </tr>
@@ -143,7 +135,7 @@ else
     {
         <section class="mt-4">
             <div class="d-flex align-items-baseline justify-content-between mb-2">
-                <h2 class="h5 mb-0">Stock resultante en @NombreDeposito(depositoStockId)</h2>
+                <h2 class="h5 mb-0">Stock resultante en @NombreDepositoStock</h2>
                 <span class="text-body-secondary">@existencias.Count @(existencias.Count == 1 ? "producto" : "productos")</span>
             </div>
 
@@ -196,8 +188,7 @@ else
     public int Id { get; set; }
 
     private RemitoDTO? remito;
-    private List<DepositoDTO> depositos = [];
-    private List<ProductoOpcionDTO> productos = [];
+    private string? errorCarga;
     private List<StockDepositoDTO> existencias = [];
     private bool cargando = true;
     private bool cargandoStock;
@@ -207,18 +198,25 @@ else
     private bool esRecibido => remito is not null &&
         string.Equals(remito.Estado, "Recibido", StringComparison.OrdinalIgnoreCase);
 
-    private bool EsDeMisDepositos => remito is not null &&
-        ((remito.DepositoOrigenId.HasValue && EsMiDeposito(remito.DepositoOrigenId.Value)) ||
-         (remito.DepositoDestinoId.HasValue && EsMiDeposito(remito.DepositoDestinoId.Value)));
-
-    /// <summary>Se puede recepcionar si esta emitido y el destino es un deposito a cargo del usuario.</summary>
+    /// <summary>Se puede recepcionar si esta emitido y el destino es un deposito del usuario.</summary>
     private bool PuedeRecepcionar => remito is not null
         && !esRecibido
         && remito.DepositoDestinoId.HasValue
         && EsMiDeposito(remito.DepositoDestinoId.Value);
 
-    /// <summary>Deposito cuyo stock se muestra: el destino si lo hay, si no el origen.</summary>
-    private int depositoStockId => remito?.DepositoDestinoId ?? remito?.DepositoOrigenId ?? 0;
+    /// <summary>Deposito cuyo stock se muestra: el destino si lo hay, si no el origen; solo si es del usuario.</summary>
+    private int depositoStockId
+    {
+        get
+        {
+            var id = remito?.DepositoDestinoId ?? remito?.DepositoOrigenId ?? 0;
+            return id != 0 && EsMiDeposito(id) ? id : 0;
+        }
+    }
+
+    private string NombreDepositoStock => depositoStockId == remito?.DepositoDestinoId
+        ? DestinoTexto
+        : remito?.DepositoOrigenNombre ?? $"Deposito #{depositoStockId}";
 
     private string OrigenTexto
     {
@@ -231,21 +229,22 @@ else
 
             if (string.Equals(remito.Tipo, "Externo", StringComparison.OrdinalIgnoreCase))
             {
-                return string.IsNullOrWhiteSpace(remito.EmpresaOrigen) ? "Proveedor externo" : remito.EmpresaOrigen;
+                return string.IsNullOrWhiteSpace(remito.OrigenExterno) ? "Proveedor externo" : remito.OrigenExterno;
             }
 
-            return NombreDeposito(remito.DepositoOrigenId);
+            return remito.DepositoOrigenNombre ?? $"Deposito #{remito.DepositoOrigenId}";
         }
     }
 
-    private string DestinoTexto => NombreDeposito(remito?.DepositoDestinoId);
+    private string DestinoTexto => remito?.DepositoDestinoNombre
+        ?? (remito?.DepositoDestinoId is int id ? $"Deposito #{id}" : "Sin destino");
 
     protected override async Task OnParametersSetAsync()
     {
         cargando = true;
         StateHasChanged();
 
-        if (!Sesion.EstaAutenticado)
+        if (!Sesion.EstaLogueado)
         {
             remito = null;
             cargando = false;
@@ -253,15 +252,10 @@ else
             return;
         }
 
+        // El servidor responde 403 si el remito no es de los depositos que el usuario puede ver.
         var respuesta = await RemitoServicio.ObtenerPorIdAsync(Id);
         remito = respuesta.Error ? null : respuesta.Respuesta;
-
-        // Depositos y productos completos: permiten resolver nombres de cualquier remito.
-        var respuestaDepositos = await DepositoServicio.ObtenerTodosAsync(null);
-        depositos = respuestaDepositos.Respuesta ?? [];
-
-        var respuestaProductos = await ProductoServicio.ObtenerTodosAsync(null);
-        productos = respuestaProductos.Respuesta ?? [];
+        errorCarga = respuesta.Error ? respuesta.Mensaje : null;
 
         cargando = false;
         StateHasChanged();
@@ -271,7 +265,7 @@ else
 
     private async Task CargarStock()
     {
-        if (!Sesion.EstaAutenticado || depositoStockId == 0)
+        if (!Sesion.EstaLogueado || depositoStockId == 0)
         {
             existencias = [];
             return;
@@ -309,20 +303,10 @@ else
         await OnParametersSetAsync();
     }
 
+    /// <summary>
+    /// Ventas y SuperAdmin gestionan todos los depositos de su empresa; el Encargado solo
+    /// los que tiene a cargo.
+    /// </summary>
     private bool EsMiDeposito(int depositoId) =>
-        Sesion.Depositos.Any(d => d.Id == depositoId);
-
-    private string NombreDeposito(int? depositoId)
-    {
-        if (depositoId is null)
-        {
-            return "Fuera de la empresa";
-        }
-
-        var deposito = depositos.FirstOrDefault(d => d.Id == depositoId.Value);
-        return deposito?.Nombre ?? $"Deposito #{depositoId}";
-    }
-
-    private string NombreProducto(int productoId) =>
-        productos.FirstOrDefault(p => p.Id == productoId)?.Nombre ?? $"Producto #{productoId}";
+        Sesion.PuedeGestionar || (Sesion.Usuario?.Depositos.Any(d => d.Id == depositoId) ?? false);
 }

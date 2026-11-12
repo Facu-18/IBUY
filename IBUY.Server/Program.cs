@@ -1,4 +1,5 @@
 using IBUY.Repository.Repositorios;
+using IBUY.Server.Seguridad;
 using Microsoft.EntityFrameworkCore;
 using Proyecto2026.BD.Datos;
 
@@ -19,11 +20,16 @@ builder.Services.AddScoped<ICotizacionRepositorio, CotizacionRepositorio>();
 builder.Services.AddScoped<IRemitoRepositorio, RemitoRepositorio>();
 builder.Services.AddScoped<IUsuarioRepositorio, UsuarioRepositorio>();
 
+// Permisos del usuario que llama (encabezado X-Usuario-Id): una instancia por request.
+builder.Services.AddScoped<IPermisosUsuario, PermisosUsuario>();
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+
+await SembradoSuperAdmin.EjecutarAsync(app.Services, app.Configuration, app.Logger);
 
 app.UseHttpsRedirection();
 app.UseBlazorFrameworkFiles();

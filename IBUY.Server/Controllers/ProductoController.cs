@@ -1,5 +1,6 @@
 ﻿using IBUY.BD.Datos.Entity;
 using IBUY.Repository.Repositorios;
+using IBUY.Server.Seguridad;
 using IBUY.Shared.DTO;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,31 +11,53 @@ namespace IBUY.Server.Controllers
     public class ProductoController : Controller
     {
         private readonly IRepositorio<Producto> repositorio;
+        private readonly IRepositorio<Empresa> empresaRepositorio;
 
-        public ProductoController(IRepositorio<Producto> repositorio)
+        private readonly IPermisosUsuario permisos;
+
+        public ProductoController(IRepositorio<Producto> repositorio, IRepositorio<Empresa> empresaRepositorio, IPermisosUsuario permisos)
         {
+            this.permisos = permisos;
             this.repositorio = repositorio;
+            this.empresaRepositorio = empresaRepositorio;
         }
 
         [HttpGet]
-        public async Task<ActionResult<List<Producto>>> Get()
+        public async Task<ActionResult<List<ProductoDTO>>> Get([FromQuery] int? empresaId)
         {
             var productos = await repositorio.Select();
-            return Ok(productos);
+
+            if (empresaId.HasValue)
+            {
+                productos = productos.Where(p => p.EmpresaId == empresaId.Value).ToList();
+            }
+
+            var respuesta = productos.Select(p => new ProductoDTO
+            {
+                Id = p.Id,
+                Nombre = p.Nombre,
+                Descripcion = p.Descripcion,
+                Categoria = p.Categoria,
+                EmpresaId = p.EmpresaId
+            })
+            .OrderBy(p => p.Nombre)
+            .ToList();
+
+            return Ok(respuesta);
         }
 
         [HttpGet("{id:int}")]
-        public async Task<ActionResult<ProductoDTO>> GetById(int id)
+        public async Task<ActionResult<ProductoDTO>> GetById(int id, [FromQuery] int? empresaId)
         {
-            if (!await repositorio.Existe(id))
+            var producto = await repositorio.SelectById(id);
+            if (producto is null || (empresaId.HasValue && producto.EmpresaId != empresaId.Value))
             {
                 return NotFound($"No se encontró el producto de id: {id}");
             }
 
-            var producto = await repositorio.SelectById(id);
-
             ProductoDTO dto = new ProductoDTO();
-            dto.Nombre = producto!.Nombre;
+            dto.Id = producto.Id;
+            dto.Nombre = producto.Nombre;
             dto.Descripcion = producto.Descripcion;
             dto.Categoria = producto.Categoria;
             dto.EmpresaId = producto.EmpresaId;
@@ -43,12 +66,23 @@ namespace IBUY.Server.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult<int>> Post(ProductoDTO productoDTO)
+        public async Task<ActionResult<int>> Post(ProductoDTO productoDTO, [FromHeader(Name = IPermisosUsuario.Encabezado)] string? usuarioId)
         {
+            var acceso = await permisos.Autenticar(usuarioId) ?? permisos.ExigirGestion() ?? permisos.ExigirEmpresa(productoDTO.EmpresaId);
+            if (acceso is not null)
+            {
+                return acceso;
+            }
+
+            if (!await empresaRepositorio.Existe(productoDTO.EmpresaId))
+            {
+                return BadRequest($"No existe la empresa de id: {productoDTO.EmpresaId}");
+            }
+
             Producto producto = new Producto();
-            producto.Nombre = productoDTO.Nombre;
-            producto.Descripcion = productoDTO.Descripcion;
-            producto.Categoria = productoDTO.Categoria;
+            producto.Nombre = productoDTO.Nombre.Trim();
+            producto.Descripcion = productoDTO.Descripcion?.Trim() ?? string.Empty;
+            producto.Categoria = productoDTO.Categoria.Trim();
             producto.EmpresaId = productoDTO.EmpresaId;
 
             await repositorio.Insert(producto);
@@ -57,19 +91,39 @@ namespace IBUY.Server.Controllers
         }
 
         [HttpPut("{id:int}")]
-        public async Task<ActionResult<bool>> Put(int id, ProductoDTO productoDTO)
+        public async Task<ActionResult<bool>> Put(int id, ProductoDTO productoDTO, [FromHeader(Name = IPermisosUsuario.Encabezado)] string? usuarioId)
         {
-            if (!await repositorio.Existe(id))
+            var acceso = await permisos.Autenticar(usuarioId) ?? permisos.ExigirGestion();
+            if (acceso is not null)
+            {
+                return acceso;
+            }
+
+            var producto = await repositorio.SelectById(id);
+            if (producto is null)
             {
                 return NotFound($"No existe el registro con id: {id}");
             }
 
-            var producto = await repositorio.SelectById(id);
+            acceso = permisos.ExigirEmpresa(producto.EmpresaId);
+            if (acceso is not null)
+            {
+                return acceso;
+            }
 
-            producto!.Nombre = productoDTO.Nombre;
-            producto.Descripcion = productoDTO.Descripcion;
-            producto.Categoria = productoDTO.Categoria;
-            producto.EmpresaId = productoDTO.EmpresaId;
+            if (producto.EmpresaId != productoDTO.EmpresaId)
+            {
+                return BadRequest("No se puede cambiar la empresa del producto.");
+            }
+
+            if (!await empresaRepositorio.Existe(productoDTO.EmpresaId))
+            {
+                return BadRequest($"No existe la empresa de id: {productoDTO.EmpresaId}");
+            }
+
+            producto.Nombre = productoDTO.Nombre.Trim();
+            producto.Descripcion = productoDTO.Descripcion?.Trim() ?? string.Empty;
+            producto.Categoria = productoDTO.Categoria.Trim();
 
             var resultado = await repositorio.Update(producto);
 
@@ -77,11 +131,24 @@ namespace IBUY.Server.Controllers
         }
 
         [HttpDelete("{id:int}")]
-        public async Task<ActionResult<bool>> Delete(int id)
+        public async Task<ActionResult<bool>> Delete(int id, [FromHeader(Name = IPermisosUsuario.Encabezado)] string? usuarioId)
         {
-            if (!await repositorio.Existe(id))
+            var acceso = await permisos.Autenticar(usuarioId) ?? permisos.ExigirGestion();
+            if (acceso is not null)
+            {
+                return acceso;
+            }
+
+            var producto = await repositorio.SelectById(id);
+            if (producto is null)
             {
                 return NotFound($"No existe el registro con id: {id}");
+            }
+
+            acceso = permisos.ExigirEmpresa(producto.EmpresaId);
+            if (acceso is not null)
+            {
+                return acceso;
             }
 
             await repositorio.Delete(id);

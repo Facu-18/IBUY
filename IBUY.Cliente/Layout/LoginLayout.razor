@@ -1,0 +1,17 @@
+@inherits LayoutComponentBase
+
+<div class="min-vh-100 d-flex flex-column align-items-center justify-content-center ibuy-acceso p-3">
+    <div class="d-flex align-items-center gap-2 mb-4 ibuy-acceso-marca">
+        <span class="d-flex flex-column gap-1 lh-sm">
+            <Marca />
+            <small class="text-body-secondary">Plataforma de compras y stock</small>
+        </span>
+    </div>
+
+    <main class="container">
+        @* Cada pagina define su propia columna: el login es angosto y el registro necesita mas ancho. *@
+        <div class="row justify-content-center">
+            @Body
+        </div>
+    </main>
+</div>

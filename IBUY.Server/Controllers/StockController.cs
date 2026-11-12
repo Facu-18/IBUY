@@ -1,5 +1,6 @@
 using IBUY.BD.Datos.Entity;
 using IBUY.Repository.Repositorios;
+using IBUY.Server.Seguridad;
 using IBUY.Shared.DTO;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,27 +12,59 @@ namespace IBUY.Server.Controllers
     {
         private readonly IRepositorio<Stock> repositorio;
 
-        public StockController(IRepositorio<Stock> repositorio)
+        private readonly IPermisosUsuario permisos;
+
+        public StockController(IRepositorio<Stock> repositorio, IPermisosUsuario permisos)
         {
             this.repositorio = repositorio;
+            this.permisos = permisos;
         }
 
         [HttpGet]
-        public async Task<ActionResult<List<Stock>>> Get()
+        public async Task<ActionResult<List<Stock>>> Get(
+            [FromQuery] int? depositoId,
+            [FromHeader(Name = IPermisosUsuario.Encabezado)] string? usuarioId)
         {
-            var stocks = await repositorio.Select();
+            var acceso = await permisos.Autenticar(usuarioId);
+            if (acceso is null && depositoId.HasValue)
+            {
+                acceso = permisos.ExigirDeposito(depositoId.Value);
+            }
+
+            if (acceso is not null)
+            {
+                return acceso;
+            }
+
+            // Solo el stock de los depósitos que el usuario puede ver.
+            var stocks = (await repositorio.Select())
+                .Where(s => permisos.PuedeVerDeposito(s.DepositoId) && (!depositoId.HasValue || s.DepositoId == depositoId.Value))
+                .ToList();
+
             return Ok(stocks);
         }
 
         [HttpGet("{id:int}")]
-        public async Task<ActionResult<StockDTO>> GetById(int id)
+        public async Task<ActionResult<StockDTO>> GetById(int id, [FromHeader(Name = IPermisosUsuario.Encabezado)] string? usuarioId)
         {
+            var acceso = await permisos.Autenticar(usuarioId);
+            if (acceso is not null)
+            {
+                return acceso;
+            }
+
             if (!await repositorio.Existe(id))
             {
                 return NotFound($"No se encontró el registro de stock con id: {id}");
             }
 
             var stock = await repositorio.SelectById(id);
+
+            acceso = permisos.ExigirDeposito(stock!.DepositoId);
+            if (acceso is not null)
+            {
+                return acceso;
+            }
 
             StockDTO dto = new StockDTO
             {

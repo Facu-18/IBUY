@@ -1,4 +1,3 @@
-@page "/"
 @page "/depositos"
 @implements IDisposable
 @inject IDepositoServicio DepositoServicio
@@ -17,7 +16,10 @@
 }
 else if (errorCarga is not null)
 {
-    <div class="alert alert-danger" role="alert">@errorCarga</div>
+    <div class="alert alert-danger" role="alert">
+        @errorCarga
+        <button class="btn btn-sm btn-outline-danger ms-2" @onclick="Cargar">Reintentar</button>
+    </div>
 }
 else
 {
@@ -30,10 +32,13 @@ else
             </label>
         </div>
         <span class="text-body-secondary">@filtrados.Count @(filtrados.Count == 1 ? "deposito" : "depositos")</span>
-        <a class="btn btn-primary d-inline-flex align-items-center gap-2 ms-md-auto" href="depositos/nuevo">
-            <Icono Nombre="mas" />
-            Nuevo deposito
-        </a>
+        @if (Sesion.PuedeGestionar)
+        {
+            <a class="btn btn-primary d-inline-flex align-items-center gap-2 ms-md-auto" href="depositos/nuevo">
+                <Icono Nombre="mas" />
+                Nuevo deposito
+            </a>
+        }
     </div>
 
     <div class="card shadow-sm">
@@ -41,7 +46,7 @@ else
         {
             <p class="text-center text-body-secondary py-5 mb-0">
                 @(Sesion.EmpresaId == 0
-                    ? "No hay empresa seleccionada. Elija una empresa en el encabezado para ver sus depositos."
+                    ? "No hay una empresa asociada a la sesión. Vuelva a iniciar sesión para ver sus depositos."
                     : "La empresa seleccionada todavia no tiene depositos cargados.")
             </p>
         }
@@ -81,15 +86,18 @@ else
                                         <a class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1" href="@($"depositos/{deposito.Id}")">
                                             <Icono Nombre="ver" /> Ver
                                         </a>
-                                        <a class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1" href="@($"depositos/editar/{deposito.Id}")">
-                                            <Icono Nombre="editar" /> Editar
-                                        </a>
-                                        <button type="button"
-                                                class="btn btn-sm @(deposito.Activo ? "btn-outline-warning" : "btn-outline-success")"
-                                                disabled="@guardando"
-                                                @onclick="() => AlternarEstado(deposito)">
-                                            @(deposito.Activo ? "Desactivar" : "Activar")
-                                        </button>
+                                        @if (Sesion.PuedeGestionar)
+                                        {
+                                            <a class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1" href="@($"depositos/editar/{deposito.Id}")">
+                                                <Icono Nombre="editar" /> Editar
+                                            </a>
+                                            <button type="button"
+                                                    class="btn btn-sm @(deposito.Activo ? "btn-outline-warning" : "btn-outline-success")"
+                                                    disabled="@guardando"
+                                                    @onclick="() => AlternarEstado(deposito)">
+                                                @(deposito.Activo ? "Desactivar" : "Activar")
+                                            </button>
+                                        }
                                     </div>
                                 </td>
                             </tr>
@@ -148,12 +156,16 @@ else
             return;
         }
 
-        var respuesta = await DepositoServicio.ObtenerTodosAsync(Sesion.EmpresaId);
+        var respuesta = await DepositoServicio.ObtenerTodosAsync(
+            Sesion.EmpresaId,
+            Sesion.DepositoSeleccionadoId > 0 ? Sesion.DepositoSeleccionadoId : null);
 
         if (respuesta.Error)
         {
             depositos = [];
-            errorCarga = $"No se pudieron cargar los depositos. {respuesta.Mensaje}".Trim();
+            errorCarga = respuesta.Response?.StatusCode == System.Net.HttpStatusCode.Forbidden
+                ? "No tenes acceso al deposito seleccionado. Elegi otro deposito en el selector del encabezado."
+                : $"No se pudieron cargar los depositos. {respuesta.Mensaje}".Trim();
         }
         else
         {

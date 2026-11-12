@@ -1,0 +1,21 @@
+@inherits LayoutComponentBase
+@layout MainLayout
+@inject EstadoSesion Sesion
+@inject NavigationManager Navegacion
+
+@* Guard solo de interfaz para las secciones de la plataforma (Empresas): sin rol SuperAdmin
+   no se crea la pagina y se vuelve al inicio. La API sigue abierta. *@
+@if (Sesion.EsSuperAdmin)
+{
+    @Body
+}
+
+@code {
+    protected override void OnParametersSet()
+    {
+        if (Sesion.EstaLogueado && !Sesion.EsSuperAdmin)
+        {
+            Navegacion.NavigateTo("", replace: true);
+        }
+    }
+}

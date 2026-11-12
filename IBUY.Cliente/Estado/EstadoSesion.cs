@@ -1,77 +1,104 @@
+using System.Text.Json;
 using IBUY.Shared.DTO;
+using Microsoft.JSInterop;
 
 namespace IBUY.Cliente.Estado
 {
     /// <summary>
-    /// Estado de sesion del cliente: usuario logueado, su empresa y los depositos a su cargo.
-    /// Sin login, solo mantiene la empresa seleccionada en el encabezado.
+    /// Estado de sesion del cliente: usuario logueado (con su empresa y depositos a cargo),
+    /// persistido en localStorage para sobrevivir a una recarga. La empresa activa es la del usuario.
     /// </summary>
     public class EstadoSesion
     {
-        /// <summary>Razon social de la empresa seleccionada; vacia hasta que el encabezado cargue el listado.</summary>
-        public string Empresa { get; private set; } = string.Empty;
+        private const string ClaveAlmacen = "ibuy.sesion";
 
-        /// <summary>Id de la empresa seleccionada en el encabezado; 0 hasta que se cargue el listado de empresas.</summary>
-        public int EmpresaId { get; private set; }
+        private readonly IJSRuntime js;
 
-        /// <summary>Id del usuario logueado; 0 mientras no haya login.</summary>
-        public int UsuarioId { get; private set; }
+        public EstadoSesion(IJSRuntime js)
+        {
+            this.js = js;
+        }
 
-        /// <summary>Nombre del usuario logueado; vacio mientras no haya login.</summary>
-        public string UsuarioNombre { get; private set; } = string.Empty;
+        /// <summary>Usuario logueado; null si no hay sesion.</summary>
+        public LoginRespuestaDTO? Usuario { get; private set; }
 
-        /// <summary>Rol del usuario logueado; vacio mientras no haya login.</summary>
-        public string Rol { get; private set; } = string.Empty;
+        public bool EstaLogueado => Usuario is not null;
 
-        /// <summary>Depositos a cargo del usuario logueado.</summary>
-        public List<DepositoResumenDTO> Depositos { get; private set; } = [];
+        /// <summary>Solo el SuperAdmin ve y gestiona las empresas de la plataforma.</summary>
+        public bool EsSuperAdmin => Roles.EsSuperAdmin(Usuario?.Rol);
 
-        /// <summary>Indica si hay un usuario logueado.</summary>
-        public bool EstaAutenticado => UsuarioId > 0;
+        /// <summary>Solo Ventas y SuperAdmin ven y gestionan usuarios.</summary>
+        public bool PuedeGestionarUsuarios => PuedeGestionar;
 
-        /// <summary>Se dispara cuando cambia la empresa o la sesion, para que los componentes se refresquen.</summary>
+        /// <summary>Ventas o SuperAdmin: pueden crear, editar y eliminar usuarios, depositos y productos.</summary>
+        public bool PuedeGestionar => EsSuperAdmin || EsVentas;
+
+        public bool EsVentas => Roles.EsVentas(Usuario?.Rol);
+
+        public bool EsEncargado => Roles.EsEncargado(Usuario?.Rol);
+
+        /// <summary>Razon social de la empresa del usuario; vacia sin sesion.</summary>
+        public string Empresa => Usuario?.EmpresaRazonSocial ?? string.Empty;
+
+        /// <summary>Id de la empresa del usuario; 0 sin sesion.</summary>
+        public int EmpresaId => Usuario?.EmpresaId ?? 0;
+
+        /// <summary>Deposito elegido en el selector global; 0 significa "Todos".</summary>
+        public int DepositoSeleccionadoId { get; private set; }
+
+        /// <summary>Se dispara cuando cambia la sesion, para que los componentes se refresquen.</summary>
         public event Action? OnCambio;
 
-        public void CambiarEmpresa(int empresaId, string razonSocial)
+        public async Task IniciarSesionAsync(LoginRespuestaDTO usuario)
         {
-            // Con sesion iniciada, la empresa la define el usuario logueado.
-            if (EstaAutenticado && EmpresaId != empresaId)
+            Usuario = usuario;
+            DepositoSeleccionadoId = 0;
+            await js.InvokeVoidAsync("localStorage.setItem", ClaveAlmacen, JsonSerializer.Serialize(usuario));
+            OnCambio?.Invoke();
+        }
+
+        public async Task CerrarSesionAsync()
+        {
+            Usuario = null;
+            DepositoSeleccionadoId = 0;
+            await js.InvokeVoidAsync("localStorage.removeItem", ClaveAlmacen);
+            OnCambio?.Invoke();
+        }
+
+        /// <summary>Cambia el deposito del selector global; 0 es "Todos".</summary>
+        public void SeleccionarDeposito(int depositoId)
+        {
+            if (DepositoSeleccionadoId == depositoId)
             {
                 return;
             }
 
-            if (EmpresaId == empresaId)
+            DepositoSeleccionadoId = depositoId;
+            OnCambio?.Invoke();
+        }
+
+        /// <summary>Recupera la sesion guardada; un valor ausente o corrupto se descarta.</summary>
+        public async Task RestaurarAsync()
+        {
+            var json = await js.InvokeAsync<string?>("localStorage.getItem", ClaveAlmacen);
+            if (string.IsNullOrWhiteSpace(json))
             {
                 return;
             }
 
-            EmpresaId = empresaId;
-            Empresa = razonSocial;
-            OnCambio?.Invoke();
-        }
+            try
+            {
+                Usuario = JsonSerializer.Deserialize<LoginRespuestaDTO>(json);
+            }
+            catch (JsonException)
+            {
+                Usuario = null;
+            }
 
-        /// <summary>Guarda el usuario, su empresa y los depositos a cargo que devolvio el login.</summary>
-        public void IniciarSesion(LoginRespuestaDTO respuesta)
-        {
-            UsuarioId = respuesta.UsuarioId;
-            UsuarioNombre = respuesta.Nombre;
-            Rol = respuesta.Rol;
-            EmpresaId = respuesta.EmpresaId;
-            Empresa = respuesta.EmpresaRazonSocial;
-            Depositos = respuesta.Depositos;
-
-            OnCambio?.Invoke();
-        }
-
-        /// <summary>Cierra la sesion y conserva la empresa seleccionada para no romper el resto de las pantallas.</summary>
-        public void CerrarSesion()
-        {
-            UsuarioId = 0;
-            UsuarioNombre = string.Empty;
-            Rol = string.Empty;
-            Depositos = [];
-
-            OnCambio?.Invoke();
+            if (Usuario is null)
+            {
+                await js.InvokeVoidAsync("localStorage.removeItem", ClaveAlmacen);
+            }
         }
     }
 }

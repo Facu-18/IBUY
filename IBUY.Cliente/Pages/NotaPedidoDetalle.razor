@@ -1,0 +1,423 @@
+@page "/notas-pedido/{Id:int}"
+@implements IDisposable
+@inject INotaPedidoServicio NotaPedidoServicio
+@inject EstadoSesion Sesion
+
+<PageTitle>Nota de pedido N.º @Id · IBUY</PageTitle>
+
+@if (cargando)
+{
+    <Cargando Texto="Cargando nota de pedido..." />
+}
+else if (nota is null)
+{
+    <div class="alert alert-danger" role="alert">
+        No se encontró la nota de pedido N.º @Id.
+        <a class="alert-link" href="notas-pedido">Volver al listado</a>
+    </div>
+}
+else
+{
+    <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-4">
+        <div>
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                <h1 class="h3 mb-0">Nota de pedido N.º @nota.Id</h1>
+                <span class="badge rounded-pill @ClaseEstado(nota.Estado)">@nota.Estado</span>
+            </div>
+            <p class="text-body-secondary mb-0">@TextoEmpresa(nota)</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <a class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" href="notas-pedido">
+                <Icono Nombre="volver" /> Volver
+            </a>
+            @if (PuedeEditar)
+            {
+                <a class="btn btn-outline-primary d-inline-flex align-items-center gap-2"
+                   href="@($"notas-pedido/editar/{nota.Id}")">
+                    <Icono Nombre="editar" /> Editar
+                </a>
+            }
+            @if (PuedeAprobar)
+            {
+                <button type="button" class="btn btn-success d-inline-flex align-items-center gap-2"
+                        disabled="@procesando" @onclick="Aprobar">
+                    <Icono Nombre="check" /> @(procesando ? "Aprobando..." : "Aprobar")
+                </button>
+            }
+            @if (PuedePrevisualizar)
+            {
+                <a class="btn btn-primary d-inline-flex align-items-center gap-2"
+                   href="@($"notas-pedido/{nota.Id}/previsualizar")">
+                    <Icono Nombre="ver" />
+                    @(nota.Estado == EstadosNotaPedido.Aprobada ? "Previsualizar y publicar" : "Previsualizar")
+                </a>
+            }
+            @if (PuedeCancelar)
+            {
+                <button type="button" class="btn btn-outline-danger d-inline-flex align-items-center gap-2"
+                        disabled="@procesando" @onclick="AbrirCancelacion">
+                    <Icono Nombre="cerrar" /> Cancelar nota
+                </button>
+            }
+        </div>
+    </div>
+
+    @if (errorAccion is not null)
+    {
+        <div class="alert alert-danger" role="alert">@errorAccion</div>
+    }
+
+    @if (nota.CantidadCotizaciones > 0)
+    {
+        <div class="alert alert-info" role="alert">
+            Esta nota recibió @nota.CantidadCotizaciones cotización(es), por lo que ya no puede editarse.
+        </div>
+    }
+
+    @if (nota.Estado == EstadosNotaPedido.Borrador)
+    {
+        <div class="alert alert-warning" role="alert">
+            La nota está en Borrador. Aprobala antes de publicarla en el marketplace.
+        </div>
+    }
+    else if (nota.Estado == EstadosNotaPedido.Aprobada)
+    {
+        <div class="alert alert-success" role="alert">
+            La nota está aprobada y lista para publicarse. Revisá la vista previa antes de publicar.
+        </div>
+    }
+    else if (nota.Estado == EstadosNotaPedido.Publicada)
+    {
+        <div class="alert alert-primary" role="alert">
+            La nota está publicada: los proveedores ya pueden cotizarla desde el marketplace.
+        </div>
+    }
+    else if (nota.Estado == EstadosNotaPedido.Cancelada)
+    {
+        <div class="alert alert-danger" role="alert">La nota fue cancelada y no puede publicarse.</div>
+    }
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <dl class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3 mb-0">
+                <div class="col">
+                    <dt class="small text-uppercase text-body-secondary">Estado</dt>
+                    <dd class="mb-0">
+                        <span class="badge rounded-pill @ClaseEstado(nota.Estado)">@nota.Estado</span>
+                    </dd>
+                </div>
+                <div class="col">
+                    <dt class="small text-uppercase text-body-secondary">Empresa</dt>
+                    <dd class="mb-0">@TextoEmpresa(nota)</dd>
+                </div>
+                <div class="col">
+                    <dt class="small text-uppercase text-body-secondary">Fecha de emisión</dt>
+                    <dd class="mb-0">@nota.FechaEmision.ToString("dd/MM/yyyy")</dd>
+                </div>
+                <div class="col">
+                    <dt class="small text-uppercase text-body-secondary">Fecha de vencimiento</dt>
+                    <dd class="mb-0">@nota.FechaVencimiento.ToString("dd/MM/yyyy")</dd>
+                </div>
+                <div class="col">
+                    <dt class="small text-uppercase text-body-secondary">Creador</dt>
+                    <dd class="mb-0">@TextoUsuario(nota.UsuarioNombre)</dd>
+                </div>
+                <div class="col">
+                    <dt class="small text-uppercase text-body-secondary">Aprobador</dt>
+                    <dd class="mb-0">
+                        @(nota.AprobadoPorId.HasValue ? TextoUsuario(nota.AprobadoPorNombre) : "Sin aprobar")
+                    </dd>
+                </div>
+                <div class="col">
+                    <dt class="small text-uppercase text-body-secondary">Cotizaciones</dt>
+                    <dd class="mb-0">@nota.CantidadCotizaciones</dd>
+                </div>
+                <div class="col">
+                    <dt class="small text-uppercase text-body-secondary">Necesidad de origen</dt>
+                    <dd class="mb-0">
+                        @if (nota.NecesidadId.HasValue)
+                        {
+                            <a href="@($"necesidades/{nota.NecesidadId}")">Necesidad N.º @nota.NecesidadId</a>
+                        }
+                        else
+                        {
+                            <span>Sin necesidad asociada</span>
+                        }
+                    </dd>
+                </div>
+                <div class="col">
+                    <dt class="small text-uppercase text-body-secondary">Observaciones</dt>
+                    <dd class="mb-0">
+                        @(string.IsNullOrWhiteSpace(nota.Observaciones) ? "Sin observaciones" : nota.Observaciones)
+                    </dd>
+                </div>
+            </dl>
+        </div>
+    </div>
+
+    <section>
+        <div class="d-flex align-items-baseline justify-content-between mb-2">
+            <h2 class="h5 mb-0">Productos solicitados</h2>
+            <span class="text-body-secondary">@nota.Items.Count ítem(s)</span>
+        </div>
+
+        <div class="card shadow-sm">
+            @if (nota.Items.Count == 0)
+            {
+                <p class="text-center text-body-secondary py-5 px-3 mb-0">
+                    La nota no tiene productos cargados.
+                </p>
+            }
+            else
+            {
+                <div class="table-responsive" role="region" aria-label="Productos de la nota de pedido" tabindex="0">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th scope="col">Producto</th>
+                                <th scope="col" class="text-end">Cantidad solicitada</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in nota.Items)
+                            {
+                                <tr @key="item.Id">
+                                    <td class="fw-semibold">@item.ProductoNombre</td>
+                                    <td class="text-end">@item.CantidadSolicitada.ToString("0.##")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </section>
+}
+
+@if (cancelacionAbierta && nota is not null)
+{
+    <div class="modal fade show d-block" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="cancelar-titulo"
+         @onclick="CerrarCancelacion">
+        <div class="modal-dialog modal-dialog-centered" @onclick:stopPropagation="true">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title h5" id="cancelar-titulo">Cancelar nota de pedido N.º @nota.Id</h2>
+                    <button type="button" class="btn-close" aria-label="Cerrar"
+                            disabled="@procesando" @onclick="CerrarCancelacion"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0">
+                        La nota quedará en estado <span class="fw-semibold">Cancelada</span> y dejará de estar disponible
+                        para recibir cotizaciones. Esta acción no se puede deshacer.
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" disabled="@procesando" @onclick="CerrarCancelacion">
+                        Volver
+                    </button>
+                    <button type="button" class="btn btn-danger" disabled="@procesando" @onclick="Cancelar">
+                        @(procesando ? "Cancelando..." : "Cancelar nota")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+@if (aviso is not null)
+{
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div class="toast show text-bg-dark border-0" role="status">
+            <div class="toast-body">@aviso</div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    [SupplyParameterFromQuery(Name = "creada")]
+    public bool Creada { get; set; }
+
+    [SupplyParameterFromQuery(Name = "actualizada")]
+    public bool Actualizada { get; set; }
+
+    private NotaPedidoDTO? nota;
+    private bool cargando = true;
+    private bool procesando;
+    private bool cancelacionAbierta;
+    private string? errorAccion;
+    private string? aviso;
+
+    private bool PuedeEditar =>
+        nota is not null
+        && Sesion.PuedeGestionarUsuarios
+        && nota.CantidadCotizaciones == 0
+        && (nota.Estado == EstadosNotaPedido.Borrador
+            || nota.Estado == EstadosNotaPedido.Aprobada
+            || nota.Estado == EstadosNotaPedido.Publicada);
+
+    private bool PuedeAprobar =>
+        nota is not null
+        && Sesion.PuedeGestionarUsuarios
+        && nota.Estado == EstadosNotaPedido.Borrador;
+
+    private bool PuedePrevisualizar =>
+        nota is not null
+        && (nota.Estado == EstadosNotaPedido.Aprobada || nota.Estado == EstadosNotaPedido.Publicada);
+
+    private bool PuedeCancelar =>
+        nota is not null
+        && Sesion.PuedeGestionarUsuarios
+        && nota.Estado != EstadosNotaPedido.Cerrada
+        && nota.Estado != EstadosNotaPedido.Cancelada;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Sesion.OnCambio += AlCambiarSesion;
+        await Cargar();
+
+        if (Creada)
+        {
+            _ = MostrarAviso($"Nota de pedido N.º {Id} creada como borrador.");
+        }
+        else if (Actualizada)
+        {
+            _ = MostrarAviso($"Nota de pedido N.º {Id} actualizada.");
+        }
+    }
+
+    private void AlCambiarSesion()
+    {
+        _ = InvokeAsync(Cargar);
+    }
+
+    private async Task Cargar()
+    {
+        cargando = true;
+        errorAccion = null;
+        StateHasChanged();
+
+        var respuesta = await NotaPedidoServicio.ObtenerPorIdAsync(Id);
+        nota = respuesta.Error ? null : respuesta.Respuesta;
+
+        if (nota is not null)
+        {
+            nota.Observaciones ??= string.Empty;
+            nota.Items ??= [];
+        }
+
+        cargando = false;
+        StateHasChanged();
+    }
+
+    private async Task Aprobar()
+    {
+        if (nota is null || procesando)
+        {
+            return;
+        }
+
+        procesando = true;
+        errorAccion = null;
+        StateHasChanged();
+
+        var respuesta = await NotaPedidoServicio.AprobarAsync(nota.Id);
+        procesando = false;
+
+        if (respuesta.Error || !respuesta.Respuesta)
+        {
+            errorAccion = $"No se pudo aprobar la nota de pedido. {respuesta.Mensaje}".Trim();
+            StateHasChanged();
+            return;
+        }
+
+        await Cargar();
+        await MostrarAviso($"Nota de pedido N.º {Id} aprobada. Ya puede publicarse en el marketplace.");
+    }
+
+    private void AbrirCancelacion()
+    {
+        if (procesando)
+        {
+            return;
+        }
+
+        errorAccion = null;
+        cancelacionAbierta = true;
+    }
+
+    private void CerrarCancelacion()
+    {
+        if (procesando)
+        {
+            return;
+        }
+
+        cancelacionAbierta = false;
+    }
+
+    private async Task Cancelar()
+    {
+        if (nota is null || procesando)
+        {
+            return;
+        }
+
+        procesando = true;
+        errorAccion = null;
+        StateHasChanged();
+
+        var respuesta = await NotaPedidoServicio.CancelarAsync(nota.Id);
+        procesando = false;
+
+        if (respuesta.Error || !respuesta.Respuesta)
+        {
+            errorAccion = $"No se pudo cancelar la nota de pedido. {respuesta.Mensaje}".Trim();
+            StateHasChanged();
+            return;
+        }
+
+        cancelacionAbierta = false;
+        await Cargar();
+        await MostrarAviso($"Nota de pedido N.º {Id} cancelada.");
+    }
+
+    private async Task MostrarAviso(string texto)
+    {
+        aviso = texto;
+        StateHasChanged();
+
+        await Task.Delay(3500);
+
+        if (aviso == texto)
+        {
+            aviso = null;
+            StateHasChanged();
+        }
+    }
+
+    private string TextoEmpresa(NotaPedidoDTO nota) =>
+        string.IsNullOrWhiteSpace(nota.EmpresaRazonSocial)
+            ? (string.IsNullOrWhiteSpace(Sesion.Empresa) ? $"Empresa N.º {nota.EmpresaId}" : Sesion.Empresa)
+            : nota.EmpresaRazonSocial;
+
+    private static string TextoUsuario(string nombre) =>
+        string.IsNullOrWhiteSpace(nombre) ? "Sin datos" : nombre;
+
+    private static string ClaseEstado(string estado) => estado switch
+    {
+        EstadosNotaPedido.Borrador => "bg-warning-subtle text-warning-emphasis",
+        EstadosNotaPedido.Aprobada => "bg-success-subtle text-success-emphasis",
+        EstadosNotaPedido.Publicada => "bg-primary-subtle text-primary-emphasis",
+        EstadosNotaPedido.Cancelada => "bg-danger-subtle text-danger-emphasis",
+        _ => "bg-secondary-subtle text-secondary-emphasis"
+    };
+
+    public void Dispose()
+    {
+        Sesion.OnCambio -= AlCambiarSesion;
+    }
+}

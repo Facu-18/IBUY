@@ -1,0 +1,136 @@
+@implements IDisposable
+@inject EstadoSesion Sesion
+@inject IDepositoServicio DepositoServicio
+
+@if (Sesion.EstaLogueado && (Sesion.EsVentas || Sesion.EsEncargado) && Sesion.EmpresaId > 0)
+{
+    @if (cargando)
+    {
+        <span class="spinner-border spinner-border-sm text-secondary" role="status" aria-label="Cargando depositos"></span>
+    }
+    else if (error is not null)
+    {
+        <span class="small text-body-secondary">@error</span>
+    }
+    else if (opciones.Count == 1)
+    {
+        <span class="badge rounded-pill bg-primary-subtle text-primary-emphasis d-inline-flex align-items-center gap-1">
+            <Icono Nombre="depositos" />
+            @opciones[0].Nombre
+        </span>
+    }
+    else if (opciones.Count > 1)
+    {
+        <label class="d-inline-flex align-items-center gap-2 mb-0">
+            <span class="visually-hidden">Deposito</span>
+            <Icono Nombre="depositos" />
+            <select class="form-select form-select-sm w-auto" value="@Sesion.DepositoSeleccionadoId" @onchange="AlCambiar">
+                <option value="0">Todos los depositos</option>
+                @foreach (var opcion in opciones)
+                {
+                    <option value="@opcion.Id">@opcion.Nombre</option>
+                }
+            </select>
+        </label>
+    }
+}
+
+@code {
+    private List<DepositoOpcionDTO> opciones = [];
+    private bool cargando;
+    private string? error;
+    private int usuarioCargado;
+
+    protected override void OnInitialized()
+    {
+        Sesion.OnCambio += AlCambiarSesion;
+        _ = InvokeAsync(Refrescar);
+    }
+
+    private void AlCambiarSesion()
+    {
+        _ = InvokeAsync(Refrescar);
+    }
+
+    private async Task Refrescar()
+    {
+        if (!Sesion.EstaLogueado)
+        {
+            opciones = [];
+            error = null;
+            usuarioCargado = 0;
+            cargando = false;
+            StateHasChanged();
+            return;
+        }
+
+        if (Sesion.Usuario?.UsuarioId == usuarioCargado)
+        {
+            StateHasChanged();
+            return;
+        }
+
+        await CargarOpciones();
+    }
+
+    private async Task CargarOpciones()
+    {
+        var usuarioId = Sesion.Usuario?.UsuarioId ?? 0;
+        var empresaId = Sesion.EmpresaId;
+
+        cargando = true;
+        error = null;
+        StateHasChanged();
+
+        if (usuarioId == 0 || empresaId == 0 || Sesion.EsSuperAdmin)
+        {
+            opciones = [];
+            usuarioCargado = usuarioId;
+            cargando = false;
+            StateHasChanged();
+            return;
+        }
+
+        var respuesta = await DepositoServicio.ObtenerTodosAsync(empresaId);
+
+        // La sesion pudo cambiar mientras se esperaba la respuesta.
+        if (usuarioId != (Sesion.Usuario?.UsuarioId ?? 0))
+        {
+            return;
+        }
+
+        usuarioCargado = usuarioId;
+
+        if (respuesta.Error)
+        {
+            opciones = [];
+            error = "No se pudieron cargar los depositos.";
+        }
+        else
+        {
+            opciones = [.. (respuesta.Respuesta ?? [])
+                .Select(d => new DepositoOpcionDTO { Id = d.Id, Nombre = d.Nombre })];
+
+            if (Sesion.DepositoSeleccionadoId != 0 && !opciones.Any(o => o.Id == Sesion.DepositoSeleccionadoId))
+            {
+                Sesion.SeleccionarDeposito(0);
+            }
+        }
+
+        cargando = false;
+        StateHasChanged();
+    }
+
+    private void AlCambiar(ChangeEventArgs argumentos)
+    {
+        if (int.TryParse(argumentos.Value?.ToString(), out int depositoId))
+        {
+            Sesion.SeleccionarDeposito(depositoId);
+        }
+    }
+
+    public void Dispose()
+    {
+        Sesion.OnCambio -= AlCambiarSesion;
+    }
+}

@@ -1,5 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Text;
@@ -31,7 +30,8 @@ namespace IBUY.Shared.DTO
         [Range(1, int.MaxValue, ErrorMessage = "Debe seleccionar una empresa.")]
         public int EmpresaId { get; set; }
 
-        [MinLength(1, ErrorMessage = "Debe asignar al menos un depósito.")]
+        // La cantidad de depósitos depende del rol y la valida UsuarioController
+        // (EncargadoDeposito: al menos uno; Ventas: ninguno).
         public List<int> DepositoIds { get; set; } = [];
 
     }

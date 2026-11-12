@@ -14,10 +14,22 @@ namespace IBUY.Servicios
             this.http = http;
         }
 
-        public Task<HttpResp<List<DepositoDTO>?>> ObtenerTodosAsync(int? empresaId)
+        public Task<HttpResp<List<DepositoDTO>?>> ObtenerTodosAsync(int? empresaId, int? depositoId = null)
         {
             var url = empresaId.HasValue ? $"{Base}?empresaId={empresaId.Value}" : Base;
+
+            if (depositoId.HasValue)
+            {
+                url += $"{(empresaId.HasValue ? "&" : "?")}depositoId={depositoId.Value}";
+            }
+
             return http.GetAsync<List<DepositoDTO>>(url);
+        }
+
+        public Task<HttpResp<List<DepositoOpcionDTO>?>> ObtenerOpcionesAsync(int? empresaId = null)
+        {
+            var url = empresaId.HasValue ? $"{Base}/opciones?empresaId={empresaId.Value}" : $"{Base}/opciones";
+            return http.GetAsync<List<DepositoOpcionDTO>>(url);
         }
 
         public Task<HttpResp<DepositoDTO?>> ObtenerPorIdAsync(int id)

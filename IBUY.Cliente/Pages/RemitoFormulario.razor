@@ -12,7 +12,7 @@
     <p class="text-body-secondary mb-0">Registra un remito externo (desde un proveedor) o interno (entre depositos).</p>
 </div>
 
-@if (!Sesion.EstaAutenticado)
+@if (!Sesion.EstaLogueado)
 {
     <div class="alert alert-warning" role="alert">
         Inicie sesion para registrar un remito.
@@ -23,12 +23,6 @@ else if (cargando)
 {
     <Cargando Texto="Cargando formulario..." />
 }
-else if (Sesion.EmpresaId == 0)
-{
-    <div class="alert alert-warning" role="alert">
-        Elija una empresa en el encabezado antes de registrar un remito.
-    </div>
-}
 else
 {
     @if (!string.IsNullOrWhiteSpace(errorServidor))
@@ -36,7 +30,7 @@ else
         <div class="alert alert-danger" role="alert">@errorServidor</div>
     }
 
-    @if (Sesion.Depositos.Count == 0)
+    @if (depositosPropios.Count == 0)
     {
         <div class="alert alert-warning" role="alert">
             No tiene depositos a cargo, por lo que no puede registrar remitos.
@@ -60,22 +54,9 @@ else
                 <div class="form-text">@DescripcionTipo</div>
             </div>
 
+            <p class="text-body-secondary small">El numero (R-0001) y la fecha de emision los asigna el sistema al registrar el remito.</p>
+
             <div class="row g-3">
-                <div class="col-12 col-md-6">
-                    <label class="form-label" for="remito-numero">Numero</label>
-                    <input type="text" id="remito-numero" class="form-control" maxlength="20"
-                           placeholder="Ej.: R-0001" @bind="numero" @bind:event="oninput" />
-                    @if (intentado && string.IsNullOrWhiteSpace(numero))
-                    {
-                        <div class="text-danger small">El numero de remito es obligatorio.</div>
-                    }
-                </div>
-
-                <div class="col-12 col-md-6">
-                    <label class="form-label" for="remito-fecha">Fecha de emision</label>
-                    <input type="date" id="remito-fecha" class="form-control" @bind="fechaEmision" />
-                </div>
-
                 @if (EsExterno)
                 {
                     <div class="col-12 col-md-6">
@@ -265,15 +246,13 @@ else
     ];
 
     private string Tipo = "Externo";
-    private string numero = string.Empty;
-    private DateTime fechaEmision = DateTime.Today;
     private string empresaOrigen = string.Empty;
     private int depositoOrigenId;
     private int depositoDestinoId;
 
-    private List<DepositoDTO> depositosEmpresa = [];
-    private List<DepositoDTO> depositosPropios = [];
-    private List<ProductoOpcionDTO> productos = [];
+    private List<DepositoOpcionDTO> depositosEmpresa = [];
+    private List<DepositoOpcionDTO> depositosPropios = [];
+    private List<ProductoDTO> productos = [];
     private List<StockDepositoDTO> stockOrigen = [];
     private List<ItemRemitoDTO> items = [];
 
@@ -289,21 +268,31 @@ else
     private bool EsInterno => Tipo == "Interno";
 
     /// <summary>En el externo el destino es siempre un deposito a cargo del usuario; en el interno, cualquier deposito de la empresa.</summary>
-    private List<DepositoDTO> DepositosDestino => EsExterno ? depositosPropios : depositosEmpresa;
+    private List<DepositoOpcionDTO> DepositosDestino => EsExterno ? depositosPropios : depositosEmpresa;
 
     protected override async Task OnInitializedAsync()
     {
-        if (!Sesion.EstaAutenticado)
+        if (!Sesion.EstaLogueado)
         {
             cargando = false;
             return;
         }
 
-        var respuestaDepositos = await DepositoServicio.ObtenerTodosAsync(Sesion.EmpresaId);
+        // Opciones (id y nombre) de todos los depositos de la empresa, para cualquier rol.
+        var respuestaDepositos = await DepositoServicio.ObtenerOpcionesAsync();
         depositosEmpresa = respuestaDepositos.Respuesta ?? [];
 
-        var misDepositos = Sesion.Depositos.Select(d => d.Id).ToHashSet();
-        depositosPropios = [.. depositosEmpresa.Where(d => misDepositos.Contains(d.Id))];
+        // Depositos del usuario: el Encargado solo los que tiene a cargo; Ventas y SuperAdmin
+        // gestionan todos los de su empresa.
+        if (Sesion.EsEncargado)
+        {
+            var misDepositos = (Sesion.Usuario?.Depositos ?? []).Select(d => d.Id).ToHashSet();
+            depositosPropios = [.. depositosEmpresa.Where(d => misDepositos.Contains(d.Id))];
+        }
+        else
+        {
+            depositosPropios = depositosEmpresa;
+        }
 
         var respuestaProductos = await ProductoServicio.ObtenerTodosAsync(Sesion.EmpresaId);
         productos = respuestaProductos.Respuesta ?? [];
@@ -352,11 +341,9 @@ else
         var remito = new RemitoDTO
         {
             Tipo = Tipo,
-            EmpresaOrigen = EsExterno ? empresaOrigen.Trim() : null,
-            Numero = numero.Trim(),
-            FechaEmision = fechaEmision,
+            OrigenExterno = EsExterno ? empresaOrigen.Trim() : null,
             EmpresaId = Sesion.EmpresaId,
-            UsuarioId = Sesion.UsuarioId,
+            UsuarioId = Sesion.Usuario?.UsuarioId ?? 0,
             DepositoOrigenId = EsInterno ? depositoOrigenId : null,
             DepositoDestinoId = depositoDestinoId,
             Items = [.. items.Select(i => new ItemRemitoDTO
@@ -381,11 +368,6 @@ else
 
     private bool Validar()
     {
-        if (string.IsNullOrWhiteSpace(numero))
-        {
-            return false;
-        }
-
         if (EsExterno && string.IsNullOrWhiteSpace(empresaOrigen))
         {
             return false;
