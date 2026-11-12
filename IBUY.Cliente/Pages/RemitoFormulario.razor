@@ -1,0 +1,456 @@
+@page "/remitos/nuevo"
+@inject IRemitoServicio RemitoServicio
+@inject IDepositoServicio DepositoServicio
+@inject IProductoServicio ProductoServicio
+@inject EstadoSesion Sesion
+@inject NavigationManager Navegacion
+
+<PageTitle>Nuevo remito · IBUY</PageTitle>
+
+<div class="mb-4">
+    <h1 class="h3 mb-1">Nuevo remito</h1>
+    <p class="text-body-secondary mb-0">Registra un remito externo (desde un proveedor) o interno (entre depositos).</p>
+</div>
+
+@if (!Sesion.EstaAutenticado)
+{
+    <div class="alert alert-warning" role="alert">
+        Inicie sesion para registrar un remito.
+        <a class="alert-link" href="login">Iniciar sesion</a>
+    </div>
+}
+else if (cargando)
+{
+    <Cargando Texto="Cargando formulario..." />
+}
+else if (Sesion.EmpresaId == 0)
+{
+    <div class="alert alert-warning" role="alert">
+        Elija una empresa en el encabezado antes de registrar un remito.
+    </div>
+}
+else
+{
+    @if (!string.IsNullOrWhiteSpace(errorServidor))
+    {
+        <div class="alert alert-danger" role="alert">@errorServidor</div>
+    }
+
+    @if (Sesion.Depositos.Count == 0)
+    {
+        <div class="alert alert-warning" role="alert">
+            No tiene depositos a cargo, por lo que no puede registrar remitos.
+        </div>
+    }
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="mb-4">
+                <label class="form-label d-block">Tipo de remito</label>
+                <div class="btn-group" role="group" aria-label="Tipo de remito">
+                    @foreach (var tipo in TiposRemito)
+                    {
+                        <button type="button"
+                                class="btn @(Tipo == tipo.Valor ? "btn-primary" : "btn-outline-primary")"
+                                @onclick="() => CambiarTipo(tipo.Valor)">
+                            @tipo.Etiqueta
+                        </button>
+                    }
+                </div>
+                <div class="form-text">@DescripcionTipo</div>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-12 col-md-6">
+                    <label class="form-label" for="remito-numero">Numero</label>
+                    <input type="text" id="remito-numero" class="form-control" maxlength="20"
+                           placeholder="Ej.: R-0001" @bind="numero" @bind:event="oninput" />
+                    @if (intentado && string.IsNullOrWhiteSpace(numero))
+                    {
+                        <div class="text-danger small">El numero de remito es obligatorio.</div>
+                    }
+                </div>
+
+                <div class="col-12 col-md-6">
+                    <label class="form-label" for="remito-fecha">Fecha de emision</label>
+                    <input type="date" id="remito-fecha" class="form-control" @bind="fechaEmision" />
+                </div>
+
+                @if (EsExterno)
+                {
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="remito-empresa-origen">Empresa de origen</label>
+                        <input type="text" id="remito-empresa-origen" class="form-control" maxlength="100"
+                               placeholder="Ej.: Proveedor SA" @bind="empresaOrigen" @bind:event="oninput" />
+                        @if (intentado && string.IsNullOrWhiteSpace(empresaOrigen))
+                        {
+                            <div class="text-danger small">La empresa de origen es obligatoria.</div>
+                        }
+                    </div>
+                }
+
+                @if (EsInterno)
+                {
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="remito-origen">Deposito origen</label>
+                        <select id="remito-origen" class="form-select" @bind="depositoOrigenId" @bind:after="AlCambiarOrigen">
+                            <option value="0">Seleccione un deposito</option>
+                            @foreach (var deposito in depositosPropios)
+                            {
+                                <option value="@deposito.Id">@deposito.Nombre</option>
+                            }
+                        </select>
+                        @if (intentado && depositoOrigenId == 0)
+                        {
+                            <div class="text-danger small">Seleccione el deposito origen.</div>
+                        }
+                    </div>
+                }
+
+                <div class="col-12 col-md-6">
+                    <label class="form-label" for="remito-destino">Deposito destino</label>
+                    <select id="remito-destino" class="form-select" @bind="depositoDestinoId">
+                        <option value="0">Seleccione un deposito</option>
+                        @foreach (var deposito in DepositosDestino)
+                        {
+                            <option value="@deposito.Id">@deposito.Nombre</option>
+                        }
+                    </select>
+                    @if (intentado && depositoDestinoId == 0)
+                    {
+                        <div class="text-danger small">Seleccione el deposito destino.</div>
+                    }
+                </div>
+            </div>
+
+            @if (EsInterno && depositoOrigenId != 0 && depositoOrigenId == depositoDestinoId)
+            {
+                <div class="alert alert-warning mt-3 mb-0" role="alert">
+                    El deposito origen y el deposito destino deben ser distintos.
+                </div>
+            }
+
+            @if (EsInterno && depositoOrigenId != 0)
+            {
+                <div class="mt-3">
+                    <span class="text-body-secondary small">Stock disponible en el deposito origen:</span>
+                    @if (stockOrigen.Count == 0)
+                    {
+                        <span class="text-body-secondary small">sin existencias registradas.</span>
+                    }
+                    else
+                    {
+                        <div class="table-responsive mt-1">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Producto</th>
+                                        <th class="text-end">Disponible</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var existencia in stockOrigen)
+                                    {
+                                        <tr @key="existencia.StockId">
+                                            <td>@existencia.ProductoNombre</td>
+                                            <td class="text-end">@existencia.CantidadActual.ToString("0.##")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+                <h2 class="h5 mb-0">Productos del remito</h2>
+                <button type="button" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1"
+                        @onclick="AgregarItem">
+                    <Icono Nombre="mas" /> Agregar producto
+                </button>
+            </div>
+
+            @if (items.Count == 0)
+            {
+                <p class="text-center text-body-secondary py-4 mb-0">Agregue al menos un producto al remito.</p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th class="text-end">Cantidad</th>
+                                <th>Unidad</th>
+                                <th class="text-end">Quitar</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @for (var i = 0; i < items.Count; i++)
+                            {
+                                var indice = i;
+                                <tr @key="items[indice]">
+                                    <td>
+                                        <select class="form-select" value="@items[indice].ProductoId"
+                                                @onchange="e => items[indice].ProductoId = AEntero(e.Value)">
+                                            <option value="0">Seleccione un producto</option>
+                                            @foreach (var producto in productos)
+                                            {
+                                                <option value="@producto.Id">@producto.Nombre (@producto.Categoria)</option>
+                                            }
+                                        </select>
+                                    </td>
+                                    <td class="text-end">
+                                        <input type="number" class="form-control text-end" min="0.01" step="0.01"
+                                               value="@items[indice].Cantidad"
+                                               @onchange="e => items[indice].Cantidad = ADecimal(e.Value)" />
+                                    </td>
+                                    <td>
+                                        <input type="text" class="form-control" maxlength="20"
+                                               placeholder="Ej.: Unidades"
+                                               value="@items[indice].Unidad"
+                                               @onchange="e => items[indice].Unidad = e.Value?.ToString() ?? string.Empty" />
+                                    </td>
+                                    <td class="text-end">
+                                        <button type="button" class="btn btn-sm btn-outline-danger"
+                                                @onclick="() => QuitarItem(indice)">
+                                            Quitar
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+
+            @if (intentado && (items.Count == 0 || items.Any(i => i.ProductoId == 0 || i.Cantidad <= 0 || string.IsNullOrWhiteSpace(i.Unidad))))
+            {
+                <div class="text-danger small mt-2">
+                    Cada producto debe tener un item seleccionado, una cantidad mayor a cero y una unidad.
+                </div>
+            }
+
+            @if (EsInterno && ItemsSinStock().Count > 0)
+            {
+                <div class="alert alert-warning mt-3 mb-0" role="alert">
+                    Stock insuficiente en el deposito origen: @string.Join(", ", ItemsSinStock()).
+                    El servidor rechazara el remito si no alcanza.
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-end gap-2">
+        <a class="btn btn-outline-secondary" href="remitos">Cancelar</a>
+        <button type="button" class="btn btn-primary" disabled="@guardando" @onclick="Guardar">
+            @(guardando ? "Registrando..." : "Registrar remito")
+        </button>
+    </div>
+}
+
+@code {
+    private record TipoOpcion(string Valor, string Etiqueta, string Descripcion);
+
+    private static readonly TipoOpcion[] TiposRemito =
+    [
+        new("Externo", "Externo", "Ingreso desde un proveedor externo a un deposito propio. Se recepciona despues."),
+        new("Interno", "Interno", "Traslado entre dos depositos. Se recepciona despues.")
+    ];
+
+    private string Tipo = "Externo";
+    private string numero = string.Empty;
+    private DateTime fechaEmision = DateTime.Today;
+    private string empresaOrigen = string.Empty;
+    private int depositoOrigenId;
+    private int depositoDestinoId;
+
+    private List<DepositoDTO> depositosEmpresa = [];
+    private List<DepositoDTO> depositosPropios = [];
+    private List<ProductoOpcionDTO> productos = [];
+    private List<StockDepositoDTO> stockOrigen = [];
+    private List<ItemRemitoDTO> items = [];
+
+    private bool cargando = true;
+    private bool guardando;
+    private bool intentado;
+    private string? errorServidor;
+
+    private TipoOpcion tipoActual => TiposRemito.First(t => t.Valor == Tipo);
+    private string DescripcionTipo => tipoActual.Descripcion;
+
+    private bool EsExterno => Tipo == "Externo";
+    private bool EsInterno => Tipo == "Interno";
+
+    /// <summary>En el externo el destino es siempre un deposito a cargo del usuario; en el interno, cualquier deposito de la empresa.</summary>
+    private List<DepositoDTO> DepositosDestino => EsExterno ? depositosPropios : depositosEmpresa;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Sesion.EstaAutenticado)
+        {
+            cargando = false;
+            return;
+        }
+
+        var respuestaDepositos = await DepositoServicio.ObtenerTodosAsync(Sesion.EmpresaId);
+        depositosEmpresa = respuestaDepositos.Respuesta ?? [];
+
+        var misDepositos = Sesion.Depositos.Select(d => d.Id).ToHashSet();
+        depositosPropios = [.. depositosEmpresa.Where(d => misDepositos.Contains(d.Id))];
+
+        var respuestaProductos = await ProductoServicio.ObtenerTodosAsync(Sesion.EmpresaId);
+        productos = respuestaProductos.Respuesta ?? [];
+
+        AgregarItem();
+        cargando = false;
+    }
+
+    private void CambiarTipo(string tipo)
+    {
+        Tipo = tipo;
+        errorServidor = null;
+
+        // Al cambiar de tipo se limpian los datos que no aplican.
+        empresaOrigen = string.Empty;
+        depositoOrigenId = 0;
+        depositoDestinoId = 0;
+        stockOrigen = [];
+    }
+
+    private void AgregarItem()
+    {
+        items.Add(new ItemRemitoDTO { ProductoId = 0, Cantidad = 1, Unidad = "Unidades" });
+    }
+
+    private void QuitarItem(int indice)
+    {
+        if (indice >= 0 && indice < items.Count)
+        {
+            items.RemoveAt(indice);
+        }
+    }
+
+    private async Task Guardar()
+    {
+        intentado = true;
+        errorServidor = null;
+
+        if (!Validar())
+        {
+            return;
+        }
+
+        guardando = true;
+
+        var remito = new RemitoDTO
+        {
+            Tipo = Tipo,
+            EmpresaOrigen = EsExterno ? empresaOrigen.Trim() : null,
+            Numero = numero.Trim(),
+            FechaEmision = fechaEmision,
+            EmpresaId = Sesion.EmpresaId,
+            UsuarioId = Sesion.UsuarioId,
+            DepositoOrigenId = EsInterno ? depositoOrigenId : null,
+            DepositoDestinoId = depositoDestinoId,
+            Items = [.. items.Select(i => new ItemRemitoDTO
+            {
+                ProductoId = i.ProductoId,
+                Cantidad = i.Cantidad,
+                Unidad = i.Unidad.Trim()
+            })]
+        };
+
+        var respuesta = await RemitoServicio.CrearAsync(remito);
+
+        if (respuesta.Error)
+        {
+            errorServidor = $"No se pudo registrar el remito. {respuesta.Mensaje}".Trim();
+            guardando = false;
+            return;
+        }
+
+        Navegacion.NavigateTo($"remitos/{respuesta.Respuesta}");
+    }
+
+    private bool Validar()
+    {
+        if (string.IsNullOrWhiteSpace(numero))
+        {
+            return false;
+        }
+
+        if (EsExterno && string.IsNullOrWhiteSpace(empresaOrigen))
+        {
+            return false;
+        }
+
+        if (EsInterno && depositoOrigenId == 0)
+        {
+            return false;
+        }
+
+        if (depositoDestinoId == 0)
+        {
+            return false;
+        }
+
+        if (EsInterno && depositoOrigenId == depositoDestinoId)
+        {
+            return false;
+        }
+
+        if (items.Count == 0 || items.Any(i => i.ProductoId == 0 || i.Cantidad <= 0 || string.IsNullOrWhiteSpace(i.Unidad)))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Nombres de productos pedidos por encima del stock del deposito origen. Solo se usa
+    /// para avisar antes de enviar; el servidor es el que rechaza el movimiento.
+    /// </summary>
+    private List<string> ItemsSinStock()
+    {
+        var faltante = new List<string>();
+
+        foreach (var item in items.Where(i => i.ProductoId != 0 && i.Cantidad > 0))
+        {
+            var disponible = stockOrigen.FirstOrDefault(s => s.ProductoId == item.ProductoId)?.CantidadActual ?? 0;
+            if (item.Cantidad > disponible)
+            {
+                var nombre = productos.FirstOrDefault(p => p.Id == item.ProductoId)?.Nombre ?? $"Producto #{item.ProductoId}";
+                faltante.Add($"{nombre} (pide {item.Cantidad:0.##}, hay {disponible:0.##})");
+            }
+        }
+
+        return faltante;
+    }
+
+    private async Task AlCambiarOrigen()
+    {
+        stockOrigen = [];
+
+        if (depositoOrigenId == 0)
+        {
+            return;
+        }
+
+        var respuesta = await DepositoServicio.ObtenerStockAsync(depositoOrigenId);
+        stockOrigen = respuesta.Respuesta ?? [];
+    }
+
+    private static int AEntero(object? valor) =>
+        int.TryParse(valor?.ToString(), out var n) ? n : 0;
+
+    private static decimal ADecimal(object? valor) =>
+        decimal.TryParse(valor?.ToString(), out var n) ? n : 0;
+}

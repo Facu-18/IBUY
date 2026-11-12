@@ -1,22 +1,21 @@
-﻿using IBUY.Servicios.ServiciosHTTP;
-using IBUY.Shared.DTO;
-using System;
-using System.Collections.Generic;
-using System.Text;
-
+﻿using IBUY.Shared.DTO;
+using IBUY.Servicios.ServiciosHTTP;
 
 namespace IBUY.Servicios
 {
+    /// <summary>Gestión de remitos contra la API real (api/remito).</summary>
     public interface IRemitoServicio
     {
-        Task<HttpResp<List<ItemRemitoDTO>>> ObtenerTodosAsync();
+        /// <summary>Historial de remitos; el endpoint devuelve todos, el filtrado lo hace el cliente.</summary>
+        Task<HttpResp<List<RemitoDTO>?>> ObtenerTodosAsync();
 
-        Task<HttpResp<ItemRemitoDTO>> ObtenerPorIdAsync(int id);
+        /// <summary>Cabecera del remito con sus items.</summary>
+        Task<HttpResp<RemitoDTO?>> ObtenerPorIdAsync(int id);
 
-        Task<HttpResp<ItemRemitoDTO>> CrearAsync(ItemRemitoDTO remito);
+        /// <summary>Registra el movimiento (entrada, salida o transferencia); devuelve el id creado.</summary>
+        Task<HttpResp<int>> CrearAsync(RemitoDTO remito);
 
-        Task<HttpResp<ItemRemitoDTO>> RegistrarRecepcionAsync(
-            int id,
-            RecepcionRemitoDTO recepcion);
+        /// <summary>Recepciona una transferencia emitida: acredita el stock del depósito destino.</summary>
+        Task<HttpResp<bool>> RegistrarRecepcionAsync(int id, RecepcionRemitoDTO recepcion);
     }
 }

@@ -215,6 +215,11 @@ namespace IBUY.BD.Migrations
                     b.Property<int>("RemitoId")
                         .HasColumnType("int");
 
+                    b.Property<string>("Unidad")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ProductoId");
@@ -364,6 +369,10 @@ namespace IBUY.BD.Migrations
 
                     b.Property<int>("EmpresaId")
                         .HasColumnType("int");
+
+                    b.Property<string>("EmpresaOrigen")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("Estado")
                         .IsRequired()

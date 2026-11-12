@@ -40,7 +40,7 @@ namespace IBUY.Server.Controllers
         }
 
         [HttpGet("{id:int}")]
-        public async Task<ActionResult<ItemRemitoDTO>> GetById(int id)
+        public async Task<ActionResult<RemitoDTO>> GetById(int id)
         {
             var (remito, items) = await repositorio.ObtenerDetalle(id);
             if (remito is null)
@@ -48,9 +48,11 @@ namespace IBUY.Server.Controllers
                 return NotFound($"No se encontró el remito de id: {id}");
             }
 
-            ItemRemitoDTO dto = new ItemRemitoDTO
+            RemitoDTO dto = new RemitoDTO
             {
+                Id = remito.Id,
                 Tipo = remito.Tipo,
+                EmpresaOrigen = remito.EmpresaOrigen,
                 Numero = remito.Numero,
                 FechaEmision = remito.FechaEmision,
                 FechaRecepcion = remito.FechaRecepcion,
@@ -63,7 +65,8 @@ namespace IBUY.Server.Controllers
                 Items = items.Select(i => new ItemRemitoDTO
                 {
                     ProductoId = i.ProductoId,
-                    Cantidad = i.Cantidad
+                    Cantidad = i.Cantidad,
+                    Unidad = i.Unidad
                 }).ToList()
             };
 
@@ -71,7 +74,7 @@ namespace IBUY.Server.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult<int>> Post(ItemRemitoDTO remitoDTO)
+        public async Task<ActionResult<int>> Post(RemitoDTO remitoDTO)
         {
             if (remitoDTO.Items is null || remitoDTO.Items.Count == 0)
             {
@@ -90,29 +93,31 @@ namespace IBUY.Server.Controllers
                 return BadRequest(errorRelaciones);
             }
 
-            // El Estado y la FechaRecepcion los decide el servidor segun el Tipo, no el DTO:
-            // Entrada llega ya Recibida (proveedor externo); Salida y Transferencia quedan
-            // Emitidas (la Transferencia se recepciona despues con POST {id}/recepcion).
-            bool esEntrada = tipoCanonico == "Entrada";
+            // Todo remito nuevo nace Emitido: el stock del destino recien se acredita al
+            // recepcionarlo con POST {id}/recepcion. El externo no descuenta origen; el
+            // interno descuenta el origen al emitirse y acredita el destino al recibirse.
+            bool esExterno = tipoCanonico == "Externo";
 
             Remito remito = new Remito
             {
                 Tipo = tipoCanonico,
+                EmpresaOrigen = esExterno ? remitoDTO.EmpresaOrigen?.Trim() : null,
                 Numero = remitoDTO.Numero,
                 FechaEmision = remitoDTO.FechaEmision,
-                FechaRecepcion = esEntrada ? remitoDTO.FechaRecepcion : null,
-                Estado = esEntrada ? "Recibido" : "Emitido",
+                FechaRecepcion = null,
+                Estado = "Emitido",
                 EmpresaId = remitoDTO.EmpresaId,
                 UsuarioId = remitoDTO.UsuarioId,
                 CotizacionId = remitoDTO.CotizacionId,
-                DepositoOrigenId = remitoDTO.DepositoOrigenId,
+                DepositoOrigenId = esExterno ? null : remitoDTO.DepositoOrigenId,
                 DepositoDestinoId = remitoDTO.DepositoDestinoId
             };
 
             var items = remitoDTO.Items.Select(i => new ItemRemito
             {
                 ProductoId = i.ProductoId,
-                Cantidad = i.Cantidad
+                Cantidad = i.Cantidad,
+                Unidad = i.Unidad.Trim()
             }).ToList();
 
             try
@@ -142,9 +147,9 @@ namespace IBUY.Server.Controllers
                 return NotFound($"No se encontró el remito de id: {id}");
             }
 
-            if (remito.Tipo != "Transferencia")
+            if (remito.Tipo != "Externo" && remito.Tipo != "Interno")
             {
-                return BadRequest("Solo los remitos de tipo Transferencia tienen recepción.");
+                return BadRequest("Solo los remitos de tipo Externo e Interno tienen recepción.");
             }
 
             if (remito.Estado != "Emitido")
@@ -164,35 +169,27 @@ namespace IBUY.Server.Controllers
         /// Valida el Tipo (sin distinguir mayusculas/minusculas) y que traiga los depositos
         /// que ese tipo necesita. Devuelve el Tipo canonico por out param.
         /// </summary>
-        private static string? ValidarTipoYDepositos(ItemRemitoDTO dto, out string tipoCanonico)
+        private static string? ValidarTipoYDepositos(RemitoDTO dto, out string tipoCanonico)
         {
-            if (string.Equals(dto.Tipo, "Entrada", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(dto.Tipo, "Externo", StringComparison.OrdinalIgnoreCase))
             {
-                tipoCanonico = "Entrada";
-                if (!dto.DepositoDestinoId.HasValue)
+                tipoCanonico = "Externo";
+                if (string.IsNullOrWhiteSpace(dto.EmpresaOrigen))
                 {
-                    return "El remito de tipo Entrada requiere un depósito destino.";
+                    return "El remito de tipo Externo requiere la empresa de origen.";
                 }
 
-                if (!dto.FechaRecepcion.HasValue)
+                if (!dto.DepositoDestinoId.HasValue)
                 {
-                    return "El remito de tipo Entrada requiere la fecha de recepción.";
+                    return "El remito de tipo Externo requiere un depósito destino.";
                 }
             }
-            else if (string.Equals(dto.Tipo, "Salida", StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(dto.Tipo, "Interno", StringComparison.OrdinalIgnoreCase))
             {
-                tipoCanonico = "Salida";
-                if (!dto.DepositoOrigenId.HasValue)
-                {
-                    return "El remito de tipo Salida requiere un depósito origen.";
-                }
-            }
-            else if (string.Equals(dto.Tipo, "Transferencia", StringComparison.OrdinalIgnoreCase))
-            {
-                tipoCanonico = "Transferencia";
+                tipoCanonico = "Interno";
                 if (!dto.DepositoOrigenId.HasValue || !dto.DepositoDestinoId.HasValue)
                 {
-                    return "El remito de tipo Transferencia requiere depósito origen y depósito destino.";
+                    return "El remito de tipo Interno requiere depósito origen y depósito destino.";
                 }
 
                 if (dto.DepositoOrigenId == dto.DepositoDestinoId)
@@ -203,7 +200,7 @@ namespace IBUY.Server.Controllers
             else
             {
                 tipoCanonico = string.Empty;
-                return $"Tipo de remito inválido: {dto.Tipo}. Debe ser Entrada, Salida o Transferencia.";
+                return $"Tipo de remito inválido: {dto.Tipo}. Debe ser Externo o Interno.";
             }
 
             return null;
@@ -213,7 +210,7 @@ namespace IBUY.Server.Controllers
         /// Las FK exigen que empresa, usuario, cotizacion (si hay), depositos y productos
         /// de los items existan. Devuelve null cuando esta todo bien.
         /// </summary>
-        private async Task<string?> ValidarRelaciones(ItemRemitoDTO dto)
+        private async Task<string?> ValidarRelaciones(RemitoDTO dto)
         {
             if (!await empresaRepositorio.Existe(dto.EmpresaId))
             {

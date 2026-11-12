@@ -2,11 +2,18 @@ using System.ComponentModel.DataAnnotations;
 
 namespace IBUY.Shared.DTO
 {
-    public class ItemRemitoDTO
+    public class RemitoDTO
     {
+        /// <summary>Solo lectura: lo informa el servidor en los GET.</summary>
+        public int Id { get; set; }
+
         [Required(ErrorMessage = "El tipo de remito es obligatorio.")]
         [MaxLength(20, ErrorMessage = "El tipo no puede superar los {1} caracteres.")]
         public string Tipo { get; set; } = string.Empty;
+
+        /// <summary>Empresa proveedora del remito externo; vacío en los internos.</summary>
+        [MaxLength(100, ErrorMessage = "La empresa de origen no puede superar los {1} caracteres.")]
+        public string? EmpresaOrigen { get; set; }
 
         [Required(ErrorMessage = "El número de remito es obligatorio.")]
         [MaxLength(20, ErrorMessage = "El número no puede superar los {1} caracteres.")]

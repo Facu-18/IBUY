@@ -14,6 +14,9 @@ namespace IBUY.BD.Datos.Entity
         [MaxLength(20, ErrorMessage = "El tipo no puede superar los {1} caracteres.")]
         public string Tipo { get; set; } = string.Empty;
 
+        [MaxLength(100, ErrorMessage = "La empresa de origen no puede superar los {1} caracteres.")]
+        public string? EmpresaOrigen { get; set; }
+
         [Required(ErrorMessage = "El número de remito es obligatorio.")]
         [MaxLength(20, ErrorMessage = "El número no puede superar los {1} caracteres.")]
         public string Numero { get; set; } = string.Empty;

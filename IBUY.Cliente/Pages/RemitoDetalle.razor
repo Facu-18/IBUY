@@ -1,0 +1,328 @@
+@page "/remitos/{Id:int}"
+@inject IRemitoServicio RemitoServicio
+@inject IDepositoServicio DepositoServicio
+@inject IProductoServicio ProductoServicio
+@inject EstadoSesion Sesion
+
+<PageTitle>@(remito is null ? "Remito" : $"Remito {remito.Numero}") · IBUY</PageTitle>
+
+@if (!Sesion.EstaAutenticado)
+{
+    <div class="alert alert-warning" role="alert">
+        Inicie sesion para ver el detalle de sus remitos.
+        <a class="alert-link" href="login">Iniciar sesion</a>
+    </div>
+}
+else if (cargando)
+{
+    <Cargando Texto="Cargando remito..." />
+}
+else if (remito is null)
+{
+    <div class="alert alert-danger" role="alert">
+        No se encontro el remito solicitado.
+        <a class="alert-link" href="remitos">Volver al historial</a>
+    </div>
+}
+else if (!EsDeMisDepositos)
+{
+    <div class="alert alert-warning" role="alert">
+        Este remito no pertenece a los depositos a su cargo.
+        <a class="alert-link" href="remitos">Volver al historial</a>
+    </div>
+}
+else
+{
+    <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-4">
+        <div>
+            <h1 class="h3 mb-1">Remito @remito.Numero</h1>
+            <p class="text-body-secondary mb-0">@remito.Tipo · emitido el @remito.FechaEmision.ToString("dd/MM/yyyy")</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <a class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" href="remitos">
+                <Icono Nombre="volver" /> Volver
+            </a>
+            @if (PuedeRecepcionar)
+            {
+                <button type="button" class="btn btn-success d-inline-flex align-items-center gap-2"
+                        disabled="@recepcionando" @onclick="Recepcionar">
+                    <Icono Nombre="activar" />
+                    @(recepcionando ? "Recepcionando..." : "Marcar como recibido")
+                </button>
+            }
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(aviso))
+    {
+        <div class="alert alert-danger" role="alert">@aviso</div>
+    }
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <dl class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3 mb-0">
+                <div class="col">
+                    <dt class="small text-uppercase text-body-secondary">Estado</dt>
+                    <dd class="mb-0">
+                        <span class="badge rounded-pill @(esRecibido ? "bg-success-subtle text-success-emphasis" : "bg-warning-subtle text-warning-emphasis")">
+                            @(esRecibido ? "Recibido" : "Emitido")
+                        </span>
+                    </dd>
+                </div>
+                <div class="col">
+                    <dt class="small text-uppercase text-body-secondary">Tipo</dt>
+                    <dd class="mb-0">@remito.Tipo</dd>
+                </div>
+                <div class="col">
+                    <dt class="small text-uppercase text-body-secondary">Fecha de emision</dt>
+                    <dd class="mb-0">@remito.FechaEmision.ToString("dd/MM/yyyy")</dd>
+                </div>
+                <div class="col">
+                    <dt class="small text-uppercase text-body-secondary">Fecha de recepcion</dt>
+                    <dd class="mb-0">@(remito.FechaRecepcion?.ToString("dd/MM/yyyy") ?? "Sin recepcion")</dd>
+                </div>
+                <div class="col">
+                    <dt class="small text-uppercase text-body-secondary">Origen</dt>
+                    <dd class="mb-0">@OrigenTexto</dd>
+                </div>
+                <div class="col">
+                    <dt class="small text-uppercase text-body-secondary">Destino</dt>
+                    <dd class="mb-0">@DestinoTexto</dd>
+                </div>
+            </dl>
+        </div>
+    </div>
+
+    @if (PuedeRecepcionar)
+    {
+        <div class="alert alert-warning" role="alert">
+            El remito esta emitido: el stock del deposito destino todavia no fue acreditado.
+            Use <strong>Marcar como recibido</strong> cuando la mercaderia haya llegado.
+        </div>
+    }
+
+    <section>
+        <div class="d-flex align-items-baseline justify-content-between mb-2">
+            <h2 class="h5 mb-0">Productos del remito</h2>
+            <span class="text-body-secondary">@remito.Items.Count @(remito.Items.Count == 1 ? "producto" : "productos")</span>
+        </div>
+
+        <div class="card shadow-sm">
+            @if (remito.Items.Count == 0)
+            {
+                <p class="text-center text-body-secondary py-5 mb-0">Este remito no tiene productos cargados.</p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th class="text-end">Cantidad</th>
+                                <th>Unidad</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in remito.Items)
+                            {
+                                <tr @key="item.ProductoId">
+                                    <td class="fw-semibold">@NombreProducto(item.ProductoId)</td>
+                                    <td class="text-end">@item.Cantidad.ToString("0.##")</td>
+                                    <td>@item.Unidad</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </section>
+
+    @if (depositoStockId != 0)
+    {
+        <section class="mt-4">
+            <div class="d-flex align-items-baseline justify-content-between mb-2">
+                <h2 class="h5 mb-0">Stock resultante en @NombreDeposito(depositoStockId)</h2>
+                <span class="text-body-secondary">@existencias.Count @(existencias.Count == 1 ? "producto" : "productos")</span>
+            </div>
+
+            <div class="card shadow-sm">
+                @if (cargandoStock)
+                {
+                    <div class="card-body">
+                        <Cargando Texto="Cargando existencias..." />
+                    </div>
+                }
+                else if (existencias.Count == 0)
+                {
+                    <p class="text-center text-body-secondary py-5 mb-0">Ese deposito no tiene existencias registradas.</p>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Producto</th>
+                                    <th>Categoria</th>
+                                    <th class="text-end">Cantidad actual</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var existencia in existencias)
+                                {
+                                    <tr @key="existencia.StockId">
+                                        <td class="fw-semibold">@existencia.ProductoNombre</td>
+                                        <td><span class="badge rounded-pill bg-primary-subtle text-primary-emphasis">@existencia.Categoria</span></td>
+                                        <td class="text-end">@existencia.CantidadActual.ToString("0.##")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </section>
+    }
+
+    <p class="text-body-secondary small mt-3 mb-0">
+        Los remitos no se pueden editar ni eliminar: una vez registrado, el movimiento ya impacto el stock.
+    </p>
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private RemitoDTO? remito;
+    private List<DepositoDTO> depositos = [];
+    private List<ProductoOpcionDTO> productos = [];
+    private List<StockDepositoDTO> existencias = [];
+    private bool cargando = true;
+    private bool cargandoStock;
+    private bool recepcionando;
+    private string? aviso;
+
+    private bool esRecibido => remito is not null &&
+        string.Equals(remito.Estado, "Recibido", StringComparison.OrdinalIgnoreCase);
+
+    private bool EsDeMisDepositos => remito is not null &&
+        ((remito.DepositoOrigenId.HasValue && EsMiDeposito(remito.DepositoOrigenId.Value)) ||
+         (remito.DepositoDestinoId.HasValue && EsMiDeposito(remito.DepositoDestinoId.Value)));
+
+    /// <summary>Se puede recepcionar si esta emitido y el destino es un deposito a cargo del usuario.</summary>
+    private bool PuedeRecepcionar => remito is not null
+        && !esRecibido
+        && remito.DepositoDestinoId.HasValue
+        && EsMiDeposito(remito.DepositoDestinoId.Value);
+
+    /// <summary>Deposito cuyo stock se muestra: el destino si lo hay, si no el origen.</summary>
+    private int depositoStockId => remito?.DepositoDestinoId ?? remito?.DepositoOrigenId ?? 0;
+
+    private string OrigenTexto
+    {
+        get
+        {
+            if (remito is null)
+            {
+                return string.Empty;
+            }
+
+            if (string.Equals(remito.Tipo, "Externo", StringComparison.OrdinalIgnoreCase))
+            {
+                return string.IsNullOrWhiteSpace(remito.EmpresaOrigen) ? "Proveedor externo" : remito.EmpresaOrigen;
+            }
+
+            return NombreDeposito(remito.DepositoOrigenId);
+        }
+    }
+
+    private string DestinoTexto => NombreDeposito(remito?.DepositoDestinoId);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        cargando = true;
+        StateHasChanged();
+
+        if (!Sesion.EstaAutenticado)
+        {
+            remito = null;
+            cargando = false;
+            StateHasChanged();
+            return;
+        }
+
+        var respuesta = await RemitoServicio.ObtenerPorIdAsync(Id);
+        remito = respuesta.Error ? null : respuesta.Respuesta;
+
+        // Depositos y productos completos: permiten resolver nombres de cualquier remito.
+        var respuestaDepositos = await DepositoServicio.ObtenerTodosAsync(null);
+        depositos = respuestaDepositos.Respuesta ?? [];
+
+        var respuestaProductos = await ProductoServicio.ObtenerTodosAsync(null);
+        productos = respuestaProductos.Respuesta ?? [];
+
+        cargando = false;
+        StateHasChanged();
+
+        await CargarStock();
+    }
+
+    private async Task CargarStock()
+    {
+        if (!Sesion.EstaAutenticado || depositoStockId == 0)
+        {
+            existencias = [];
+            return;
+        }
+
+        cargandoStock = true;
+        StateHasChanged();
+
+        var respuesta = await DepositoServicio.ObtenerStockAsync(depositoStockId);
+        existencias = respuesta.Respuesta ?? [];
+
+        cargandoStock = false;
+        StateHasChanged();
+    }
+
+    private async Task Recepcionar()
+    {
+        recepcionando = true;
+        aviso = null;
+
+        var respuesta = await RemitoServicio.RegistrarRecepcionAsync(
+            Id,
+            new RecepcionRemitoDTO { FechaRecepcion = DateTime.Today });
+
+        if (respuesta.Error || !respuesta.Respuesta)
+        {
+            aviso = $"No se pudo recepcionar el remito. {respuesta.Mensaje}".Trim();
+            recepcionando = false;
+            return;
+        }
+
+        recepcionando = false;
+
+        // Se recarga el remito para reflejar Estado/FechaRecepcion y el stock ya acreditado.
+        await OnParametersSetAsync();
+    }
+
+    private bool EsMiDeposito(int depositoId) =>
+        Sesion.Depositos.Any(d => d.Id == depositoId);
+
+    private string NombreDeposito(int? depositoId)
+    {
+        if (depositoId is null)
+        {
+            return "Fuera de la empresa";
+        }
+
+        var deposito = depositos.FirstOrDefault(d => d.Id == depositoId.Value);
+        return deposito?.Nombre ?? $"Deposito #{depositoId}";
+    }
+
+    private string NombreProducto(int productoId) =>
+        productos.FirstOrDefault(p => p.Id == productoId)?.Nombre ?? $"Producto #{productoId}";
+}

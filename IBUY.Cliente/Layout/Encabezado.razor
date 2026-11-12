@@ -1,6 +1,7 @@
 @implements IDisposable
 @inject EstadoSesion Sesion
 @inject ICatalogoServicio Catalogo
+@inject NavigationManager Navegacion
 
 <header class="d-flex align-items-center gap-3 bg-white border-bottom px-3 py-3">
     <button type="button" class="btn btn-outline-secondary d-lg-none" @onclick="AlAlternarMenu"
@@ -16,9 +17,10 @@
         </span>
     </a>
 
-    <div class="ms-auto">
+    <div class="ms-auto d-flex align-items-center gap-2">
         <select class="form-select" aria-label="Empresa seleccionada"
-                value="@Sesion.EmpresaId" @onchange="AlCambiarEmpresa" disabled="@(empresas.Count == 0)">
+                value="@Sesion.EmpresaId" @onchange="AlCambiarEmpresa"
+                disabled="@(empresas.Count == 0 || Sesion.EstaAutenticado)">
             @if (empresas.Count == 0)
             {
                 <option value="0">Sin empresas</option>
@@ -32,6 +34,15 @@
             }
         </select>
 
+        @if (Sesion.EstaAutenticado)
+        {
+            <span class="text-body-secondary small d-none d-md-inline">@Sesion.UsuarioNombre</span>
+            <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="CerrarSesion">Salir</button>
+        }
+        else
+        {
+            <a class="btn btn-outline-primary btn-sm" href="login">Iniciar sesion</a>
+        }
     </div>
 </header>
 
@@ -51,8 +62,8 @@
         {
             empresas = respuesta.Respuesta;
 
-            // Primera carga: toma la primera empresa como activa.
-            if (Sesion.EmpresaId == 0 && empresas.Count > 0)
+            // Primera carga sin sesion: toma la primera empresa como activa.
+            if (!Sesion.EstaAutenticado && Sesion.EmpresaId == 0 && empresas.Count > 0)
             {
                 Sesion.CambiarEmpresa(empresas[0].Id, empresas[0].RazonSocial);
             }
@@ -63,6 +74,11 @@
 
     private void AlCambiarEmpresa(ChangeEventArgs e)
     {
+        if (Sesion.EstaAutenticado)
+        {
+            return;
+        }
+
         if (!int.TryParse(e.Value?.ToString(), out var empresaId))
         {
             return;
@@ -73,6 +89,12 @@
         {
             Sesion.CambiarEmpresa(empresa.Id, empresa.RazonSocial);
         }
+    }
+
+    private void CerrarSesion()
+    {
+        Sesion.CerrarSesion();
+        Navegacion.NavigateTo("depositos");
     }
 
     private void Refrescar() => StateHasChanged();

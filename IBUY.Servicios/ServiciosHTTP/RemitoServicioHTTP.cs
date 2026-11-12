@@ -1,43 +1,37 @@
-﻿using IBUY.Servicios.ServiciosHTTP;
-using IBUY.Shared.DTO;
-using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using IBUY.Shared.DTO;
+using IBUY.Servicios.ServiciosHTTP;
 
 namespace IBUY.Servicios.ServiciosHTTP
-
-
 {
+    /// <summary>Remitos reales: consume api/remito a través de <see cref="IHttpService"/>.</summary>
     public class RemitoServicioHttp : IRemitoServicio
     {
-        private readonly IHttpService httpService;
-        private const string Url = "api/remito";
+        private const string Base = "api/remito";
+        private readonly IHttpService http;
 
-        public RemitoServicioHttp(IHttpService httpService)
+        public RemitoServicioHttp(IHttpService http)
         {
-            this.httpService = httpService;
+            this.http = http;
         }
 
-        public async Task<HttpResp<List<ItemRemitoDTO>>> ObtenerTodosAsync()
+        public Task<HttpResp<List<RemitoDTO>?>> ObtenerTodosAsync()
         {
-            return await httpService.GetAsync<List<ItemRemitoDTO>>(Url);
+            return http.GetAsync<List<RemitoDTO>>(Base);
         }
 
-        public async Task<HttpResp<ItemRemitoDTO>> ObtenerPorIdAsync(int id)
+        public Task<HttpResp<RemitoDTO?>> ObtenerPorIdAsync(int id)
         {
-            return await httpService.GetAsync<ItemRemitoDTO>($"{Url}/{id}");
+            return http.GetAsync<RemitoDTO>($"{Base}/{id}");
         }
 
-        public async Task<HttpResp<ItemRemitoDTO>> CrearAsync(ItemRemitoDTO remito)
+        public Task<HttpResp<int>> CrearAsync(RemitoDTO remito)
         {
-            return await httpService.PostAsync<ItemRemitoDTO, ItemRemitoDTO>(Url, remito);
+            return http.PostAsync<RemitoDTO, int>(Base, remito);
         }
 
-        public async Task<HttpResp<ItemRemitoDTO>> RegistrarRecepcionAsync(
-            int id,
-            RecepcionRemitoDTO recepcion)
+        public Task<HttpResp<bool>> RegistrarRecepcionAsync(int id, RecepcionRemitoDTO recepcion)
         {
-            return await httpService.PostAsync<RecepcionRemitoDTO, ItemRemitoDTO>( $"{Url}/{id}/recepcion", recepcion);
+            return http.PostAsync<RecepcionRemitoDTO, bool>($"{Base}/{id}/recepcion", recepcion);
         }
     }
 }

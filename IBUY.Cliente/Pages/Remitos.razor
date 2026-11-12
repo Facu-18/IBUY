@@ -1,0 +1,253 @@
+@page "/remitos"
+@implements IDisposable
+@inject IRemitoServicio RemitoServicio
+@inject IDepositoServicio DepositoServicio
+@inject EstadoSesion Sesion
+
+<PageTitle>Remitos · IBUY</PageTitle>
+
+<div class="mb-4">
+    <h1 class="h3 mb-1">Remitos</h1>
+    <p class="text-body-secondary mb-0">Movimientos de inventario: remitos externos e internos.</p>
+</div>
+
+@if (!Sesion.EstaAutenticado)
+{
+    <div class="alert alert-warning" role="alert">
+        Inicie sesion para ver los remitos de los depositos a su cargo.
+        <a class="alert-link" href="login">Iniciar sesion</a>
+    </div>
+}
+else if (cargando)
+{
+    <Cargando Texto="Cargando remitos..." />
+}
+else if (errorCarga is not null)
+{
+    <div class="alert alert-danger" role="alert">@errorCarga</div>
+}
+else
+{
+    <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+        <div class="col-12 col-md-4 col-lg-3">
+            <label class="input-group">
+                <span class="input-group-text"><Icono Nombre="buscar" /></span>
+                <input type="text" class="form-control" placeholder="Buscar por numero, origen, destino, tipo o estado"
+                       aria-label="Buscar remitos" @bind="busqueda" @bind:event="oninput" />
+            </label>
+        </div>
+        <div class="col-6 col-md-3 col-lg-2">
+            <select class="form-select" aria-label="Filtrar por tipo" @bind="tipoFiltrado">
+                <option value="">Todos los tipos</option>
+                @foreach (var tipo in TiposRemito)
+                {
+                    <option value="@tipo">@tipo</option>
+                }
+            </select>
+        </div>
+        <div class="col-6 col-md-3 col-lg-2">
+            <select class="form-select" aria-label="Filtrar por estado" @bind="estadoFiltrado">
+                <option value="">Todos los estados</option>
+                @foreach (var estado in EstadosRemito)
+                {
+                    <option value="@estado">@estado</option>
+                }
+            </select>
+        </div>
+        <span class="text-body-secondary">@filtrados.Count @(filtrados.Count == 1 ? "remito" : "remitos")</span>
+        <a class="btn btn-primary d-inline-flex align-items-center gap-2 ms-md-auto" href="remitos/nuevo">
+            <Icono Nombre="mas" />
+            Nuevo remito
+        </a>
+    </div>
+
+    <div class="card shadow-sm">
+        @if (Sesion.Depositos.Count == 0)
+        {
+            <p class="text-center text-body-secondary py-5 mb-0">
+                No tiene depositos a cargo. Un remito se muestra solo si participa alguno de sus depositos.
+            </p>
+        }
+        else if (remitos.Count == 0)
+        {
+            <p class="text-center text-body-secondary py-5 mb-0">
+                La empresa seleccionada todavia no tiene remitos de sus depositos.
+            </p>
+        }
+        else if (filtrados.Count == 0)
+        {
+            <p class="text-center text-body-secondary py-5 mb-0">Sin resultados para los filtros aplicados.</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>N.º</th>
+                            <th>Origen</th>
+                            <th>Destino</th>
+                            <th>Tipo</th>
+                            <th>Fecha</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var remito in filtrados)
+                        {
+                            <tr @key="remito.Id">
+                                <td>
+                                    <a class="link-primary fw-semibold text-decoration-none" href="@($"remitos/{remito.Id}")">
+                                        @remito.Numero
+                                    </a>
+                                </td>
+                                <td>@OrigenTexto(remito)</td>
+                                <td>@DestinoTexto(remito)</td>
+                                <td>
+                                    <span class="badge rounded-pill bg-primary-subtle text-primary-emphasis">@remito.Tipo</span>
+                                </td>
+                                <td>@remito.FechaEmision.ToString("dd/MM/yyyy")</td>
+                                <td>
+                                    <span class="badge rounded-pill @(EsRecibido(remito) ? "bg-success-subtle text-success-emphasis" : "bg-warning-subtle text-warning-emphasis")">
+                                        @(EsRecibido(remito) ? "Recibido" : "Emitido")
+                                    </span>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private static readonly string[] TiposRemito = ["Externo", "Interno"];
+    private static readonly string[] EstadosRemito = ["Emitido", "Recibido"];
+
+    private List<RemitoDTO> remitos = [];
+    private List<DepositoDTO> depositos = [];
+    private string busqueda = string.Empty;
+    private string tipoFiltrado = string.Empty;
+    private string estadoFiltrado = string.Empty;
+    private bool cargando = true;
+    private string? errorCarga;
+
+    private HashSet<int> MisDepositos => Sesion.Depositos.Select(d => d.Id).ToHashSet();
+
+    private List<RemitoDTO> filtrados
+    {
+        get
+        {
+            IEnumerable<RemitoDTO> consulta = remitos;
+
+            if (!string.IsNullOrEmpty(tipoFiltrado))
+            {
+                consulta = consulta.Where(r => string.Equals(r.Tipo, tipoFiltrado, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (!string.IsNullOrEmpty(estadoFiltrado))
+            {
+                var recibido = string.Equals(estadoFiltrado, "Recibido", StringComparison.OrdinalIgnoreCase);
+                consulta = consulta.Where(r => EsRecibido(r) == recibido);
+            }
+
+            if (!string.IsNullOrWhiteSpace(busqueda))
+            {
+                var texto = busqueda.Trim().ToLowerInvariant();
+                consulta = consulta.Where(r =>
+                    r.Numero.ToLowerInvariant().Contains(texto) ||
+                    OrigenTexto(r).ToLowerInvariant().Contains(texto) ||
+                    DestinoTexto(r).ToLowerInvariant().Contains(texto) ||
+                    r.Tipo.ToLowerInvariant().Contains(texto) ||
+                    r.Estado.ToLowerInvariant().Contains(texto));
+            }
+
+            return [.. consulta.OrderByDescending(r => r.FechaEmision).ThenByDescending(r => r.Id)];
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Sesion.OnCambio += AlCambiarSesion;
+        await Cargar();
+    }
+
+    private void AlCambiarSesion()
+    {
+        _ = InvokeAsync(Cargar);
+    }
+
+    private async Task Cargar()
+    {
+        cargando = true;
+        errorCarga = null;
+        StateHasChanged();
+
+        if (!Sesion.EstaAutenticado)
+        {
+            remitos = [];
+            depositos = [];
+            cargando = false;
+            StateHasChanged();
+            return;
+        }
+
+        var respuesta = await RemitoServicio.ObtenerTodosAsync();
+
+        if (respuesta.Error)
+        {
+            remitos = [];
+            errorCarga = $"No se pudieron cargar los remitos. {respuesta.Mensaje}".Trim();
+        }
+        else
+        {
+            var misDepositos = MisDepositos;
+            remitos = [.. (respuesta.Respuesta ?? []).Where(r =>
+                (r.DepositoOrigenId.HasValue && misDepositos.Contains(r.DepositoOrigenId.Value)) ||
+                (r.DepositoDestinoId.HasValue && misDepositos.Contains(r.DepositoDestinoId.Value)))];
+        }
+
+        var respuestaDepositos = await DepositoServicio.ObtenerTodosAsync(Sesion.EmpresaId);
+        depositos = respuestaDepositos.Respuesta ?? [];
+
+        cargando = false;
+        StateHasChanged();
+    }
+
+    private static bool EsRecibido(RemitoDTO remito) =>
+        string.Equals(remito.Estado, "Recibido", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// El origen de un remito externo es la empresa proveedora; el de un interno es un deposito.
+    /// Los remitos viejos de tipo Salida no tienen deposito destino.
+    /// </summary>
+    private string OrigenTexto(RemitoDTO remito)
+    {
+        if (string.Equals(remito.Tipo, "Externo", StringComparison.OrdinalIgnoreCase))
+        {
+            return string.IsNullOrWhiteSpace(remito.EmpresaOrigen) ? "Proveedor externo" : remito.EmpresaOrigen;
+        }
+
+        return NombreDeposito(remito.DepositoOrigenId);
+    }
+
+    private string DestinoTexto(RemitoDTO remito) =>
+        NombreDeposito(remito.DepositoDestinoId);
+
+    private string NombreDeposito(int? depositoId)
+    {
+        if (depositoId is null)
+        {
+            return "Fuera de la empresa";
+        }
+
+        var deposito = depositos.FirstOrDefault(d => d.Id == depositoId.Value);
+        return deposito?.Nombre ?? $"Deposito #{depositoId}";
+    }
+
+    public void Dispose()
+    {
+        Sesion.OnCambio -= AlCambiarSesion;
+    }
+}

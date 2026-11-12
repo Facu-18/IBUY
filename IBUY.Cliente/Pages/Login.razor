@@ -1,0 +1,93 @@
+@page "/login"
+@inject IAuthServicio AuthServicio
+@inject EstadoSesion Sesion
+@inject NavigationManager Navegacion
+
+<PageTitle>Iniciar sesion · IBUY</PageTitle>
+
+<div class="row justify-content-center">
+    <div class="col-12 col-md-8 col-lg-5">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <h1 class="h3 mb-1">Iniciar sesion</h1>
+                <p class="text-body-secondary mb-4">Ingrese con su email y contrasena.</p>
+
+                @if (Sesion.EstaAutenticado)
+                {
+                    <div class="alert alert-success" role="alert">
+                        Sesion iniciada como <strong>@Sesion.UsuarioNombre</strong>.
+                        <a class="alert-link" href="remitos">Ir a Remitos</a>
+                    </div>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="CerrarSesion">Cerrar sesion</button>
+                }
+                else
+                {
+                    @if (!string.IsNullOrWhiteSpace(error))
+                    {
+                        <div class="alert alert-danger" role="alert">@error</div>
+                    }
+
+                    <EditForm Model="credenciales" OnValidSubmit="Ingresar" OnInvalidSubmit="MarcarInvalido">
+                        <DataAnnotationsValidator />
+
+                        <div class="mb-3">
+                            <label class="form-label" for="login-email">Email</label>
+                            <InputText id="login-email" class="form-control" @bind-Value="credenciales.Email" />
+                            <ValidationMessage class="text-danger small" For="() => credenciales.Email" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label" for="login-contrasena">Contrasena</label>
+                            <InputText id="login-contrasena" type="password" class="form-control" @bind-Value="credenciales.Contrasena" />
+                            <ValidationMessage class="text-danger small" For="() => credenciales.Contrasena" />
+                        </div>
+
+                        @if (intentado)
+                        {
+                            <div class="alert alert-danger" role="alert">
+                                <ValidationSummary class="mb-0" />
+                            </div>
+                        }
+
+                        <button type="submit" class="btn btn-primary w-100" disabled="@ingresando">
+                            @(ingresando ? "Ingresando..." : "Ingresar")
+                        </button>
+                    </EditForm>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private readonly LoginDTO credenciales = new();
+    private bool ingresando;
+    private bool intentado;
+    private string? error;
+
+    private void MarcarInvalido() => intentado = true;
+
+    private async Task Ingresar()
+    {
+        intentado = false;
+        error = null;
+        ingresando = true;
+
+        var respuesta = await AuthServicio.IniciarSesionAsync(credenciales);
+        if (respuesta.Error || respuesta.Respuesta is null)
+        {
+            error = $"No se pudo iniciar sesion. {respuesta.Mensaje}".Trim();
+            ingresando = false;
+            return;
+        }
+
+        Sesion.IniciarSesion(respuesta.Respuesta);
+        Navegacion.NavigateTo("remitos");
+    }
+
+    private void CerrarSesion()
+    {
+        Sesion.CerrarSesion();
+        Navegacion.NavigateTo("depositos");
+    }
+}

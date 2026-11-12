@@ -17,7 +17,9 @@ builder.Services.AddSingleton<EstadoSesion>();
 builder.Services.AddScoped<IHttpService, HttpService>();
 
 // Servicios reales contra la API (usan IHttpService).
+builder.Services.AddScoped<IAuthServicio, AuthServicioHttp>();
 builder.Services.AddScoped<IDepositoServicio, DepositoServicioHttp>();
 builder.Services.AddScoped<ICatalogoServicio, CatalogoServicioHttp>();
 builder.Services.AddScoped<IRemitoServicio, RemitoServicioHttp>();
+builder.Services.AddScoped<IProductoServicio, ProductoServicioHttp>();
 await builder.Build().RunAsync();

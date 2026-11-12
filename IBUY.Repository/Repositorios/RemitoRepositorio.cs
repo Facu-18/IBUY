@@ -29,14 +29,13 @@ namespace IBUY.Repository.Repositorios
             {
                 switch (remito.Tipo)
                 {
-                    case "Entrada":
-                        await IncrementarStock(remito.DepositoDestinoId!.Value, item.ProductoId, item.Cantidad);
+                    case "Externo":
+                        // El remito externo solo ingresa stock cuando el destino lo recepciona.
                         break;
-                    case "Salida":
-                        await DecrementarStock(remito.DepositoOrigenId!.Value, item.ProductoId, item.Cantidad);
-                        break;
-                    case "Transferencia":
-                        // La transferencia solo descuenta el origen aca; la mercaderia
+                    case "Interno":
+                    case "Transferencia": // legado: remitos internos creados antes de renombrar el tipo.
+                    case "Salida":        // legado: egreso emitido con el flujo anterior.
+                        // El interno solo descuenta el origen aca; la mercaderia
                         // queda en transito hasta que el destino la recepciona.
                         await DecrementarStock(remito.DepositoOrigenId!.Value, item.ProductoId, item.Cantidad);
                         break;
