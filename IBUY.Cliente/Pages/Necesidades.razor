@@ -1,7 +1,6 @@
 @page "/necesidades"
 @implements IDisposable
 @inject INecesidadServicio NecesidadServicio
-@inject IDepositoServicio DepositoServicio
 @inject EstadoSesion Sesion
 
 <PageTitle>Necesidades · IBUY</PageTitle>
@@ -33,7 +32,7 @@ else if (errorCarga is not null)
 else
 {
     <div class="row g-3 align-items-end mb-3">
-        <div class="col-12 col-lg-4">
+        <div class="col-12 col-lg-5">
             <label class="form-label" for="necesidades-busqueda">Buscar</label>
             <div class="input-group">
                 <span class="input-group-text"><Icono Nombre="buscar" /></span>
@@ -48,16 +47,6 @@ else
                 <option value="@EstadosNecesidad.Pendiente">Pendiente</option>
                 <option value="@EstadosNecesidad.EnNota">En nota</option>
                 <option value="@EstadosNecesidad.Cubierta">Cubierta</option>
-            </select>
-        </div>
-        <div class="col-12 col-sm-6 col-lg-3">
-            <label class="form-label" for="necesidades-deposito">Deposito</label>
-            <select id="necesidades-deposito" class="form-select" @bind="depositoId">
-                <option value="0">Todos los depositos</option>
-                @foreach (var deposito in depositos)
-                {
-                    <option value="@deposito.Id">@deposito.Nombre</option>
-                }
             </select>
         </div>
         <div class="col-12 col-lg-2 text-body-secondary" role="status">
@@ -146,10 +135,8 @@ else
 
 @code {
     private List<NecesidadDTO> necesidades = [];
-    private List<DepositoDTO> depositos = [];
     private string busqueda = string.Empty;
     private string estado = string.Empty;
-    private int depositoId;
     private bool cargando = true;
     private string? errorCarga;
     private string? aviso;
@@ -174,29 +161,28 @@ else
         cargando = true;
         errorCarga = null;
         aviso = null;
-        busqueda = string.Empty;
-        depositoId = 0;
         StateHasChanged();
 
         if (Sesion.EmpresaId == 0)
         {
             // Todavia no se cargo ninguna empresa: no se pide nada al servidor.
             necesidades = [];
-            depositos = [];
             cargando = false;
             StateHasChanged();
             return;
         }
 
-        var depositosResp = await DepositoServicio.ObtenerTodosAsync(Sesion.EmpresaId);
-        depositos = depositosResp.Error ? [] : depositosResp.Respuesta ?? [];
-
-        var respuesta = await NecesidadServicio.ObtenerTodosAsync(Sesion.EmpresaId, estado, depositoId > 0 ? depositoId : null);
+        var respuesta = await NecesidadServicio.ObtenerTodosAsync(
+            Sesion.EmpresaId,
+            estado,
+            Sesion.DepositoSeleccionadoId > 0 ? Sesion.DepositoSeleccionadoId : null);
 
         if (respuesta.Error)
         {
             necesidades = [];
-            errorCarga = $"No se pudieron cargar las necesidades. {respuesta.Mensaje}".Trim();
+            errorCarga = respuesta.Response?.StatusCode == System.Net.HttpStatusCode.Forbidden
+                ? "No tenes acceso al deposito seleccionado. Elegi otro deposito en el selector del encabezado."
+                : $"No se pudieron cargar las necesidades. {respuesta.Mensaje}".Trim();
         }
         else
         {

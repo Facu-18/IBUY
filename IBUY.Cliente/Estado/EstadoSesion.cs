@@ -28,7 +28,14 @@ namespace IBUY.Cliente.Estado
         public bool EsSuperAdmin => Roles.EsSuperAdmin(Usuario?.Rol);
 
         /// <summary>Solo Ventas y SuperAdmin ven y gestionan usuarios.</summary>
-        public bool PuedeGestionarUsuarios => EsSuperAdmin || Roles.EsVentas(Usuario?.Rol);
+        public bool PuedeGestionarUsuarios => PuedeGestionar;
+
+        /// <summary>Ventas o SuperAdmin: pueden crear, editar y eliminar usuarios, depositos y productos.</summary>
+        public bool PuedeGestionar => EsSuperAdmin || EsVentas;
+
+        public bool EsVentas => Roles.EsVentas(Usuario?.Rol);
+
+        public bool EsEncargado => Roles.EsEncargado(Usuario?.Rol);
 
         /// <summary>Razon social de la empresa del usuario; vacia sin sesion.</summary>
         public string Empresa => Usuario?.EmpresaRazonSocial ?? string.Empty;
@@ -36,12 +43,16 @@ namespace IBUY.Cliente.Estado
         /// <summary>Id de la empresa del usuario; 0 sin sesion.</summary>
         public int EmpresaId => Usuario?.EmpresaId ?? 0;
 
+        /// <summary>Deposito elegido en el selector global; 0 significa "Todos".</summary>
+        public int DepositoSeleccionadoId { get; private set; }
+
         /// <summary>Se dispara cuando cambia la sesion, para que los componentes se refresquen.</summary>
         public event Action? OnCambio;
 
         public async Task IniciarSesionAsync(LoginRespuestaDTO usuario)
         {
             Usuario = usuario;
+            DepositoSeleccionadoId = 0;
             await js.InvokeVoidAsync("localStorage.setItem", ClaveAlmacen, JsonSerializer.Serialize(usuario));
             OnCambio?.Invoke();
         }
@@ -49,7 +60,20 @@ namespace IBUY.Cliente.Estado
         public async Task CerrarSesionAsync()
         {
             Usuario = null;
+            DepositoSeleccionadoId = 0;
             await js.InvokeVoidAsync("localStorage.removeItem", ClaveAlmacen);
+            OnCambio?.Invoke();
+        }
+
+        /// <summary>Cambia el deposito del selector global; 0 es "Todos".</summary>
+        public void SeleccionarDeposito(int depositoId)
+        {
+            if (DepositoSeleccionadoId == depositoId)
+            {
+                return;
+            }
+
+            DepositoSeleccionadoId = depositoId;
             OnCambio?.Invoke();
         }
 

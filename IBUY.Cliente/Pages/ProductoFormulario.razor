@@ -112,6 +112,12 @@ else
 
     private void AlCambiarEmpresa()
     {
+        // Elegir otro deposito en el selector global no debe abandonar el formulario.
+        if (Sesion.EmpresaId == empresaFormulario)
+        {
+            return;
+        }
+
         if (empresaFormulario == 0)
         {
             _ = InvokeAsync(async () =>

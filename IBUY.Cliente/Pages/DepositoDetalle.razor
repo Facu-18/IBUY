@@ -27,15 +27,18 @@ else
             <a class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" href="depositos">
                 <Icono Nombre="volver" /> Volver
             </a>
-            <a class="btn btn-outline-primary d-inline-flex align-items-center gap-2" href="@($"depositos/editar/{deposito.Id}")">
-                <Icono Nombre="editar" /> Editar
-            </a>
-            <button type="button"
-                    class="btn @(deposito.Activo ? "btn-outline-warning" : "btn-outline-success")"
-                    disabled="@guardando"
-                    @onclick="AlternarEstado">
-                @(deposito.Activo ? "Desactivar" : "Activar")
-            </button>
+            @if (Sesion.PuedeGestionar)
+            {
+                <a class="btn btn-outline-primary d-inline-flex align-items-center gap-2" href="@($"depositos/editar/{deposito.Id}")">
+                    <Icono Nombre="editar" /> Editar
+                </a>
+                <button type="button"
+                        class="btn @(deposito.Activo ? "btn-outline-warning" : "btn-outline-success")"
+                        disabled="@guardando"
+                        @onclick="AlternarEstado">
+                    @(deposito.Activo ? "Desactivar" : "Activar")
+                </button>
+            }
         </div>
     </div>
 
@@ -144,14 +147,25 @@ else
     private string? errorStock;
     private string? aviso;
 
+    private int usuarioCargado;
+
     protected override async Task OnInitializedAsync()
     {
         Sesion.OnCambio += AlCambiarSesion;
+        usuarioCargado = Sesion.Usuario?.UsuarioId ?? 0;
         await Cargar();
     }
 
     private void AlCambiarSesion()
     {
+        // Elegir otro deposito en el selector global no cambia este detalle.
+        var usuarioId = Sesion.Usuario?.UsuarioId ?? 0;
+        if (usuarioId == usuarioCargado)
+        {
+            return;
+        }
+
+        usuarioCargado = usuarioId;
         _ = InvokeAsync(Cargar);
     }
 
