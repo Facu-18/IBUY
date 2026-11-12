@@ -15,11 +15,14 @@ namespace IBUY.Servicios
 
         Task<HttpResp<bool>> EditarAsync(int id, NecesidadDTO necesidad);
 
-        /// <summary>Stock disponible en el depósito destino, solo informativo.</summary>
+        /// <summary>Stock disponible en el depósito que abastece, solo informativo.</summary>
         Task<HttpResp<RevisionNecesidadDTO?>> ObtenerRevisionAsync(int id);
 
-        /// <summary>Productos con stock crítico en un depósito, como propuesta de carga.</summary>
-        Task<HttpResp<List<SugerenciaNecesidadDTO>?>> ObtenerSugerenciasAsync(int depositoId);
+        /// <summary>
+        /// Productos sin stock en el depósito solicitante, como propuesta de carga, con el
+        /// depósito que abastece (abastecedorId, o el Central de la empresa si no se informa).
+        /// </summary>
+        Task<HttpResp<List<SugerenciaNecesidadDTO>?>> ObtenerSugerenciasAsync(int depositoId, int? abastecedorId = null);
 
         /// <summary>Genera la nota de pedido de la necesidad y devuelve su id.</summary>
         Task<HttpResp<int>> GenerarNotaPedidoAsync(int necesidadId, CrearNotaDesdeNecesidadDTO datos);

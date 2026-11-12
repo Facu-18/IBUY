@@ -21,6 +21,10 @@
                             <NavLink class="nav-link d-flex align-items-center gap-2" href="@seccion.Ruta" Match="@seccion.Coincidencia">
                                 <Icono Nombre="@seccion.Icono" />
                                 <span>@seccion.Titulo</span>
+                                @if (seccion.Disponibilidad is not null)
+                                {
+                                    <span class="badge rounded-pill text-bg-secondary ms-auto" title="@seccion.Disponibilidad">v2</span>
+                                }
                             </NavLink>
                         </li>
                     }

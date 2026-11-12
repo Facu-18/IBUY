@@ -18,7 +18,8 @@ namespace IBUY.Cliente.Layout
             bool SoloSuperAdmin = false,
             bool SoloGestionUsuarios = false,
             bool SoloVentas = false,
-            bool EnInicio = true);
+            bool EnInicio = true,
+            string? Disponibilidad = null);
 
         public record Grupo(string Titulo, Seccion[] Secciones);
 
@@ -57,10 +58,11 @@ namespace IBUY.Cliente.Layout
                 new Seccion("Notas de pedido", "notas-pedido", "notas",
                     "Solicitudes de compra: borrador, aprobacion y publicacion en el marketplace."),
                 new Seccion("Marketplace", "marketplace", "marketplace",
-                    "Notas de pedido publicadas por otras empresas, listas para cotizar.",
+                    "Notas de pedido de otras empresas para cotizar y las notas de pedido de tu empresa.",
                     SoloVentas: true),
                 new Seccion("Cotizaciones", "cotizaciones", "cotizaciones",
-                    "Cotizaciones recibidas de proveedores sobre tus notas de pedido.")
+                    "Cotizaciones recibidas de proveedores sobre tus notas de pedido.",
+                    Disponibilidad: "Disponible en versión 2")
             ])
         ];
 

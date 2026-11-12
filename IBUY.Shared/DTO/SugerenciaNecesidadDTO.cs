@@ -12,23 +12,23 @@ namespace IBUY.Shared.DTO
 
         public string Categoria { get; set; } = string.Empty;
 
-        /// <summary>Depósito donde falta el producto.</summary>
+        /// <summary>Depósito propuesto para abastecer al solicitante; 0 si la empresa no tiene otro depósito.</summary>
         public int DepositoDestinoId { get; set; }
 
         public string DepositoDestinoNombre { get; set; } = string.Empty;
 
-        /// <summary>Depósito propuesto para pedir el producto; 0 si la empresa no tiene otro depósito.</summary>
+        /// <summary>Depósito solicitante: donde falta el producto y el que recibe la mercadería.</summary>
         public int DepositoSolicitanteId { get; set; }
 
         public string DepositoSolicitanteNombre { get; set; } = string.Empty;
 
-        /// <summary>Stock del producto en el depósito destino.</summary>
+        /// <summary>Stock del producto en el depósito solicitante.</summary>
         public decimal CantidadActual { get; set; }
 
         /// <summary>Cantidad propuesta para la necesidad.</summary>
         public decimal CantidadSugerida { get; set; }
 
-        /// <summary>True si ya existe una necesidad pendiente para ese producto y esos depósitos.</summary>
+        /// <summary>True si el solicitante ya tiene una necesidad pendiente de ese producto.</summary>
         public bool YaTienePendiente { get; set; }
     }
 }

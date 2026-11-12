@@ -264,7 +264,7 @@ namespace IBUY.Server.Controllers
                 decimal stockDisponible = await necesidadRepositorio.ObtenerStockDisponible(necesidad!.DepositoDestinoId, necesidad.ProductoId);
                 if (stockDisponible >= necesidad.CantidadRequerida)
                 {
-                    return BadRequest("El depósito destino ya tiene stock suficiente para esta necesidad.");
+                    return BadRequest("El depósito que abastece ya tiene stock suficiente para esta necesidad.");
                 }
             }
 

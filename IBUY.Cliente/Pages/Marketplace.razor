@@ -8,10 +8,89 @@
 
 <div class="mb-4">
     <h1 class="h3 mb-1">Marketplace</h1>
-    <p class="text-body-secondary mb-0">Notas de pedido publicadas por otras empresas, disponibles para cotizar.</p>
+    <p class="text-body-secondary mb-0">Notas de pedido publicadas por otras empresas para cotizar, y las notas de pedido de tu empresa.</p>
 </div>
 
-@if (cargando)
+<ul class="nav nav-pills mb-3">
+    <li class="nav-item">
+        <button type="button" class="nav-link @(verMisNotas ? "" : "active")" aria-current="@(verMisNotas ? null : "page")"
+                @onclick="() => verMisNotas = false">
+            Otras empresas
+        </button>
+    </li>
+    <li class="nav-item">
+        <button type="button" class="nav-link @(verMisNotas ? "active" : "")" aria-current="@(verMisNotas ? "page" : null)"
+                @onclick="() => verMisNotas = true">
+            Mis notas de pedido
+        </button>
+    </li>
+</ul>
+
+@if (verMisNotas)
+{
+    @if (cargandoMisNotas)
+    {
+        <Cargando Texto="Cargando tus notas de pedido..." />
+    }
+    else if (errorMisNotas is not null)
+    {
+        <div class="alert alert-danger" role="alert">
+            @errorMisNotas
+            <button class="btn btn-sm btn-outline-danger ms-2" @onclick="Cargar">Reintentar</button>
+        </div>
+    }
+    else if (misNotas.Count == 0)
+    {
+        <div class="card shadow-sm">
+            <p class="text-center text-body-secondary py-5 px-3 mb-0">
+                Tu empresa todavia no creo notas de pedido.
+                <a class="link-primary" href="notas-pedido/nuevo">Crear una nota de pedido</a>
+            </p>
+        </div>
+    }
+    else
+    {
+        <p class="text-body-secondary" role="status">
+            @(misNotas.Count == 1 ? "1 nota de pedido" : $"{misNotas.Count} notas de pedido") ·
+            solo las Publicadas y vigentes aparecen a las otras empresas.
+        </p>
+
+        <div class="card shadow-sm">
+            <div class="table-responsive" role="region" aria-label="Mis notas de pedido" tabindex="0">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th scope="col">N.º</th>
+                            <th scope="col">Estado</th>
+                            <th scope="col">Emision</th>
+                            <th scope="col">Vencimiento</th>
+                            <th scope="col" class="text-end">Productos</th>
+                            <th scope="col" class="text-end">Cotizaciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var nota in misNotas)
+                        {
+                            <tr @key="nota.Id">
+                                <td>
+                                    <a class="link-primary fw-semibold text-decoration-none" href="@($"notas-pedido/{nota.Id}")">
+                                        Nota N.º @nota.Id
+                                    </a>
+                                </td>
+                                <td><span class="badge rounded-pill @ClaseEstado(nota.Estado)">@nota.Estado</span></td>
+                                <td>@nota.FechaEmision.ToString("dd/MM/yyyy")</td>
+                                <td>@nota.FechaVencimiento.ToString("dd/MM/yyyy")</td>
+                                <td class="text-end">@nota.CantidadItems</td>
+                                <td class="text-end">@nota.CantidadCotizaciones</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+}
+else if (cargando)
 {
     <Cargando Texto="Cargando oportunidades..." />
 }
@@ -228,6 +307,10 @@ else
     private string? errorEnvio;
     private string? mensajeValidacion;
     private int versionCarga;
+    private bool verMisNotas;
+    private List<NotaPedidoResumenDTO> misNotas = [];
+    private bool cargandoMisNotas = true;
+    private string? errorMisNotas;
 
     private List<Oportunidad> filtradas => string.IsNullOrWhiteSpace(busqueda)
         ? oportunidades
@@ -273,12 +356,17 @@ else
         errorEnvio = null;
         mensajeValidacion = null;
         enviando = false;
+        misNotas = [];
+        errorMisNotas = null;
+        cargandoMisNotas = cargando;
         StateHasChanged();
 
         if (!cargando)
         {
             return;
         }
+
+        _ = CargarMisNotas(version, empresaId);
 
         // El servidor ya filtra: Publicadas, no vencidas, de otras empresas y si ya se cotizaron.
         var respuesta = await NotaPedidoServicio.ObtenerMarketplaceAsync();
@@ -312,6 +400,44 @@ else
         cargando = false;
         StateHasChanged();
     }
+
+    /// <summary>
+    /// Notas de pedido de la empresa del usuario, en cualquier estado. El servidor devuelve
+    /// a Ventas solo las de su empresa; a SuperAdmin, todas, por eso se filtra por empresa.
+    /// </summary>
+    private async Task CargarMisNotas(int version, int empresaId)
+    {
+        var respuesta = await NotaPedidoServicio.ObtenerTodasAsync();
+
+        if (version != versionCarga || empresaId != Sesion.EmpresaId)
+        {
+            return;
+        }
+
+        if (respuesta.Error)
+        {
+            errorMisNotas = $"No se pudieron cargar tus notas de pedido. {respuesta.Mensaje}".Trim();
+        }
+        else
+        {
+            misNotas = [.. (respuesta.Respuesta ?? [])
+                .Where(n => n.EmpresaId == empresaId)
+                .OrderByDescending(n => n.FechaEmision)
+                .ThenByDescending(n => n.Id)];
+        }
+
+        cargandoMisNotas = false;
+        StateHasChanged();
+    }
+
+    private static string ClaseEstado(string estado) => estado switch
+    {
+        EstadosNotaPedido.Borrador => "bg-warning-subtle text-warning-emphasis",
+        EstadosNotaPedido.Aprobada => "bg-success-subtle text-success-emphasis",
+        EstadosNotaPedido.Publicada => "bg-primary-subtle text-primary-emphasis",
+        EstadosNotaPedido.Cancelada => "bg-danger-subtle text-danger-emphasis",
+        _ => "bg-secondary-subtle text-secondary-emphasis"
+    };
 
     private void AbrirModal(Oportunidad oportunidad)
     {

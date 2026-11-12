@@ -188,9 +188,9 @@ else
                                         </select>
                                     </td>
                                     <td class="text-end">
-                                        <input type="number" class="form-control text-end" min="0.01" step="0.01"
-                                               value="@items[indice].Cantidad"
-                                               @onchange="e => items[indice].Cantidad = ADecimal(e.Value)" />
+                                        <input type="number" class="form-control text-end" min="1" step="1" inputmode="numeric"
+                                               value="@decimal.ToInt32(items[indice].Cantidad)"
+                                               @onchange="e => items[indice].Cantidad = ACantidadEntera(e.Value)" />
                                     </td>
                                     <td>
                                         <input type="text" class="form-control" maxlength="20"
@@ -214,7 +214,7 @@ else
             @if (intentado && (items.Count == 0 || items.Any(i => i.ProductoId == 0 || i.Cantidad <= 0 || string.IsNullOrWhiteSpace(i.Unidad))))
             {
                 <div class="text-danger small mt-2">
-                    Cada producto debe tener un item seleccionado, una cantidad mayor a cero y una unidad.
+                    Cada producto debe tener un item seleccionado, una cantidad entera mayor a cero y una unidad.
                 </div>
             }
 
@@ -433,6 +433,11 @@ else
     private static int AEntero(object? valor) =>
         int.TryParse(valor?.ToString(), out var n) ? n : 0;
 
-    private static decimal ADecimal(object? valor) =>
-        decimal.TryParse(valor?.ToString(), out var n) ? n : 0;
+    /// <summary>
+    /// La cantidad es un numero entero. Se lee sin cultura (el input number siempre usa
+    /// digitos simples); un decimal o un texto invalido queda en 0 y no pasa la validacion.
+    /// </summary>
+    private static decimal ACantidadEntera(object? valor) =>
+        int.TryParse(valor?.ToString(), System.Globalization.NumberStyles.None,
+            System.Globalization.CultureInfo.InvariantCulture, out var n) ? n : 0;
 }

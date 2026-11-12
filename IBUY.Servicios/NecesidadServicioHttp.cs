@@ -51,9 +51,15 @@ namespace IBUY.Servicios
             return http.GetAsync<RevisionNecesidadDTO>($"{Base}/{id}/revision");
         }
 
-        public Task<HttpResp<List<SugerenciaNecesidadDTO>?>> ObtenerSugerenciasAsync(int depositoId)
+        public Task<HttpResp<List<SugerenciaNecesidadDTO>?>> ObtenerSugerenciasAsync(int depositoId, int? abastecedorId = null)
         {
-            return http.GetAsync<List<SugerenciaNecesidadDTO>>($"{Base}/sugerencias?depositoId={depositoId}");
+            var url = $"{Base}/sugerencias?depositoId={depositoId}";
+            if (abastecedorId is > 0)
+            {
+                url += $"&abastecedorId={abastecedorId}";
+            }
+
+            return http.GetAsync<List<SugerenciaNecesidadDTO>>(url);
         }
 
         public Task<HttpResp<int>> GenerarNotaPedidoAsync(int necesidadId, CrearNotaDesdeNecesidadDTO datos)

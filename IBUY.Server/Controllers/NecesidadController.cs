@@ -153,12 +153,16 @@ namespace IBUY.Server.Controllers
         }
 
         /// <summary>
-        /// Productos con stock crítico (sin existencias) en un depósito, con el depósito
-        /// desde el que conviene pedirlos. Es solo una propuesta: no crea necesidades.
+        /// Productos con stock crítico (sin existencias) en el depósito solicitante
+        /// (depositoId, el que recibe la mercadería), con el depósito que lo abastece:
+        /// abastecedorId si se informa y es otro depósito de la misma empresa; si no, el
+        /// Depósito Central de la empresa o, en su defecto, el primer otro depósito activo.
+        /// Es solo una propuesta: no crea necesidades.
         /// </summary>
         [HttpGet("sugerencias")]
         public async Task<ActionResult<List<SugerenciaNecesidadDTO>>> GetSugerencias(
             [FromQuery] int depositoId,
+            [FromQuery] int? abastecedorId,
             [FromHeader(Name = IPermisosUsuario.Encabezado)] string? usuarioId)
         {
             var acceso = await permisos.Autenticar(usuarioId);
@@ -180,11 +184,13 @@ namespace IBUY.Server.Controllers
             }
 
             var depositosDeEmpresa = await repositorio.ObtenerDepositosDeEmpresa(deposito.EmpresaId);
-            var solicitante = depositosDeEmpresa
-                .Where(d => d.Id != depositoId)
-                .OrderByDescending(d => d.Activo)
-                .ThenBy(d => d.Id)
-                .FirstOrDefault();
+            var otrosDepositos = depositosDeEmpresa.Where(d => d.Id != depositoId).ToList();
+            var abastecedor = otrosDepositos.FirstOrDefault(d => d.Id == abastecedorId)
+                ?? otrosDepositos
+                    .OrderByDescending(d => d.Activo)
+                    .ThenByDescending(d => d.Nombre.Contains("central", StringComparison.OrdinalIgnoreCase))
+                    .ThenBy(d => d.Id)
+                    .FirstOrDefault();
 
             var productos = (await productoRepositorio.Select())
                 .Where(p => p.EmpresaId == deposito.EmpresaId)
@@ -192,7 +198,7 @@ namespace IBUY.Server.Controllers
 
             var pendientes = (await repositorio.Select())
                 .Where(n => n.Estado == EstadosNecesidad.Pendiente)
-                .Select(n => (n.DepositoSolicitanteId, n.DepositoDestinoId, n.ProductoId))
+                .Select(n => (n.DepositoSolicitanteId, n.ProductoId))
                 .ToHashSet();
 
             var stocks = await repositorio.ObtenerStockDeDeposito(depositoId);
@@ -203,14 +209,14 @@ namespace IBUY.Server.Controllers
                     ProductoId = s.ProductoId,
                     ProductoNombre = productos[s.ProductoId].Nombre,
                     Categoria = productos[s.ProductoId].Categoria,
-                    DepositoDestinoId = depositoId,
-                    DepositoDestinoNombre = deposito.Nombre,
-                    DepositoSolicitanteId = solicitante?.Id ?? 0,
-                    DepositoSolicitanteNombre = solicitante?.Nombre ?? string.Empty,
+                    DepositoSolicitanteId = depositoId,
+                    DepositoSolicitanteNombre = deposito.Nombre,
+                    DepositoDestinoId = abastecedor?.Id ?? 0,
+                    DepositoDestinoNombre = abastecedor?.Nombre ?? string.Empty,
                     CantidadActual = s.CantidadActual,
                     CantidadSugerida = CantidadSugeridaPorDefecto,
-                    YaTienePendiente = solicitante is not null
-                        && pendientes.Contains((solicitante.Id, depositoId, s.ProductoId))
+                    // Ya hay una necesidad pendiente de ese producto para el solicitante.
+                    YaTienePendiente = pendientes.Contains((depositoId, s.ProductoId))
                 })
                 .OrderBy(s => s.ProductoNombre)
                 .ToList();
@@ -282,7 +288,7 @@ namespace IBUY.Server.Controllers
             var depositoDestino = await depositoRepositorio.SelectById(necesidad.DepositoDestinoId);
             if (depositoDestino is null)
             {
-                return BadRequest($"No existe el depósito destino de id: {necesidad.DepositoDestinoId}");
+                return BadRequest($"No existe el depósito que abastece de id: {necesidad.DepositoDestinoId}");
             }
 
             if (!await empresaRepositorio.Existe(depositoDestino.EmpresaId))
@@ -414,12 +420,12 @@ namespace IBUY.Server.Controllers
 
             if (!await depositoRepositorio.Existe(necesidadDTO.DepositoDestinoId))
             {
-                return $"No existe el depósito destino de id: {necesidadDTO.DepositoDestinoId}";
+                return $"No existe el depósito que abastece de id: {necesidadDTO.DepositoDestinoId}";
             }
 
             if (necesidadDTO.DepositoSolicitanteId == necesidadDTO.DepositoDestinoId)
             {
-                return "El depósito solicitante y el depósito destino deben ser distintos.";
+                return "El depósito solicitante y el depósito que abastece deben ser distintos.";
             }
 
             if (!await productoRepositorio.Existe(necesidadDTO.ProductoId))

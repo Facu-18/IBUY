@@ -14,7 +14,7 @@
     <p class="text-body-secondary mb-0">
         @(esEdicion
             ? "Actualiza el faltante o cambia su estado."
-            : "Carga un faltante entre dos depositos de la empresa seleccionada.")
+            : "Carga lo que le falta a un deposito y desde que deposito de la empresa se lo abastece.")
     </p>
 </div>
 
@@ -46,7 +46,7 @@ else
                 </div>
                 <p class="text-body-secondary">
                     Estos productos no tienen existencias en <span class="fw-semibold">@depositoSugerenciasNombre</span>.
-                    Elija uno para completar el formulario con el producto y el deposito.
+                    Elija uno para completar el formulario con el producto y el deposito que lo abastece.
                 </p>
 
                 <div class="table-responsive">
@@ -55,7 +55,7 @@ else
                             <tr>
                                 <th scope="col">Producto</th>
                                 <th scope="col">Categoria</th>
-                                <th scope="col">Origen propuesto</th>
+                                <th scope="col">Abastece</th>
                                 <th scope="col" class="text-end">Stock actual</th>
                                 <th scope="col">Acciones</th>
                             </tr>
@@ -66,14 +66,14 @@ else
                                 <tr @key="sugerencia.ProductoId">
                                     <td class="fw-semibold">@sugerencia.ProductoNombre</td>
                                     <td><span class="badge rounded-pill bg-primary-subtle text-primary-emphasis">@sugerencia.Categoria</span></td>
-                                    <td>@sugerencia.DepositoSolicitanteNombre</td>
+                                    <td>@sugerencia.DepositoDestinoNombre</td>
                                     <td class="text-end">@sugerencia.CantidadActual.ToString("0.##")</td>
                                     <td>
                                         @if (sugerencia.YaTienePendiente)
                                         {
                                             <span class="badge rounded-pill bg-secondary-subtle text-secondary-emphasis">Ya tiene pendiente</span>
                                         }
-                                        else if (sugerencia.DepositoSolicitanteId == 0)
+                                        else if (sugerencia.DepositoDestinoId == 0)
                                         {
                                             <span class="text-body-secondary">La empresa no tiene otro deposito.</span>
                                         }
@@ -107,7 +107,8 @@ else
 
                         <div class="col-12 col-md-6">
                             <label class="form-label" for="necesidad-solicitante">Deposito solicitante *</label>
-                            <InputSelect id="necesidad-solicitante" class="form-select" @bind-Value="necesidad.DepositoSolicitanteId">
+                            <InputSelect id="necesidad-solicitante" class="form-select" Value="necesidad.DepositoSolicitanteId"
+                                         ValueChanged="@((int valor) => AlCambiarSolicitante(valor))" ValueExpression="() => necesidad.DepositoSolicitanteId">
                                 <option value="0">Seleccione el deposito que pide</option>
                                 @foreach (var deposito in depositos)
                                 {
@@ -115,13 +116,14 @@ else
                                 }
                             </InputSelect>
                             <ValidationMessage class="text-danger small" For="() => necesidad.DepositoSolicitanteId" />
+                            <div class="form-text">El deposito que necesita el producto: ahi va la mercaderia.</div>
                         </div>
 
                         <div class="col-12 col-md-6">
-                            <label class="form-label" for="necesidad-destino">Deposito destino *</label>
+                            <label class="form-label" for="necesidad-destino">Deposito que abastece *</label>
                             <InputSelect id="necesidad-destino" class="form-select" Value="necesidad.DepositoDestinoId"
                                          ValueChanged="@((int valor) => AlCambiarDestino(valor))" ValueExpression="() => necesidad.DepositoDestinoId">
-                                <option value="0">Seleccione el deposito donde falta</option>
+                                <option value="0">Seleccione el deposito que envia</option>
                                 @foreach (var deposito in destinos)
                                 {
                                     <option value="@deposito.Id">@deposito.Nombre</option>
@@ -131,6 +133,10 @@ else
                             @if (destinos.Count < 2)
                             {
                                 <div class="form-text">Hacen falta al menos dos depositos en la empresa.</div>
+                            }
+                            else
+                            {
+                                <div class="form-text">El que envia la mercaderia; por defecto, el Deposito Central.</div>
                             }
                         </div>
 
@@ -152,7 +158,7 @@ else
 
                         <div class="col-12 col-md-3">
                             <label class="form-label" for="necesidad-cantidad">Cantidad requerida *</label>
-                            <InputNumber id="necesidad-cantidad" class="form-control" @bind-Value="necesidad.CantidadRequerida" step="0.01" min="0.01" />
+                            <InputNumber id="necesidad-cantidad" class="form-control" @bind-Value="necesidad.CantidadRequerida" step="1" min="1" inputmode="numeric" />
                             <ValidationMessage class="text-danger small" For="() => necesidad.CantidadRequerida" />
                         </div>
 
@@ -270,7 +276,7 @@ else
         destinos = opcionesResp.Error ? [] : opcionesResp.Respuesta ?? [];
         if (opcionesResp.Error)
         {
-            errorServidor = $"No se pudieron cargar los depositos de destino. {opcionesResp.Mensaje}".Trim();
+            errorServidor = $"No se pudieron cargar los depositos que abastecen. {opcionesResp.Mensaje}".Trim();
         }
 
         var productosResp = await ProductoServicio.ObtenerTodosAsync(Sesion.EmpresaId);
@@ -307,8 +313,8 @@ else
     }
 
     /// <summary>
-    /// Propone los faltantes del deposito destino elegido (por defecto el Central de la empresa).
-    /// Es solo una ayuda de carga: no crea nada hasta que el usuario guarda.
+    /// Preselecciona como deposito que abastece al Central de la empresa y carga las
+    /// sugerencias del solicitante, si ya hay uno elegido.
     /// </summary>
     private async Task CargarSugerencias()
     {
@@ -325,25 +331,42 @@ else
     }
 
     /// <summary>
-    /// Recarga los faltantes del deposito destino elegido. Es solo una ayuda de carga:
-    /// no crea nada hasta que el usuario guarda.
+    /// Recarga los faltantes del deposito solicitante elegido, propuestos desde el deposito
+    /// que abastece. Es solo una ayuda de carga: no crea nada hasta que el usuario guarda.
     /// </summary>
     private async Task RefrescarSugerencias()
     {
-        if (necesidad is null || necesidad.DepositoDestinoId <= 0)
+        if (necesidad is null || necesidad.DepositoSolicitanteId <= 0)
         {
             sugerencias = [];
             depositoSugerenciasNombre = string.Empty;
             return;
         }
 
-        depositoSugerenciasNombre = destinos.FirstOrDefault(d => d.Id == necesidad.DepositoDestinoId)?.Nombre
-            ?? depositos.FirstOrDefault(d => d.Id == necesidad.DepositoDestinoId)?.Nombre
+        depositoSugerenciasNombre = depositos.FirstOrDefault(d => d.Id == necesidad.DepositoSolicitanteId)?.Nombre
+            ?? destinos.FirstOrDefault(d => d.Id == necesidad.DepositoSolicitanteId)?.Nombre
             ?? string.Empty;
 
-        var respuesta = await NecesidadServicio.ObtenerSugerenciasAsync(necesidad.DepositoDestinoId);
+        var abastecedorId = necesidad.DepositoDestinoId > 0 ? necesidad.DepositoDestinoId : (int?)null;
+        var respuesta = await NecesidadServicio.ObtenerSugerenciasAsync(necesidad.DepositoSolicitanteId, abastecedorId);
         sugerencias = respuesta.Error ? [] : respuesta.Respuesta ?? [];
         StateHasChanged();
+    }
+
+    private async Task AlCambiarSolicitante(int depositoSolicitanteId)
+    {
+        if (necesidad is null)
+        {
+            return;
+        }
+
+        necesidad.DepositoSolicitanteId = depositoSolicitanteId;
+        errorServidor = null;
+        mensajeValidacion = null;
+        if (!esEdicion)
+        {
+            await RefrescarSugerencias();
+        }
     }
 
     private async Task AlCambiarDestino(int depositoDestinoId)
@@ -356,7 +379,10 @@ else
         necesidad.DepositoDestinoId = depositoDestinoId;
         errorServidor = null;
         mensajeValidacion = null;
-        await RefrescarSugerencias();
+        if (!esEdicion)
+        {
+            await RefrescarSugerencias();
+        }
     }
 
     private void AplicarSugerencia(SugerenciaNecesidadDTO sugerencia)
@@ -398,19 +424,19 @@ else
         // rechaza igual y conviene avisar antes de viajar.
         if (necesidad.DepositoSolicitanteId <= 0 || necesidad.DepositoDestinoId <= 0 || necesidad.ProductoId <= 0)
         {
-            mensajeValidacion = "Seleccione el deposito solicitante, el deposito destino y el producto.";
+            mensajeValidacion = "Seleccione el deposito solicitante, el deposito que abastece y el producto.";
             return;
         }
 
         if (necesidad.DepositoSolicitanteId == necesidad.DepositoDestinoId)
         {
-            mensajeValidacion = "El deposito solicitante y el deposito destino deben ser distintos.";
+            mensajeValidacion = "El deposito solicitante y el deposito que abastece deben ser distintos.";
             return;
         }
 
-        if (necesidad.CantidadRequerida <= 0)
+        if (necesidad.CantidadRequerida <= 0 || necesidad.CantidadRequerida != decimal.Truncate(necesidad.CantidadRequerida))
         {
-            mensajeValidacion = "La cantidad requerida debe ser mayor a cero.";
+            mensajeValidacion = "La cantidad requerida debe ser un numero entero mayor a cero.";
             return;
         }
 

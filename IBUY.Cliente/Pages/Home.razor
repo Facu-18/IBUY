@@ -19,6 +19,10 @@
                         <Icono Nombre="@seccion.Icono" />
                     </span>
                     <h2 class="h5 mb-0">@seccion.Titulo</h2>
+                    @if (seccion.Disponibilidad is not null)
+                    {
+                        <span class="badge rounded-pill bg-secondary-subtle text-secondary-emphasis align-self-start">@seccion.Disponibilidad</span>
+                    }
                     <p class="text-body-secondary mb-0">@seccion.Descripcion</p>
                 </div>
             </a>

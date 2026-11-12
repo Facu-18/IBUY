@@ -44,7 +44,7 @@
 
 ## Client UI
 
-- The client only contains features backed by the real API (Depósitos, Productos, Necesidades, Notas de pedido, Remitos, Empresas, Usuarios, Marketplace, and login). No mock services or fake data: new pages depend on service interfaces, with `*ServicioHttp` implementations registered in `IBUY.Cliente/Program.cs`.
+- The client only contains features backed by the real API (Depósitos, Productos, Necesidades, Notas de pedido, Remitos, Empresas, Usuarios, Marketplace with its "Mis notas de pedido" tab, and login); Cotizaciones only shows "Disponible en versión 2". No mock services or fake data: new pages depend on service interfaces, with `*ServicioHttp` implementations registered in `IBUY.Cliente/Program.cs`.
 - Use Bootstrap 5 classes (`wwwroot/lib/bootstrap`) for layout and components. The visual identity (palette, typography, sidebar/header look) follows the prototype `docs/IBUY Prototipo.html` (open it in a browser; it is a self-contained bundle, the markup lives inside its `__bundler` script blocks) and lives in a single theme file, `wwwroot/css/tema.css`, loaded after Bootstrap.
 - `tema.css` overrides Bootstrap CSS variables (`--bs-*`, including component-level ones like `--bs-btn-bg`) rather than redefining Bootstrap rules. Add a rule there only when no Bootstrap class or variable covers the need.
 - No other custom CSS: no extra `.css` files, `<style>` blocks, `.razor.css` scoped styles, or `style=""` attributes. Preserve `style="display:none"` on `#blazor-error-ui` in `index.html`: Blazor toggles it inline; Bootstrap's `d-none` would prevent it from appearing.
