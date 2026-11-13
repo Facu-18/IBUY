@@ -18,5 +18,8 @@ namespace IBUY.Shared.DTO
         [Required(ErrorMessage = "El producto es obligatorio.")]
         [Range(1, int.MaxValue, ErrorMessage = "Debe seleccionar un producto.")]
         public int ProductoId { get; set; }
+
+        [Range(typeof(decimal), "0", "999999999999999.99", ParseLimitsInInvariantCulture = true, ErrorMessage = "La cantidad mínima no puede ser negativa.")]
+        public decimal CantidadMinima { get; set; }
     }
 }

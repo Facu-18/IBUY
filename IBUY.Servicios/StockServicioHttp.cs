@@ -41,6 +41,11 @@ namespace IBUY.Servicios
             return http.GetAsync<StockListadoDTO>($"{Base}/{id}");
         }
 
+        public Task<HttpResp<int>> CrearAsync(StockDTO stock)
+        {
+            return http.PostAsync<StockDTO, int>(Base, stock);
+        }
+
         public Task<HttpResp<bool>> ActualizarMinimoAsync(int id, decimal cantidadMinima)
         {
             return http.PutAsync<CantidadMinimaDTO, bool>($"{Base}/{id}/minimo", new CantidadMinimaDTO { CantidadMinima = cantidadMinima });

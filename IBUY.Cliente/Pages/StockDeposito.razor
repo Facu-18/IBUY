@@ -11,9 +11,14 @@
         <h1 class="h3 mb-1">Stock de @(nombreDeposito ?? $"Deposito #{DepositoId}")</h1>
         <p class="text-body-secondary mb-0">Existencias del deposito con su cantidad minima y estado.</p>
     </div>
-    <a class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" href="stock">
-        <Icono Nombre="volver" /> Todo el stock
-    </a>
+    <div class="d-flex flex-wrap gap-2">
+        <a class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" href="stock">
+            <Icono Nombre="volver" /> Todo el stock
+        </a>
+        <a class="btn btn-primary d-inline-flex align-items-center gap-2" href="@($"stock/nuevo?deposito={DepositoId}")">
+            <Icono Nombre="mas" /> Cargar stock
+        </a>
+    </div>
 </div>
 
 <AvisoSimulacionStock />

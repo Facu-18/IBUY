@@ -11,6 +11,9 @@ namespace IBUY.Servicios
 
         Task<HttpResp<StockListadoDTO?>> ObtenerPorIdAsync(int id);
 
+        /// <summary>Carga inicial del stock de un producto en un depósito; devuelve el id creado.</summary>
+        Task<HttpResp<int>> CrearAsync(StockDTO stock);
+
         /// <summary>Cambia solo la cantidad mínima; la actual se mueve con remitos.</summary>
         Task<HttpResp<bool>> ActualizarMinimoAsync(int id, decimal cantidadMinima);
     }

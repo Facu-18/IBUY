@@ -133,14 +133,59 @@ namespace IBUY.Server.Controllers
             return Ok(await repositorio.Update(stock));
         }
 
+        /// <summary>
+        /// Carga inicial del stock de un producto en un depósito: cantidad actual y mínima.
+        /// Es solo el alta: si ese producto ya tiene stock en el depósito es 400, porque
+        /// desde ahí la cantidad se mueve con remitos. Lo puede hacer quien ve el depósito;
+        /// el producto tiene que ser de la misma empresa que el depósito.
+        /// </summary>
         [HttpPost]
-        public async Task<ActionResult<int>> Post(StockDTO stockDTO)
+        public async Task<ActionResult<int>> Post(
+            StockDTO stockDTO,
+            [FromHeader(Name = IPermisosUsuario.Encabezado)] string? usuarioId)
         {
+            var acceso = await permisos.Autenticar(usuarioId);
+            if (acceso is not null)
+            {
+                return acceso;
+            }
+
+            if (stockDTO.CantidadActual < 0 || stockDTO.CantidadMinima < 0)
+            {
+                return BadRequest("La cantidad actual y la cantidad mínima no pueden ser negativas.");
+            }
+
+            var deposito = await depositoRepositorio.SelectById(stockDTO.DepositoId);
+            if (deposito is null)
+            {
+                return BadRequest($"No existe el depósito de id: {stockDTO.DepositoId}");
+            }
+
+            acceso = permisos.ExigirDeposito(deposito.Id);
+            if (acceso is not null)
+            {
+                return acceso;
+            }
+
+            var producto = await productoRepositorio.SelectById(stockDTO.ProductoId);
+            if (producto is null || producto.EmpresaId != deposito.EmpresaId)
+            {
+                return BadRequest($"No existe el producto de id: {stockDTO.ProductoId} en la empresa del depósito.");
+            }
+
+            var existente = (await repositorio.Select())
+                .Any(s => s.DepositoId == deposito.Id && s.ProductoId == producto.Id);
+            if (existente)
+            {
+                return BadRequest($"{producto.Nombre} ya tiene stock cargado en {deposito.Nombre}. Desde la carga inicial, la cantidad se mueve con remitos.");
+            }
+
             Stock stock = new Stock
             {
                 CantidadActual = stockDTO.CantidadActual,
-                DepositoId = stockDTO.DepositoId,
-                ProductoId = stockDTO.ProductoId
+                CantidadMinima = stockDTO.CantidadMinima,
+                DepositoId = deposito.Id,
+                ProductoId = producto.Id
             };
 
             await repositorio.Insert(stock);
