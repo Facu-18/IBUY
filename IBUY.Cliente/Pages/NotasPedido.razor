@@ -121,13 +121,12 @@ else
                                                 <Icono Nombre="editar" /> Editar
                                             </a>
                                         }
-                                        @if (PuedeAprobar(nota))
+                                        @if (PuedePublicar(nota))
                                         {
-                                            <button type="button" class="btn btn-sm btn-success d-inline-flex align-items-center gap-1"
-                                                    disabled="@(procesandoId == nota.Id)" @onclick="() => Aprobar(nota)">
-                                                <Icono Nombre="check" />
-                                                @(procesandoId == nota.Id ? "Aprobando..." : "Aprobar")
-                                            </button>
+                                            <a class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1"
+                                               href="@($"notas-pedido/{nota.Id}?publicar=true")">
+                                                <Icono Nombre="marketplace" /> Publicar
+                                            </a>
                                         }
                                     </div>
                                 </td>
@@ -140,15 +139,6 @@ else
     </div>
 }
 
-@if (aviso is not null)
-{
-    <div class="toast-container position-fixed bottom-0 end-0 p-3">
-        <div class="toast show text-bg-dark border-0" role="status">
-            <div class="toast-body">@aviso</div>
-        </div>
-    </div>
-}
-
 @code {
     private List<NotaPedidoResumenDTO> notas = [];
     private string busqueda = string.Empty;
@@ -156,8 +146,6 @@ else
     private bool cargando = true;
     private string? errorCarga;
     private string? errorAccion;
-    private string? aviso;
-    private int procesandoId;
 
     private List<NotaPedidoResumenDTO> filtrados => notas
         .Where(n => string.IsNullOrWhiteSpace(estado) || n.Estado == estado)
@@ -180,7 +168,6 @@ else
         cargando = true;
         errorCarga = null;
         errorAccion = null;
-        aviso = null;
         busqueda = string.Empty;
         estado = string.Empty;
         StateHasChanged();
@@ -232,48 +219,15 @@ else
                 || nota.Estado == EstadosNotaPedido.Publicada);
     }
 
-    private bool PuedeAprobar(NotaPedidoResumenDTO nota)
+    /// <summary>
+    /// Borrador o Aprobada y vigente: el boton lleva al detalle con la confirmacion de
+    /// publicacion abierta (una Borrador se aprueba y publica en un solo paso).
+    /// </summary>
+    private bool PuedePublicar(NotaPedidoResumenDTO nota)
     {
-        return Sesion.PuedeGestionarUsuarios && nota.Estado == EstadosNotaPedido.Borrador;
-    }
-
-    private async Task Aprobar(NotaPedidoResumenDTO nota)
-    {
-        if (procesandoId != 0)
-        {
-            return;
-        }
-
-        procesandoId = nota.Id;
-        errorAccion = null;
-        StateHasChanged();
-
-        var respuesta = await NotaPedidoServicio.AprobarAsync(nota.Id);
-        procesandoId = 0;
-
-        if (respuesta.Error || !respuesta.Respuesta)
-        {
-            errorAccion = $"No se pudo aprobar la nota N.º {nota.Id}. {respuesta.Mensaje}".Trim();
-            StateHasChanged();
-            return;
-        }
-
-        await Cargar();
-        await MostrarAviso($"Nota de pedido N.º {nota.Id} aprobada. Ya puede publicarse en el marketplace.");
-    }
-
-    private async Task MostrarAviso(string texto)
-    {
-        aviso = texto;
-        StateHasChanged();
-
-        await Task.Delay(3500);
-
-        if (aviso == texto)
-        {
-            aviso = null;
-            StateHasChanged();
-        }
+        return Sesion.PuedeGestionarUsuarios
+            && (nota.Estado == EstadosNotaPedido.Borrador || nota.Estado == EstadosNotaPedido.Aprobada)
+            && nota.FechaVencimiento.Date >= DateTime.Today;
     }
 
     private static string ClaseEstado(string estado) => estado switch

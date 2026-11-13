@@ -37,21 +37,6 @@ else
                     <Icono Nombre="editar" /> Editar
                 </a>
             }
-            @if (PuedeAprobar)
-            {
-                <button type="button" class="btn btn-success d-inline-flex align-items-center gap-2"
-                        disabled="@procesando" @onclick="Aprobar">
-                    <Icono Nombre="check" /> @(procesando ? "Aprobando..." : "Aprobar")
-                </button>
-            }
-            @if (PuedePrevisualizar)
-            {
-                <a class="btn btn-primary d-inline-flex align-items-center gap-2"
-                   href="@($"notas-pedido/{nota.Id}/previsualizar")">
-                    <Icono Nombre="ver" />
-                    @(nota.Estado == EstadosNotaPedido.Aprobada ? "Previsualizar y publicar" : "Previsualizar")
-                </a>
-            }
             @if (PuedeCancelar)
             {
                 <button type="button" class="btn btn-outline-danger d-inline-flex align-items-center gap-2"
@@ -74,27 +59,54 @@ else
         </div>
     }
 
-    @if (nota.Estado == EstadosNotaPedido.Borrador)
-    {
-        <div class="alert alert-warning" role="alert">
-            La nota está en Borrador. Aprobala antes de publicarla en el marketplace.
-        </div>
-    }
-    else if (nota.Estado == EstadosNotaPedido.Aprobada)
-    {
-        <div class="alert alert-success" role="alert">
-            La nota está aprobada y lista para publicarse. Revisá la vista previa antes de publicar.
-        </div>
-    }
-    else if (nota.Estado == EstadosNotaPedido.Publicada)
-    {
-        <div class="alert alert-primary" role="alert">
-            La nota está publicada: los proveedores ya pueden cotizarla desde el marketplace.
-        </div>
-    }
-    else if (nota.Estado == EstadosNotaPedido.Cancelada)
+    @if (nota.Estado == EstadosNotaPedido.Cancelada)
     {
         <div class="alert alert-danger" role="alert">La nota fue cancelada y no puede publicarse.</div>
+    }
+    else
+    {
+        <div class="card shadow-sm mb-4">
+            <div class="card-body d-flex flex-column gap-3">
+                <PasosNotaPedido Estado="@nota.Estado" />
+
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 border-top pt-3">
+                    <div>
+                        <p class="fw-semibold mb-1">@TituloProximoPaso</p>
+                        <p class="text-body-secondary mb-0">@TextoProximoPaso</p>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2">
+                        @if (PuedePrevisualizar)
+                        {
+                            <a class="btn btn-outline-secondary d-inline-flex align-items-center gap-2"
+                               href="@($"notas-pedido/{nota.Id}/previsualizar")">
+                                <Icono Nombre="ver" /> Vista previa
+                            </a>
+                        }
+                        @if (nota.Estado == EstadosNotaPedido.Publicada)
+                        {
+                            <a class="btn btn-outline-primary d-inline-flex align-items-center gap-2" href="marketplace">
+                                <Icono Nombre="marketplace" /> Ir al marketplace
+                            </a>
+                        }
+                        @if (PuedeAprobar)
+                        {
+                            <button type="button" class="btn btn-outline-success d-inline-flex align-items-center gap-2"
+                                    disabled="@procesando" @onclick="Aprobar">
+                                <Icono Nombre="check" /> Solo aprobar
+                            </button>
+                        }
+                        @if (PuedePublicar)
+                        {
+                            <button type="button" class="btn btn-primary d-inline-flex align-items-center gap-2"
+                                    disabled="@procesando" @onclick="AbrirPublicacion">
+                                <Icono Nombre="marketplace" />
+                                @(nota.Estado == EstadosNotaPedido.Borrador ? "Aprobar y publicar" : "Publicar en el marketplace")
+                            </button>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
     }
 
     <div class="card shadow-sm mb-4">
@@ -194,6 +206,47 @@ else
     </section>
 }
 
+@if (publicacionAbierta && nota is not null)
+{
+    <div class="modal fade show d-block" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="publicar-titulo"
+         @onclick="CerrarPublicacion">
+        <div class="modal-dialog modal-dialog-centered" @onclick:stopPropagation="true">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title h5" id="publicar-titulo">Publicar nota de pedido N.º @nota.Id</h2>
+                    <button type="button" class="btn-close" aria-label="Cerrar"
+                            disabled="@procesando" @onclick="CerrarPublicacion"></button>
+                </div>
+                <div class="modal-body">
+                    <p>
+                        @(nota.Estado == EstadosNotaPedido.Borrador ? "Se aprueba y se publica" : "Se publica")
+                        en el marketplace: las otras empresas van a ver estos productos y podrán cotizarlos
+                        hasta el @nota.FechaVencimiento.ToString("dd/MM/yyyy").
+                    </p>
+                    <ul class="mb-3">
+                        @foreach (var item in nota.Items)
+                        {
+                            <li>@item.ProductoNombre: @item.CantidadSolicitada.ToString("0.##")</li>
+                        }
+                    </ul>
+                    <p class="text-body-secondary small mb-0">
+                        Mientras no reciba cotizaciones se puede editar; con la primera cotización ya no.
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" disabled="@procesando" @onclick="CerrarPublicacion">
+                        Volver
+                    </button>
+                    <button type="button" class="btn btn-primary" disabled="@procesando" @onclick="Publicar">
+                        @(procesando ? "Publicando..." : "Publicar")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
 @if (cancelacionAbierta && nota is not null)
 {
     <div class="modal fade show d-block" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="cancelar-titulo"
@@ -244,10 +297,15 @@ else
     [SupplyParameterFromQuery(Name = "actualizada")]
     public bool Actualizada { get; set; }
 
+    /// <summary>Abre directamente la confirmación de publicación (desde el listado).</summary>
+    [SupplyParameterFromQuery(Name = "publicar")]
+    public bool PublicarSolicitado { get; set; }
+
     private NotaPedidoDTO? nota;
     private bool cargando = true;
     private bool procesando;
     private bool cancelacionAbierta;
+    private bool publicacionAbierta;
     private string? errorAccion;
     private string? aviso;
 
@@ -268,6 +326,50 @@ else
         nota is not null
         && (nota.Estado == EstadosNotaPedido.Aprobada || nota.Estado == EstadosNotaPedido.Publicada);
 
+    /// <summary>Borrador (aprueba y publica) o Aprobada (publica), si no venció.</summary>
+    private bool PuedePublicar =>
+        nota is not null
+        && Sesion.PuedeGestionarUsuarios
+        && (nota.Estado == EstadosNotaPedido.Borrador || nota.Estado == EstadosNotaPedido.Aprobada)
+        && nota.FechaVencimiento.Date >= DateTime.Today;
+
+    private string TituloProximoPaso => nota?.Estado switch
+    {
+        EstadosNotaPedido.Borrador => "Próximo paso: aprobar y publicar",
+        EstadosNotaPedido.Aprobada => "Próximo paso: publicar en el marketplace",
+        EstadosNotaPedido.Publicada => "Publicada en el marketplace",
+        _ => "Nota cerrada"
+    };
+
+    private string TextoProximoPaso
+    {
+        get
+        {
+            if (nota is null)
+            {
+                return string.Empty;
+            }
+
+            if (nota.FechaVencimiento.Date < DateTime.Today && nota.Estado != EstadosNotaPedido.Publicada)
+            {
+                return "La nota venció: editá la fecha de vencimiento para poder publicarla.";
+            }
+
+            if (!Sesion.PuedeGestionarUsuarios && nota.Estado != EstadosNotaPedido.Publicada)
+            {
+                return "La aprobación y la publicación las hace un usuario de Ventas.";
+            }
+
+            return nota.Estado switch
+            {
+                EstadosNotaPedido.Borrador => "Revisá los productos y publicala: con un clic se aprueba y queda visible para que otras empresas la coticen.",
+                EstadosNotaPedido.Aprobada => "Ya está aprobada; publicala para que otras empresas la coticen.",
+                EstadosNotaPedido.Publicada => $"Las otras empresas pueden cotizarla hasta el {nota.FechaVencimiento:dd/MM/yyyy}. Cotizaciones recibidas: {nota.CantidadCotizaciones}.",
+                _ => "La nota ya no admite cambios."
+            };
+        }
+    }
+
     private bool PuedeCancelar =>
         nota is not null
         && Sesion.PuedeGestionarUsuarios
@@ -278,6 +380,11 @@ else
     {
         Sesion.OnCambio += AlCambiarSesion;
         await Cargar();
+
+        if (PublicarSolicitado && PuedePublicar)
+        {
+            AbrirPublicacion();
+        }
 
         if (Creada)
         {
@@ -336,6 +443,69 @@ else
 
         await Cargar();
         await MostrarAviso($"Nota de pedido N.º {Id} aprobada. Ya puede publicarse en el marketplace.");
+    }
+
+    private void AbrirPublicacion()
+    {
+        if (procesando)
+        {
+            return;
+        }
+
+        errorAccion = null;
+        publicacionAbierta = true;
+    }
+
+    private void CerrarPublicacion()
+    {
+        if (!procesando)
+        {
+            publicacionAbierta = false;
+        }
+    }
+
+    /// <summary>
+    /// Publica en un solo paso: si la nota está en Borrador primero la aprueba. Si la
+    /// publicación falla después de aprobar, la nota queda Aprobada y se muestra el error.
+    /// </summary>
+    private async Task Publicar()
+    {
+        if (nota is null || procesando)
+        {
+            return;
+        }
+
+        procesando = true;
+        errorAccion = null;
+        StateHasChanged();
+
+        if (nota.Estado == EstadosNotaPedido.Borrador)
+        {
+            var aprobacion = await NotaPedidoServicio.AprobarAsync(nota.Id);
+            if (aprobacion.Error || !aprobacion.Respuesta)
+            {
+                procesando = false;
+                publicacionAbierta = false;
+                errorAccion = $"No se pudo aprobar la nota de pedido. {aprobacion.Mensaje}".Trim();
+                StateHasChanged();
+                return;
+            }
+        }
+
+        var respuesta = await NotaPedidoServicio.PublicarAsync(nota.Id);
+        procesando = false;
+        publicacionAbierta = false;
+
+        if (respuesta.Error || !respuesta.Respuesta)
+        {
+            await Cargar();
+            errorAccion = $"No se pudo publicar la nota de pedido. {respuesta.Mensaje}".Trim();
+            StateHasChanged();
+            return;
+        }
+
+        await Cargar();
+        await MostrarAviso($"Nota de pedido N.º {Id} publicada en el marketplace.");
     }
 
     private void AbrirCancelacion()

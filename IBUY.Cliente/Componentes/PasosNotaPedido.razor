@@ -1,0 +1,43 @@
+@* Recorrido de una nota de pedido: borrador, aprobada y publicada en el marketplace. *@
+
+<ol class="list-unstyled d-flex flex-column flex-md-row flex-wrap gap-2 gap-md-4 mb-0" aria-label="Pasos de la nota de pedido">
+    @for (var i = 0; i < Pasos.Length; i++)
+    {
+        var paso = Pasos[i];
+        var numero = i + 1;
+        var hecho = numero < PasoActual;
+        var actual = numero == PasoActual;
+
+        <li class="d-flex align-items-center gap-2" aria-current="@(actual ? "step" : null)">
+            <span class="badge rounded-pill d-inline-flex align-items-center justify-content-center p-2 @ClasePaso(hecho, actual)">
+                @if (hecho)
+                {
+                    <Icono Nombre="check" />
+                }
+                else
+                {
+                    @numero
+                }
+            </span>
+            <span class="@(actual ? "fw-semibold" : "text-body-secondary")">@paso</span>
+        </li>
+    }
+</ol>
+
+@code {
+    private static readonly string[] Pasos = ["Borrador", "Aprobada", "Publicada en el marketplace"];
+
+    [Parameter, EditorRequired]
+    public string Estado { get; set; } = string.Empty;
+
+    /// <summary>1 = Borrador, 2 = Aprobada, 3 = Publicada (o Cerrada).</summary>
+    private int PasoActual => Estado switch
+    {
+        EstadosNotaPedido.Borrador => 1,
+        EstadosNotaPedido.Aprobada => 2,
+        _ => 3
+    };
+
+    private static string ClasePaso(bool hecho, bool actual) =>
+        hecho ? "text-bg-success" : actual ? "text-bg-primary" : "bg-secondary-subtle text-secondary-emphasis";
+}
