@@ -109,7 +109,8 @@ namespace IBUY.Server.Controllers
             var depositoIds = usuarioDTO.DepositoIds.Distinct().ToList();
 
             var error = ValidarRol(usuarioDTO.Rol, depositoIds, out string rol)
-                ?? await ValidarRelaciones(usuarioDTO.EmpresaId, depositoIds);
+                ?? await ValidarRelaciones(usuarioDTO.EmpresaId, depositoIds)
+                ?? await ValidarEmailLibre(usuarioDTO.Email, null);
             if (error is not null)
             {
                 return BadRequest(error);
@@ -127,6 +128,18 @@ namespace IBUY.Server.Controllers
             await repositorio.InsertarConDepositos(usuario, depositoIds);
 
             return Ok(usuario.Id);
+        }
+
+        /// <summary>
+        /// El email identifica al usuario en el login, así que no puede repetirse (igual que
+        /// en el registro). En la edición se ignora el propio usuario.
+        /// </summary>
+        private async Task<string?> ValidarEmailLibre(string email, int? excluirId)
+        {
+            var existente = await repositorio.SelectPorEmail(email);
+            return existente is not null && existente.Id != excluirId
+                ? "Ya existe un usuario registrado con ese email."
+                : null;
         }
 
         [HttpPut("{id:int}")]
@@ -156,7 +169,8 @@ namespace IBUY.Server.Controllers
             // Si pasa a Ventas, la lista llega vacía y ActualizarConDepositos deja sin responsable
             // a los depósitos que tenía a cargo.
             var error = ValidarRol(usuarioDTO.Rol, depositoIds, out string rol)
-                ?? await ValidarRelaciones(usuarioDTO.EmpresaId, depositoIds);
+                ?? await ValidarRelaciones(usuarioDTO.EmpresaId, depositoIds)
+                ?? await ValidarEmailLibre(usuarioDTO.Email, id);
             if (error is not null)
             {
                 return BadRequest(error);
