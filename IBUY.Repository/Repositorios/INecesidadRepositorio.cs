@@ -28,9 +28,10 @@ namespace IBUY.Repository.Repositorios
 
         /// <summary>
         /// Crea la nota de pedido de una necesidad en una sola transacción: un ítem con el
-        /// producto y la cantidad de la necesidad, y el estado de la necesidad a "En nota".
+        /// producto de la necesidad y la cantidad indicada (por defecto, el faltante), y el
+        /// estado de la necesidad a "En nota".
         /// Devuelve la nota creada.
         /// </summary>
-        Task<NotaPedido> GenerarNotaPedido(Necesidad necesidad, NotaPedido notaPedido);
+        Task<NotaPedido> GenerarNotaPedido(Necesidad necesidad, NotaPedido notaPedido, decimal cantidadSolicitada);
     }
 }

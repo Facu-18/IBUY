@@ -1,0 +1,181 @@
+@page "/stock/{Id:int}/ajuste"
+@inject IStockServicio StockServicio
+@inject SimulacionStock Simulacion
+@inject NavigationManager Navegacion
+
+<PageTitle>Ajuste simulado · IBUY</PageTitle>
+
+<div class="mb-4">
+    <h1 class="h3 mb-1">Ajuste simulado de stock</h1>
+    <p class="text-body-secondary mb-0">
+        Prueba como quedaria el stock con un ingreso o egreso manual. No se guarda: el stock real solo cambia con remitos.
+    </p>
+</div>
+
+@if (cargando)
+{
+    <Cargando Texto="Cargando stock..." />
+}
+else if (stock is null)
+{
+    <div class="alert alert-danger" role="alert">
+        No se pudo cargar el stock. @errorCarga
+        <a class="alert-link" href="stock">Volver al stock</a>
+    </div>
+}
+else
+{
+    var actual = Simulacion.Simular(stock);
+    var resultado = Resultado(actual);
+    var mensaje = MensajeValidacion(resultado);
+
+    <div class="card shadow-sm mb-3">
+        <div class="card-body">
+            <p class="fw-semibold mb-3">@stock.ProductoNombre en @stock.DepositoNombre</p>
+
+            <div class="row g-3">
+                <div class="col-12 col-md-4">
+                    <span class="form-label d-block">Tipo de ajuste</span>
+                    <div class="btn-group" role="group" aria-label="Tipo de ajuste">
+                        <button type="button" class="btn @(esIngreso ? "btn-primary" : "btn-outline-primary")" @onclick="() => esIngreso = true">Ingreso</button>
+                        <button type="button" class="btn @(esIngreso ? "btn-outline-primary" : "btn-primary")" @onclick="() => esIngreso = false">Egreso</button>
+                    </div>
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label" for="ajuste-cantidad">Cantidad *</label>
+                    <input id="ajuste-cantidad" type="number" class="form-control" min="1" step="1" inputmode="numeric"
+                           value="@textoCantidad" @oninput="e => textoCantidad = e.Value?.ToString() ?? string.Empty" />
+                    <div class="form-text">Numero entero mayor a cero.</div>
+                    @if (mensaje is not null)
+                    {
+                        <div class="text-danger small">@mensaje</div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+        <div class="card-body">
+            <dl class="row row-cols-1 row-cols-md-3 g-3 mb-0">
+                <div class="col">
+                    <dt class="small text-uppercase text-body-secondary">Cantidad actual</dt>
+                    <dd class="mb-0">@actual.CantidadActual.ToString("0.##") <BadgeEstadoStock Estado="@actual.Estado" /></dd>
+                </div>
+                <div class="col">
+                    <dt class="small text-uppercase text-body-secondary">Cantidad minima</dt>
+                    <dd class="mb-0">@(stock.CantidadMinima > 0 ? stock.CantidadMinima.ToString("0.##") : "Sin minimo")</dd>
+                </div>
+                <div class="col">
+                    <dt class="small text-uppercase text-body-secondary">Quedaria en</dt>
+                    <dd class="mb-0">
+                        @if (resultado is decimal valor && valor >= 0)
+                        {
+                            @valor.ToString("0.##") <BadgeEstadoStock Estado="@EstadosStock.Calcular(valor, stock.CantidadMinima)" />
+                        }
+                        else
+                        {
+                            <span class="text-body-secondary">-</span>
+                        }
+                    </dd>
+                </div>
+            </dl>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-end gap-2">
+        <a class="btn btn-outline-secondary" href="@($"stock/{Id}")">Cancelar</a>
+        <button type="button" class="btn btn-primary" disabled="@(resultado is null || mensaje is not null)" @onclick="() => confirmando = true">
+            Aplicar ajuste
+        </button>
+    </div>
+
+    @if (confirmando && resultado is decimal confirmado && mensaje is null)
+    {
+        <div class="modal fade show d-block" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="confirmar-ajuste">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2 class="modal-title h5" id="confirmar-ajuste">Confirmar ajuste simulado</h2>
+                        <button type="button" class="btn-close" aria-label="Cerrar" @onclick="() => confirmando = false"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="mb-2">
+                            @(esIngreso ? "Ingreso" : "Egreso") de @CantidadIngresada en @stock.ProductoNombre (@stock.DepositoNombre):
+                            pasa de @actual.CantidadActual.ToString("0.##") a @confirmado.ToString("0.##").
+                        </p>
+                        <p class="text-body-secondary small mb-0">Es una simulacion: se ve en pantalla y en los indicadores, pero no se guarda.</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" @onclick="() => confirmando = false">Cancelar</button>
+                        <button type="button" class="btn btn-primary" @onclick="() => Aplicar(confirmado)">Confirmar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-backdrop fade show"></div>
+    }
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private StockListadoDTO? stock;
+    private bool esIngreso = true;
+    private string textoCantidad = string.Empty;
+    private bool cargando = true;
+    private bool confirmando;
+    private string? errorCarga;
+
+    /// <summary>Cantidad ingresada como entero positivo; null si no es valida.</summary>
+    private long? CantidadIngresada =>
+        long.TryParse(textoCantidad, System.Globalization.NumberStyles.None,
+            System.Globalization.CultureInfo.InvariantCulture, out var n) && n > 0 ? n : null;
+
+    private decimal? Resultado(StockListadoDTO actual) =>
+        CantidadIngresada is long cantidad
+            ? actual.CantidadActual + (esIngreso ? cantidad : -cantidad)
+            : null;
+
+    private string? MensajeValidacion(decimal? resultado)
+    {
+        if (string.IsNullOrWhiteSpace(textoCantidad))
+        {
+            return null;
+        }
+
+        if (CantidadIngresada is null)
+        {
+            return "La cantidad debe ser un numero entero mayor a cero.";
+        }
+
+        if (resultado < 0)
+        {
+            return "El egreso no puede dejar el stock en negativo.";
+        }
+
+        return null;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        cargando = true;
+        var respuesta = await StockServicio.ObtenerPorIdAsync(Id);
+        stock = respuesta.Error ? null : respuesta.Respuesta;
+        errorCarga = respuesta.Error ? respuesta.Mensaje : null;
+        cargando = false;
+    }
+
+    private void Aplicar(decimal resultado)
+    {
+        if (resultado < 0)
+        {
+            return;
+        }
+
+        Simulacion.Aplicar(Id, resultado);
+        confirmando = false;
+        Navegacion.NavigateTo($"stock/{Id}");
+    }
+}

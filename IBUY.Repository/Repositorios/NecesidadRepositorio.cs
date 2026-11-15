@@ -76,7 +76,7 @@ namespace IBUY.Repository.Repositorios
                 .ToDictionaryAsync(x => x.NecesidadId, x => x.NotaPedidoId);
         }
 
-        public async Task<NotaPedido> GenerarNotaPedido(Necesidad necesidad, NotaPedido notaPedido)
+        public async Task<NotaPedido> GenerarNotaPedido(Necesidad necesidad, NotaPedido notaPedido, decimal cantidadSolicitada)
         {
             await using var tx = await context.Database.BeginTransactionAsync();
 
@@ -84,12 +84,13 @@ namespace IBUY.Repository.Repositorios
             await context.Set<NotaPedido>().AddAsync(notaPedido);
             await context.SaveChangesAsync();
 
-            // El producto y la cantidad salen de la necesidad: el usuario no los carga.
+            // El producto sale de la necesidad; la cantidad la decide el controlador (el faltante
+            // o la que eligio el usuario).
             await context.Set<ItemNota>().AddAsync(new ItemNota
             {
                 NotaPedidoId = notaPedido.Id,
                 ProductoId = necesidad.ProductoId,
-                CantidadSolicitada = necesidad.CantidadRequerida
+                CantidadSolicitada = cantidadSolicitada
             });
 
             necesidad.Estado = EstadosNecesidad.EnNota;

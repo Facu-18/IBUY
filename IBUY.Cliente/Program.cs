@@ -11,6 +11,7 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 
 // Estado de sesion: usuario logueado, persistido en localStorage.
 builder.Services.AddSingleton<EstadoSesion>();
+builder.Services.AddSingleton<SimulacionStock>();
 
 // El HttpClient agrega X-Usuario-Id en cada request para que la API aplique permisos.
 builder.Services.AddScoped<UsuarioHeaderHandler>();
@@ -32,6 +33,7 @@ builder.Services.AddScoped<INotaPedidoServicio, NotaPedidoServicioHttp>();
 builder.Services.AddScoped<ICotizacionServicio, CotizacionServicioHttp>();
 builder.Services.AddScoped<IAuthServicio, AuthServicioHttp>();
 builder.Services.AddScoped<IRemitoServicio, RemitoServicioHttp>();
+builder.Services.AddScoped<IStockServicio, StockServicioHttp>();
 
 // La sesion se restaura antes de arrancar para que el guard no redirija a /login tras un F5.
 var host = builder.Build();

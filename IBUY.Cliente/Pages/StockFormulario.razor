@@ -1,0 +1,197 @@
+@page "/stock/nuevo"
+@inject IStockServicio StockServicio
+@inject IDepositoServicio DepositoServicio
+@inject IProductoServicio ProductoServicio
+@inject EstadoSesion Sesion
+@inject NavigationManager Navegacion
+
+<PageTitle>Cargar stock · IBUY</PageTitle>
+
+<div class="mb-4">
+    <h1 class="h3 mb-1">Cargar stock</h1>
+    <p class="text-body-secondary mb-0">
+        Carga inicial de un producto en un deposito: cuanto hay hoy y cual es el minimo.
+        Despues la cantidad se mueve con remitos.
+    </p>
+</div>
+
+@if (cargando)
+{
+    <Cargando Texto="Cargando formulario..." />
+}
+else
+{
+    @if (error is not null)
+    {
+        <div class="alert alert-danger" role="alert">@error</div>
+    }
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <fieldset disabled="@guardando">
+                <div class="row g-3">
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="stock-deposito">Deposito *</label>
+                        <select id="stock-deposito" class="form-select" @bind="depositoId" @bind:after="CargarStockDeposito">
+                            <option value="0">Seleccione el deposito</option>
+                            @foreach (var deposito in depositos)
+                            {
+                                <option value="@deposito.Id">@deposito.Nombre</option>
+                            }
+                        </select>
+                        @if (depositos.Count == 0)
+                        {
+                            <div class="form-text">No tiene depositos a cargo.</div>
+                        }
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="stock-producto">Producto *</label>
+                        <select id="stock-producto" class="form-select" @bind="productoId" disabled="@(depositoId == 0)">
+                            <option value="0">@(depositoId == 0 ? "Elija primero el deposito" : "Seleccione el producto")</option>
+                            @foreach (var producto in ProductosDisponibles)
+                            {
+                                <option value="@producto.Id">@producto.Nombre (@producto.Categoria)</option>
+                            }
+                        </select>
+                        @if (depositoId != 0 && ProductosDisponibles.Count == 0)
+                        {
+                            <div class="form-text">Todos los productos de la empresa ya tienen stock cargado en este deposito.</div>
+                        }
+                        else
+                        {
+                            <div class="form-text">Solo aparecen los productos que todavia no tienen stock en el deposito.</div>
+                        }
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="stock-actual">Cantidad actual *</label>
+                        <input id="stock-actual" type="number" class="form-control" min="0" step="1" inputmode="numeric"
+                               value="@textoActual" @onchange="e => textoActual = e.Value?.ToString() ?? string.Empty" />
+                        <div class="form-text">Lo que hay hoy en el deposito. Numero entero, 0 o mayor.</div>
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="stock-minimo-nuevo">Cantidad minima *</label>
+                        <input id="stock-minimo-nuevo" type="number" class="form-control" min="0" step="1" inputmode="numeric"
+                               value="@textoMinimo" @onchange="e => textoMinimo = e.Value?.ToString() ?? string.Empty" />
+                        <div class="form-text">Por debajo de este valor el producto se marca como bajo. 0 = sin minimo.</div>
+                    </div>
+                </div>
+
+                @if (mensajeValidacion is not null)
+                {
+                    <div class="text-danger small mt-3">@mensajeValidacion</div>
+                }
+            </fieldset>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-end gap-2 mt-3">
+        <a class="btn btn-outline-secondary" href="stock">Cancelar</a>
+        <button type="button" class="btn btn-primary" disabled="@guardando" @onclick="Guardar">
+            @(guardando ? "Guardando..." : "Cargar stock")
+        </button>
+    </div>
+}
+
+@code {
+    /// <summary>Deposito preseleccionado (desde la vista por deposito).</summary>
+    [SupplyParameterFromQuery(Name = "deposito")]
+    public int? DepositoInicial { get; set; }
+
+    private List<DepositoDTO> depositos = [];
+    private List<ProductoDTO> productos = [];
+    private HashSet<int> productosConStock = [];
+    private int depositoId;
+    private int productoId;
+    private string textoActual = "0";
+    private string textoMinimo = "0";
+    private bool cargando = true;
+    private bool guardando;
+    private string? error;
+    private string? mensajeValidacion;
+
+    private List<ProductoDTO> ProductosDisponibles =>
+        [.. productos.Where(p => !productosConStock.Contains(p.Id)).OrderBy(p => p.Nombre)];
+
+    protected override async Task OnInitializedAsync()
+    {
+        // El servidor devuelve solo los depositos que el usuario puede ver (el Encargado, los suyos).
+        var respuestaDepositos = await DepositoServicio.ObtenerTodosAsync(null);
+        depositos = [.. (respuestaDepositos.Respuesta ?? []).Where(d => d.EmpresaId == Sesion.EmpresaId)];
+
+        var respuestaProductos = await ProductoServicio.ObtenerTodosAsync(Sesion.EmpresaId);
+        productos = respuestaProductos.Respuesta ?? [];
+
+        if (respuestaDepositos.Error || respuestaProductos.Error)
+        {
+            error = $"No se pudieron cargar los depositos o productos. {respuestaDepositos.Mensaje} {respuestaProductos.Mensaje}".Trim();
+        }
+
+        if (DepositoInicial is int inicial && depositos.Any(d => d.Id == inicial))
+        {
+            depositoId = inicial;
+            await CargarStockDeposito();
+        }
+
+        cargando = false;
+    }
+
+    private async Task CargarStockDeposito()
+    {
+        productoId = 0;
+        productosConStock = [];
+
+        if (depositoId == 0)
+        {
+            return;
+        }
+
+        var respuesta = await StockServicio.ObtenerTodosAsync(depositoId);
+        productosConStock = [.. (respuesta.Respuesta ?? []).Select(s => s.ProductoId)];
+    }
+
+    private static long? AEnteroNoNegativo(string texto) =>
+        long.TryParse(texto, System.Globalization.NumberStyles.None,
+            System.Globalization.CultureInfo.InvariantCulture, out var n) ? n : null;
+
+    private async Task Guardar()
+    {
+        error = null;
+        mensajeValidacion = null;
+
+        var actual = AEnteroNoNegativo(textoActual);
+        var minimo = AEnteroNoNegativo(textoMinimo);
+
+        if (depositoId == 0 || productoId == 0)
+        {
+            mensajeValidacion = "Seleccione el deposito y el producto.";
+            return;
+        }
+
+        if (actual is null || minimo is null)
+        {
+            mensajeValidacion = "La cantidad actual y la minima deben ser numeros enteros, 0 o mayores.";
+            return;
+        }
+
+        guardando = true;
+        var respuesta = await StockServicio.CrearAsync(new StockDTO
+        {
+            DepositoId = depositoId,
+            ProductoId = productoId,
+            CantidadActual = actual.Value,
+            CantidadMinima = minimo.Value
+        });
+        guardando = false;
+
+        if (respuesta.Error)
+        {
+            error = $"No se pudo cargar el stock. {respuesta.Mensaje}".Trim();
+            return;
+        }
+
+        Navegacion.NavigateTo($"stock/{respuesta.Respuesta}");
+    }
+}

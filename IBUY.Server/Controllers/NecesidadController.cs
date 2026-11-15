@@ -312,6 +312,21 @@ namespace IBUY.Server.Controllers
                 return BadRequest($"La necesidad ya está vinculada a la nota de pedido N.º {notas[id]}.");
             }
 
+            // Se pide solo lo que el depósito que abastece no puede cubrir. El usuario puede
+            // cambiar esa cantidad, pero si el depósito ya alcanza no hace falta la nota.
+            var stockDisponible = await repositorio.ObtenerStockDisponible(necesidad.DepositoDestinoId, necesidad.ProductoId);
+            var faltante = necesidad.CantidadRequerida - stockDisponible;
+            if (faltante <= 0)
+            {
+                return BadRequest("El depósito que abastece ya tiene stock suficiente para esta necesidad.");
+            }
+
+            var cantidad = dto.CantidadSolicitada ?? faltante;
+            if (cantidad <= 0)
+            {
+                return BadRequest("La cantidad a pedir debe ser mayor a cero.");
+            }
+
             var notaPedido = new NotaPedido
             {
                 Estado = EstadosNotaPedido.Borrador,
@@ -324,7 +339,7 @@ namespace IBUY.Server.Controllers
                 NecesidadId = necesidad.Id
             };
 
-            var creada = await repositorio.GenerarNotaPedido(necesidad, notaPedido);
+            var creada = await repositorio.GenerarNotaPedido(necesidad, notaPedido, cantidad);
 
             return Ok(creada.Id);
         }

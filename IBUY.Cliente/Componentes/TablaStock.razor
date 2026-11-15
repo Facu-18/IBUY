@@ -1,0 +1,59 @@
+@* Tabla de stock: los criticos (bajo o agotado) se resaltan con el color de su estado. *@
+@inject SimulacionStock Simulacion
+
+<div class="table-responsive" role="region" aria-label="Stock" tabindex="0">
+    <table class="table table-hover align-middle mb-0">
+        <thead>
+            <tr>
+                @if (MostrarDeposito)
+                {
+                    <th scope="col">Deposito</th>
+                }
+                <th scope="col">Producto</th>
+                <th scope="col">Categoria</th>
+                <th scope="col" class="text-end">Cantidad actual</th>
+                <th scope="col" class="text-end">Cantidad minima</th>
+                <th scope="col">Estado</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var stock in Items)
+            {
+                <tr @key="stock.Id" class="@ClaseFila(stock.Estado)">
+                    @if (MostrarDeposito)
+                    {
+                        <td>@stock.DepositoNombre</td>
+                    }
+                    <td>
+                        <a class="link-primary fw-semibold text-decoration-none" href="@($"stock/{stock.Id}")">@stock.ProductoNombre</a>
+                    </td>
+                    <td><span class="badge rounded-pill bg-primary-subtle text-primary-emphasis">@stock.Categoria</span></td>
+                    <td class="text-end">
+                        @stock.CantidadActual.ToString("0.##")
+                        @if (Simulacion.EsSimulado(stock.Id))
+                        {
+                            <span class="badge rounded-pill bg-info-subtle text-info-emphasis ms-1">Simulado</span>
+                        }
+                    </td>
+                    <td class="text-end">@(stock.CantidadMinima > 0 ? stock.CantidadMinima.ToString("0.##") : "Sin minimo")</td>
+                    <td><BadgeEstadoStock Estado="@stock.Estado" /></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<StockListadoDTO> Items { get; set; } = [];
+
+    [Parameter]
+    public bool MostrarDeposito { get; set; } = true;
+
+    private static string ClaseFila(string estado) => estado switch
+    {
+        EstadosStock.Agotado => "table-danger",
+        EstadosStock.Bajo => "table-warning",
+        _ => string.Empty
+    };
+}

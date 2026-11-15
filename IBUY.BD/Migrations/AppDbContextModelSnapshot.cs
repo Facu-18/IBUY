@@ -419,6 +419,9 @@ namespace IBUY.BD.Migrations
                     b.Property<decimal>("CantidadActual")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<decimal>("CantidadMinima")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<int>("DepositoId")
                         .HasColumnType("int");
 

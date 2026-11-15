@@ -150,7 +150,7 @@ else
                         </div>
                     </dl>
                     <p class="text-body-secondary small mb-0 mt-3">
-                        Esta revision es solo informativa. La nota de pedido se carga a mano y se completa con el producto y la cantidad de la necesidad.
+                        Esta revision es solo informativa. Si no alcanza, la nota de pedido se propone por el faltante y se puede ajustar antes de generarla.
                     </p>
                 </div>
             }
@@ -169,17 +169,29 @@ else
                 </div>
                 <div class="modal-body">
                     <p class="text-body-secondary">
-                        La nota se genera con el producto y la cantidad de la necesidad.
+                        Se pide solo lo que @necesidad.DepositoDestinoNombre no puede cubrir. Podes ajustar la cantidad.
                     </p>
 
                     <dl class="row g-2 mb-3">
                         <dt class="col-5 small text-uppercase text-body-secondary">Producto</dt>
                         <dd class="col-7 fw-semibold mb-0">@necesidad.ProductoNombre</dd>
-                        <dt class="col-5 small text-uppercase text-body-secondary">Cantidad</dt>
-                        <dd class="col-7 fw-semibold mb-0">@necesidad.CantidadRequerida.ToString("0.##")</dd>
-                        <dt class="col-5 small text-uppercase text-body-secondary">Abastece</dt>
-                        <dd class="col-7 mb-0">@necesidad.DepositoDestinoNombre</dd>
+                        <dt class="col-5 small text-uppercase text-body-secondary">Requerido</dt>
+                        <dd class="col-7 mb-0">@necesidad.CantidadRequerida.ToString("0.##")</dd>
+                        @if (revision is not null)
+                        {
+                            <dt class="col-5 small text-uppercase text-body-secondary">Stock en @necesidad.DepositoDestinoNombre</dt>
+                            <dd class="col-7 mb-0">@revision.StockDisponible.ToString("0.##")</dd>
+                            <dt class="col-5 small text-uppercase text-body-secondary">Faltante</dt>
+                            <dd class="col-7 fw-semibold mb-0">@revision.Faltante.ToString("0.##")</dd>
+                        }
                     </dl>
+
+                    <div class="mb-3">
+                        <label class="form-label" for="nota-cantidad">Cantidad a pedir *</label>
+                        <input id="nota-cantidad" type="number" class="form-control" min="1" step="1" inputmode="numeric"
+                               value="@textoCantidadNota" @onchange="e => textoCantidadNota = e.Value?.ToString() ?? string.Empty" />
+                        <div class="form-text">Propuesta: el faltante. Numero entero mayor a cero.</div>
+                    </div>
 
                     @if (errorNota is not null)
                     {
@@ -248,6 +260,7 @@ else
     private bool notaAbierta;
     private bool generandoNota;
     private int usuarioId;
+    private string textoCantidadNota = string.Empty;
     private DateTime fechaVencimiento = DateTime.Today.AddDays(15);
     private string observaciones = string.Empty;
     private string? errorAccion;
@@ -312,7 +325,13 @@ else
         if (!usuariosResp.Error)
         {
             usuarios = usuariosResp.Respuesta ?? [];
-            if (usuarioId == 0 && usuarios.Count == 1)
+            // Por defecto crea la nota el usuario de la sesion (si es de la empresa).
+            var usuarioSesion = Sesion.Usuario?.UsuarioId ?? 0;
+            if (usuarioId == 0 && usuarios.Any(u => u.Id == usuarioSesion))
+            {
+                usuarioId = usuarioSesion;
+            }
+            else if (usuarioId == 0 && usuarios.Count == 1)
             {
                 usuarioId = usuarios[0].Id;
             }
@@ -334,6 +353,10 @@ else
     {
         errorNota = null;
         errorAccion = null;
+        // Se propone el faltante redondeado hacia arriba (las cantidades son enteras).
+        textoCantidadNota = revision is not null && revision.Faltante > 0
+            ? decimal.ToInt64(Math.Ceiling(revision.Faltante)).ToString()
+            : string.Empty;
         notaAbierta = true;
     }
 
@@ -364,13 +387,28 @@ else
             return;
         }
 
+        // Vacia = el servidor usa el faltante. Si se escribe algo, tiene que ser un entero > 0.
+        long? cantidad = null;
+        if (!string.IsNullOrWhiteSpace(textoCantidadNota))
+        {
+            if (!long.TryParse(textoCantidadNota, System.Globalization.NumberStyles.None,
+                    System.Globalization.CultureInfo.InvariantCulture, out var valor) || valor <= 0)
+            {
+                errorNota = "La cantidad a pedir debe ser un numero entero mayor a cero.";
+                return;
+            }
+
+            cantidad = valor;
+        }
+
         generandoNota = true;
 
         var datos = new CrearNotaDesdeNecesidadDTO
         {
             UsuarioId = usuarioId,
             FechaVencimiento = fechaVencimiento.Date,
-            Observaciones = observaciones
+            Observaciones = observaciones,
+            CantidadSolicitada = cantidad
         };
 
         var respuesta = await NecesidadServicio.GenerarNotaPedidoAsync(necesidad.Id, datos);
@@ -385,8 +423,9 @@ else
 
         notaAbierta = false;
         generandoNota = false;
-        await Cargar();
-        await MostrarAviso($"Nota de pedido N.º {respuesta.Respuesta} generada y vinculada a la necesidad.");
+
+        // Se va a la nota, donde esta el proximo paso: aprobar y publicar en el marketplace.
+        Navegacion.NavigateTo($"notas-pedido/{respuesta.Respuesta}?creada=true");
     }
 
     private async Task MarcarCubierta()
