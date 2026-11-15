@@ -111,16 +111,24 @@ else
                                     </span>
                                 </td>
                                 <td>
-                                    <div class="d-flex flex-wrap justify-content-end gap-1">
-                                        <a class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1" href="@RutaEditar(usuario.Id)">
-                                            <Icono Nombre="editar" /> Editar
-                                        </a>
-                                        <button type="button"
-                                                class="btn btn-sm @(usuario.Estado ? "btn-outline-warning" : "btn-outline-success")"
-                                                @onclick="() => AlternarEstado(usuario)">
-                                            @(usuario.Estado ? "Desactivar" : "Activar")
-                                        </button>
-                                    </div>
+                                    @if (Roles.EsSuperAdmin(usuario.Rol))
+                                    {
+                                        @* El SuperAdmin lo crea el sembrado del servidor y la API rechaza ese rol en PUT. *@
+                                        <span class="d-block text-end text-body-secondary small">Solo configuracion</span>
+                                    }
+                                    else
+                                    {
+                                        <div class="d-flex flex-wrap justify-content-end gap-1">
+                                            <a class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1" href="@RutaEditar(usuario.Id)">
+                                                <Icono Nombre="editar" /> Editar
+                                            </a>
+                                            <button type="button"
+                                                    class="btn btn-sm @(usuario.Estado ? "btn-outline-warning" : "btn-outline-success")"
+                                                    @onclick="() => AlternarEstado(usuario)">
+                                                @(usuario.Estado ? "Desactivar" : "Activar")
+                                            </button>
+                                        </div>
+                                    }
                                 </td>
                             </tr>
                         }
@@ -128,15 +136,6 @@ else
                 </table>
             </div>
         }
-    </div>
-}
-
-@if (aviso is not null)
-{
-    <div class="toast-container position-fixed bottom-0 end-0 p-3">
-        <div class="toast show text-bg-dark border-0" role="status">
-            <div class="toast-body">@aviso</div>
-        </div>
     </div>
 }
 
@@ -151,7 +150,6 @@ else
     private string rolFiltro = string.Empty;
     private bool cargando = true;
     private string? errorCarga;
-    private string? aviso;
 
     private bool enEmpresa => EmpresaId.HasValue && EmpresaId.Value > 0;
 

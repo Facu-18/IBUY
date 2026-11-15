@@ -22,8 +22,11 @@ namespace IBUY.Shared.DTO
         /// </summary>
         public const string Administrador = "Administrador";
 
-        /// <summary>Roles que se pueden asignar a un usuario desde la API (SuperAdmin solo lo crea el sembrado).</summary>
-        public static readonly string[] Asignables = [Ventas, EncargadoDeposito];
+        /// <summary>
+        /// Roles que se pueden asignar a un usuario desde la API (SuperAdmin solo lo crea el sembrado).
+        /// El orden es el que muestra el formulario de alta y edición.
+        /// </summary>
+        public static readonly string[] Asignables = [EncargadoDeposito, Ventas];
 
         public static bool EsSuperAdmin(string? rol)
         {

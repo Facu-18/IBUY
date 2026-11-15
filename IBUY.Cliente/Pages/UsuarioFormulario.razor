@@ -40,6 +40,13 @@ else
 
     <div class="card shadow-sm">
         <div class="card-body">
+            @if (esSuperAdmin)
+            {
+                <div class="alert alert-warning" role="alert">
+                    El SuperAdmin se administra desde la configuracion del servidor: no se edita desde este formulario.
+                </div>
+            }
+
             <EditForm Model="usuario" OnValidSubmit="Guardar" OnInvalidSubmit="MarcarInvalido">
                 <DataAnnotationsValidator />
 
@@ -140,13 +147,15 @@ else
                                     </div>
                                 }
                             </div>
-                            <ValidationMessage class="text-danger small" For="() => usuario!.DepositoIds" />
                         }
                         @if (!string.IsNullOrWhiteSpace(errorDepositos))
                         {
                             <div class="text-danger small mt-1">@errorDepositos</div>
                         }
-                        <div class="form-text">El encargado debe tener al menos un deposito a cargo.</div>
+                        <div class="form-text">
+                            El encargado debe tener al menos un deposito a cargo. Los depositos a cargo de
+                            otra persona se reasignan a este usuario al guardar.
+                        </div>
                     </div>
                 }
 
@@ -163,10 +172,13 @@ else
                 }
 
                 <div class="d-flex justify-content-end gap-2">
-                    <a class="btn btn-outline-secondary" href="@RutaVolver">Cancelar</a>
-                    <button type="submit" class="btn btn-primary" disabled="@guardando">
-                        @(guardando ? "Guardando..." : "Guardar")
-                    </button>
+                    <a class="btn btn-outline-secondary" href="@RutaVolver">@(esSuperAdmin ? "Volver" : "Cancelar")</a>
+                    @if (!esSuperAdmin)
+                    {
+                        <button type="submit" class="btn btn-primary" disabled="@guardando">
+                            @(guardando ? "Guardando..." : "Guardar")
+                        </button>
+                    }
                 </div>
             </EditForm>
         </div>
@@ -194,6 +206,10 @@ else
     private bool enEmpresa => EmpresaId.HasValue && EmpresaId.Value > 0;
 
     private bool esEncargado => Roles.EsEncargado(usuario?.Rol);
+
+    // El SuperAdmin solo lo crea el sembrado del servidor y la API rechaza ese rol en PUT:
+    // el formulario lo muestra sin boton de guardado para no degradarlo por error.
+    private bool esSuperAdmin => Roles.EsSuperAdmin(usuario?.Rol);
 
     private string RutaVolver => enEmpresa ? $"empresas/{EmpresaId}/usuarios" : "usuarios";
 
@@ -340,7 +356,7 @@ else
 
     private async Task Guardar()
     {
-        if (usuario is null)
+        if (usuario is null || esSuperAdmin)
         {
             return;
         }
